@@ -219,7 +219,7 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
             
             <div style={{ borderTop: '0.5px solid var(--color-border-tertiary)' }}></div>
             
-            <div className="preview-cover" style={aforo ? { background: '#EEEDFE' } : {}}>
+            <div className="preview-cover" style={aforo ? { background: 'rgba(83,74,183,0.15)' } : {}}>
               {aforo ? (
                 <span style={{ fontSize: '11px', color: '#AFA9EC' }}>{aforo} entradas</span>
               ) : (

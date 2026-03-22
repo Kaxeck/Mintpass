@@ -232,7 +232,7 @@ export default function EventDetails({ onBack, onGoToStaff }: { onBack: () => vo
             </button>
             
             <button className="action-btn" style={{marginTop: '4px', borderColor: 'var(--color-border-tertiary)'}} onClick={() => alert("Redirigiendo a Editar Evento...")}>
-              <div className="action-icon" style={{background: '#F1EFE8'}}>
+              <div className="action-icon" style={{background: 'var(--color-background-tertiary)'}}>
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M7 2v10" stroke="#5F5E5A" strokeWidth="1.2" strokeLinecap="round"/></svg>
               </div>
               <div className="action-label">

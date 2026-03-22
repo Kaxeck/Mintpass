@@ -101,13 +101,13 @@ export default function StaffPanel({ onBack }: { onBack: () => void }) {
   };
 
   return (
-    <div className="app app-dark">
+    <div className="app">
       {/* ======= NAVBAR OSCURO PARA STAFF ======= */}
-      <div className="navbar-dark">
-        <div className="nav-back-dark" onClick={onBack}>
+      <div className="navbar">
+        <div className="nav-back" onClick={onBack}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="#888" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
         </div>
-        <span className="nav-title-dark">Panel de staff</span>
+        <span className="nav-title">Panel de staff</span>
         <div className="live-chip"><div className="live-dot-staff"></div>En vivo</div>
       </div>
 

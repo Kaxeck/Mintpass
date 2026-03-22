@@ -1,6 +1,10 @@
 @import "tailwindcss";
 
+/* ==========================================================
+   VARIABLES GLOBALES Y TEMA
+   ========================================================== */
 :root {
+  /* Variables base de Solana Kit */
   --background: #ffffff;
   --foreground: oklch(0.145 0 0);
   --border-strong: oklch(0.839 0.0187 78.23);
@@ -11,10 +15,23 @@
   --card: #ffffff;
   --card-foreground: oklch(0.145 0 0);
   --radius: 0.625rem;
-  --font-sans: system-ui, sans-serif;
-  --font-mono: ui-monospace, monospace;
+  
+  /* Variables específicas de la interfaz de Mintpass */
+  --font-sans: system-ui, -apple-system, sans-serif;
+  --color-background-primary: #ffffff;
+  --color-background-secondary: #fafafa;
+  --color-background-tertiary: #f5f5f5;
+  --color-text-primary: #111827;
+  --color-text-secondary: #4b5563;
+  --color-text-tertiary: #9ca3af;
+  --color-border-primary: #d1d5db;
+  --color-border-secondary: #e5e7eb;
+  --color-border-tertiary: #f3f4f6;
+  --border-radius-md: 10px;
+  --border-radius-lg: 16px;
 }
 
+/* Soporte para modo oscuro del OS */
 @media (prefers-color-scheme: dark) {
   :root {
     --background: oklch(0.145 0 0);
@@ -26,6 +43,17 @@
     --cream: oklch(0.22 0.009 70.82);
     --card: oklch(0.205 0 0);
     --card-foreground: oklch(0.985 0 0);
+    
+    /* Adaptación de Mintpass a modo oscuro */
+    --color-background-primary: #18181b;
+    --color-background-secondary: #27272a;
+    --color-background-tertiary: #09090b;
+    --color-text-primary: #f9fafb;
+    --color-text-secondary: #d1d5db;
+    --color-text-tertiary: #9ca3af;
+    --color-border-primary: #52525b;
+    --color-border-secondary: #3f3f46;
+    --color-border-tertiary: #27272a;
   }
 }
 
@@ -59,3 +87,84 @@
     color-scheme: light dark;
   }
 }
+
+/* ==========================================================
+   ESTILOS DE COMPONENTES DE MINTPASS 
+   ========================================================== */
+
+/* Layout general */
+.app { background: var(--color-background-tertiary); min-height: 100vh; }
+.main { padding: 20px; max-width: 720px; margin: 0 auto; }
+
+/* Barra de navegación */
+.navbar { background: var(--color-background-primary); border-bottom: 0.5px solid var(--color-border-tertiary); padding: 0 20px; height: 52px; display: flex; align-items: center; justify-content: space-between; }
+.nav-brand { display: flex; align-items: center; gap: 8px; }
+.nav-logo { width: 28px; height: 28px; background: #534AB7; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+.nav-logo svg { width: 16px; height: 16px; }
+.nav-name { font-size: 15px; font-weight: 500; color: var(--color-text-primary); }
+.nav-right { display: flex; align-items: center; gap: 10px; }
+
+/* Billetera y Avatar */
+.wallet-chip { background: #EEEDFE; border: 0.5px solid #AFA9EC; border-radius: 20px; padding: 4px 12px; font-size: 12px; color: #3C3489; font-weight: 500; cursor: pointer; }
+.avatar { width: 30px; height: 30px; border-radius: 50%; background: #534AB7; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: #fff; cursor: pointer; }
+
+/* Cabecera de Página */
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.page-title { font-size: 18px; font-weight: 500; color: var(--color-text-primary); }
+.btn-primary { background: #534AB7; color: #fff; border: none; border-radius: var(--border-radius-md); padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.btn-primary:hover { background: #3C3489; }
+
+/* Grid de Estadísticas */
+.stats-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 20px; }
+.stat-card { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 14px 16px; }
+.stat-label { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px; }
+.stat-value { font-size: 22px; font-weight: 500; color: var(--color-text-primary); }
+.stat-sub { font-size: 11px; color: var(--color-text-tertiary); margin-top: 2px; }
+
+/* Controles de Filtros y Navegación (Tabs) */
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.section-title { font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
+.tab-bar { display: flex; gap: 0; border-bottom: 0.5px solid var(--color-border-tertiary); margin-bottom: 16px; }
+.ttab { font-size: 13px; padding: 8px 16px; border-bottom: 2px solid transparent; color: var(--color-text-secondary); cursor: pointer; }
+.ttab.on { color: #534AB7; border-bottom-color: #534AB7; font-weight: 500; }
+.filter-tabs { display: flex; gap: 4px; }
+.ftab { font-size: 12px; padding: 4px 10px; border-radius: 20px; border: 0.5px solid var(--color-border-tertiary); color: var(--color-text-secondary); cursor: pointer; background: var(--color-background-primary); }
+.ftab.on { background: var(--color-background-secondary); color: var(--color-text-primary); border-color: var(--color-border-secondary); }
+
+/* Tarjetas de Eventos */
+.event-list { display: flex; flex-direction: column; gap: 8px; }
+.event-card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 14px 16px; cursor: pointer; transition: border-color .15s; display: flex; gap: 14px; align-items: flex-start; }
+.event-card:hover { border-color: var(--color-border-primary); }
+
+/* Portadas de Eventos */
+.event-cover { width: 52px; height: 52px; border-radius: var(--border-radius-md); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.cover-purple { background: #EEEDFE; }
+.cover-teal   { background: #E1F5EE; }
+.cover-coral  { background: #FAECE7; }
+
+/* Contenido interno del Evento (Listado) */
+.event-info { flex: 1; min-width: 0; }
+.event-name { font-size: 14px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.event-meta { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 8px; }
+.event-bar-wrap { height: 4px; background: var(--color-background-secondary); border-radius: 2px; margin-bottom: 4px; }
+.event-bar { height: 4px; border-radius: 2px; }
+.event-bar-label { font-size: 11px; color: var(--color-text-tertiary); }
+
+/* Botones y estado de Eventos */
+.event-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+.event-price { font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
+.event-actions { display: flex; gap: 6px; margin-top: 4px; }
+
+/* Botones secundarios */
+.btn-sm { font-size: 11px; padding: 3px 10px; border-radius: 6px; border: 0.5px solid var(--color-border-tertiary); background: var(--color-background-primary); color: var(--color-text-secondary); cursor: pointer; }
+.btn-sm:hover { background: var(--color-background-secondary); color: var(--color-text-primary); }
+.btn-sm-purple { background: #EEEDFE; border-color: #AFA9EC; color: #3C3489; }
+
+/* Etiquetas de Status (Pastillas) */
+.status-pill { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 20px; }
+.s-active  { background: #E1F5EE; color: #085041; }
+.s-soon    { background: #EEEDFE; color: #3C3489; }
+.s-past    { background: #F1EFE8; color: #5F5E5A; }
+
+/* Textos informativos de listas vacías */
+.empty-state { text-align: center; padding: 40px 20px; color: var(--color-text-tertiary); font-size: 13px; }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function CreateEvent({ onBack }: { onBack: () => void }) {
+export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void, onSuccess: () => void }) {
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
   const [date, setDate] = useState('');
@@ -30,9 +30,7 @@ export default function CreateEvent({ onBack }: { onBack: () => void }) {
     setTimeout(() => {
       setCreationStep(2);
       setTimeout(() => {
-        alert("Diseña el mockup del Detalle de Evento de Mintpass con el Blink ya generado y QR para compartir");
-        setIsCreating(false);
-        setCreationStep(0);
+        onSuccess();
       }, 900);
     }, 1400);
   };

@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useWalletConnection } from "@solana/react-hooks";
 import CreateEvent from "./CreateEvent";
+import EventDetails from "./EventDetails";
 import "./index.css";
 
 export default function App() {
-  // Estado para controlar qué pantalla se muestra ("dashboard" o "create")
-  const [view, setView] = useState<'dashboard' | 'create'>('dashboard');
+  // Estado para controlar qué pantalla se muestra
+  const [view, setView] = useState<'dashboard' | 'create' | 'details'>('dashboard');
 
   // Hook de Solana para manejar la conexión de la billetera (Phantom, Solflare, etc.)
   const { connectors, connect, disconnect, wallet, status } = useWalletConnection();
@@ -99,7 +100,12 @@ export default function App() {
 
   // Renderizamos el formulario de crear si es la vista elegida
   if (view === 'create') {
-    return <CreateEvent onBack={() => setView('dashboard')} />;
+    return <CreateEvent onBack={() => setView('dashboard')} onSuccess={() => setView('details')} />;
+  }
+
+  // Renderizamos el detalle
+  if (view === 'details') {
+    return <EventDetails onBack={() => setView('dashboard')} />;
   }
 
   // De lo contrario, renderizamos el Dashboard principal
@@ -183,7 +189,7 @@ export default function App() {
             <div className="empty-state">No hay eventos en esta categoría.</div>
           ) : (
             filteredEvents.map(ev => (
-              <div className="event-card" key={ev.id}>
+              <div className="event-card" key={ev.id} onClick={() => setView('details')}>
                 <div className={`event-cover ${ev.coverClass}`} style={{ fontSize: '24px', ...ev.coverStyle }}>{ev.coverText}</div>
                 
                 <div className="event-info">

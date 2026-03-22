@@ -1,8 +1,12 @@
 import { useState } from "react";
 import { useWalletConnection } from "@solana/react-hooks";
+import CreateEvent from "./CreateEvent";
 import "./index.css";
 
 export default function App() {
+  // Estado para controlar qué pantalla se muestra ("dashboard" o "create")
+  const [view, setView] = useState<'dashboard' | 'create'>('dashboard');
+
   // Hook de Solana para manejar la conexión de la billetera (Phantom, Solflare, etc.)
   const { connectors, connect, disconnect, wallet, status } = useWalletConnection();
   
@@ -93,6 +97,12 @@ export default function App() {
     }
   };
 
+  // Renderizamos el formulario de crear si es la vista elegida
+  if (view === 'create') {
+    return <CreateEvent onBack={() => setView('dashboard')} />;
+  }
+
+  // De lo contrario, renderizamos el Dashboard principal
   return (
     <div className="app">
       {/* ======= NAVBAR ======= */}
@@ -127,7 +137,7 @@ export default function App() {
             <div className="page-title">Mis eventos</div>
             <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '2px' }}>Bienvenido, Keith</div>
           </div>
-          <button className="btn-primary" onClick={() => alert('Diseña el mockup de la pantalla Crear Evento de Mintpass')}>
+          <button className="btn-primary" onClick={() => setView('create')}>
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <path d="M7 2v10M2 7h10" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" />
             </svg>

@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import * as Icons from "lucide-react";
+import PageNav from "../components/PageNav";
 
 export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void, onSuccess: () => void }) {
   const [name, setName] = useState('');
@@ -50,15 +52,11 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
   return (
     <div className="app">
       {/* ======= NAVBAR SECUNDARIO ======= */}
-      <div className="navbar" style={{ justifyContent: 'flex-start', gap: '8px' }}>
-        <div className="nav-back" onClick={onBack}>
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="var(--color-text-secondary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-        </div>
-        <div className="nav-logo" style={{ marginRight: '4px' }}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1.5" fill="#fff"/><rect x="9" y="2" width="5" height="5" rx="1.5" fill="#fff" opacity=".6"/><rect x="2" y="9" width="5" height="5" rx="1.5" fill="#fff" opacity=".6"/><rect x="9" y="9" width="5" height="5" rx="1.5" fill="#fff" opacity=".3"/></svg>
-        </div>
-        <span className="nav-title" style={{ marginLeft: 0 }}>Crear evento</span>
-      </div>
+      <PageNav 
+        onBack={onBack} 
+        title="Crear evento" 
+        icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1.5" fill="#fff"/><rect x="9" y="2" width="5" height="5" rx="1.5" fill="#fff" opacity=".6"/><rect x="2" y="9" width="5" height="5" rx="1.5" fill="#fff" opacity=".6"/><rect x="9" y="9" width="5" height="5" rx="1.5" fill="#fff" opacity=".3"/></svg>} 
+      />
 
       {/* ======= CONTENEDOR PRINCIPAL ======= */}
       <div className="main create-event-main">
@@ -125,8 +123,8 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
             <div className="form-section">
               <div className="section-label">Imagen del evento</div>
               <div className="upload-zone" onClick={() => alert("Integración de subida de imagen de Next.js/IPFS pendiente.")}>
-                <div className="upload-icon">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 10V4M8 4L5 7M8 4l3 3" stroke="#534AB7" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M3 12h10" stroke="#534AB7" strokeWidth="1.2" strokeLinecap="round"/></svg>
+                <div className="upload-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
+                  <Icons.UploadCloud size={20} color="#534AB7" />
                 </div>
                 <div className="upload-text">Arrastra tu imagen aquí o haz click</div>
                 <div className="upload-sub">PNG, JPG — máx. 5 MB · Recomendado 1200×630 px</div>
@@ -242,10 +240,7 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
           </div>
 
           <div className="info-box" style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, marginTop: '1px' }}>
-              <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" stroke="#3C3489" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M12 16v-4M12 8h.01" stroke="#3C3489" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+            <Icons.Info size={20} color="#AFA9EC" style={{ flexShrink: 0, marginTop: '2px' }} />
             <div>
               <strong style={{ display: 'block', marginBottom: '4px' }}>Al crear tu evento:</strong>
               <ul style={{ paddingLeft: '16px', margin: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>

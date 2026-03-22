@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
-import "./index.css";
+import * as Icons from "lucide-react";
+import PageNav from "../components/PageNav";
+import "../index.css";
 
 const PERIOD = 30; // 30 segundos de vigencia del código QR
 
@@ -56,15 +58,15 @@ export default function MyTicket({ event, onBack }: { event: any, onBack: () => 
   // Obtenemos el grid del array binario del patrón actual (simulando los píxeles del QR)
   const currentPattern = patterns[patIdx];
 
+  const EventIcon = (Icons as any)[event?.icon || 'Music'] || Icons.HelpCircle;
+
   return (
     <div className="app">
-      <div className="navbar">
-        <div className="nav-back" onClick={onBack}>
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-        </div>
-        <span className="nav-title">Mi ticket</span>
-        <span className="wallet-chip">7xKf…9pQm</span>
-      </div>
+      <PageNav 
+        onBack={onBack} 
+        title="Mi ticket" 
+        rightElement={<span className="wallet-chip">7xKf…9pQm</span>} 
+      />
 
       <div className="main" style={{ maxWidth: '380px' }}>
         
@@ -72,7 +74,7 @@ export default function MyTicket({ event, onBack }: { event: any, onBack: () => 
         <div className="ticket-card">
           <div className="ticket-header" style={{ background: event?.bg || 'rgba(83,74,183,0.15)' }}>
             <div className="ticket-num">#{event?.sold ? event.sold + 1 : 157}</div>
-            <div className="ticket-event-icon">{event?.icon || '🎵'}</div>
+            <div className="ticket-event-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}><EventIcon size={36} color={event?.color || '#534AB7'} /></div>
             <div className="ticket-event-name">{event?.name || 'Noche de Jazz — CDMX'}</div>
             <div className="ticket-event-meta">{event?.date} · {event?.venue}</div>
           </div>
@@ -151,15 +153,15 @@ export default function MyTicket({ event, onBack }: { event: any, onBack: () => 
         {/* Features asociadas al ticket */}
         <div className="features-row">
           <div className="feat">
-            <div className="feat-icon">💳</div>
+            <div className="feat-icon" style={{ display: 'flex', justifyContent: 'center' }}><Icons.CreditCard size={18} color="#5DCAA5" /></div>
             <div className="feat-label">Pagos en evento</div>
           </div>
           <div className="feat">
-            <div className="feat-icon">🏅</div>
+            <div className="feat-icon" style={{ display: 'flex', justifyContent: 'center' }}><Icons.Medal size={18} color="#FAC775" /></div>
             <div className="feat-label">POAP al salir</div>
           </div>
           <div className="feat">
-            <div className="feat-icon">🗺️</div>
+            <div className="feat-icon" style={{ display: 'flex', justifyContent: 'center' }}><Icons.Map size={18} color="#7F77DD" /></div>
             <div className="feat-label">Mapa del venue</div>
           </div>
         </div>

@@ -1,0 +1,28 @@
+export interface EventModel {
+  id: number;
+  icon: string;
+  color: string;
+  bg: string;
+  name: string;
+  cat: string;
+  date: string;
+  venue: string;
+  duration: string;
+  price: number;
+  total: number;
+  sold: number;
+  coverText?: string;
+  coverClass?: string;
+  badge?: string;
+  bLabel?: string;
+  progress?: number;
+  progressColor?: string;
+  progressLabel?: string;
+  statusClass?: string;
+  statusText?: string;
+  actions?: string[];
+  primaryAction?: number;
+  meta?: string;
+  coverStyle?: any;
+  priceStyle?: any;
+}

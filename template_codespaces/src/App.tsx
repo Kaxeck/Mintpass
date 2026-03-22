@@ -1,12 +1,12 @@
 import { useState } from "react";
-import CreateEvent from "./CreateEvent";
-import EventDetails from "./EventDetails";
-import StaffPanel from "./StaffPanel";
-import OrganizerDashboard from "./OrganizerDashboard";
-import Home from "./Home";
-import BuyerPurchase from "./BuyerPurchase";
-import MyTicket from "./MyTicket";
-import { EVENTS } from "./data";
+import CreateEvent from "./pages/CreateEvent";
+import EventDetails from "./pages/EventDetails";
+import StaffPanel from "./pages/StaffPanel";
+import OrganizerDashboard from "./pages/OrganizerDashboard";
+import Home from "./pages/Home";
+import BuyerPurchase from "./pages/BuyerPurchase";
+import MyTicket from "./pages/MyTicket";
+import { EVENTS } from "./data/events";
 import "./index.css";
 
 export default function App() {

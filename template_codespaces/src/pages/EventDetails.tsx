@@ -1,31 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import * as Icons from "lucide-react";
+import PageNav from "../components/PageNav";
+import { useLiveStats } from "../hooks/useLiveStats";
 
 export default function EventDetails({ onBack, onGoToStaff }: { onBack: () => void, onGoToStaff: () => void }) {
-  // Estado para la simulación de ventas
-  const [sold, setSold] = useState(156);
-  // Estado para la simulación de check-ins
-  const [checked, setChecked] = useState(97);
+  const { sold, checked } = useLiveStats(156, 97, 200);
   // Estado para controlar el mensaje de link copiado
   const [copied, setCopied] = useState(false);
-
-  // Hook useEffect para simular el comportamiento de ventas y check-ins en tiempo real (Mockup)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const r = Math.random();
-      // 40% de probabilidad de que se venda un ticket nuevo, tope 200
-      if (r > 0.6) {
-        setSold(s => {
-          const newSold = s < 200 ? s + 1 : s;
-          // Sub-probabilidad para que alguien haga check-in
-          if (r > 0.7) {
-            setChecked(c => (c < newSold ? c + 1 : c));
-          }
-          return newSold;
-        });
-      }
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Función para simular el copiado del enlace Blink
   const handleCopy = () => {
@@ -50,13 +31,11 @@ export default function EventDetails({ onBack, onGoToStaff }: { onBack: () => vo
   return (
     <div className="app">
       {/* ======= NAVBAR SECUNDARIO ======= */}
-      <div className="navbar" style={{ justifyContent: 'flex-start', gap: '10px' }}>
-        <div className="nav-back" onClick={onBack}>
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="var(--color-text-secondary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-        </div>
-        <span className="nav-title">Noche de Jazz — CDMX</span>
-        <span className="status-pill s-active"><span className="live-dot"></span>En curso</span>
-      </div>
+      <PageNav 
+        onBack={onBack} 
+        title="Noche de Jazz — CDMX" 
+        rightElement={<span className="status-pill s-active"><span className="live-dot"></span>En curso</span>} 
+      />
 
       {/* ======= CONTENEDOR PRINCIPAL ======= */}
       <div className="main event-details-main">
@@ -66,8 +45,8 @@ export default function EventDetails({ onBack, onGoToStaff }: { onBack: () => vo
             
             {/* Cabecera visual del evento (Banner) */}
             <div className="event-hero">
-              <div className="hero-inner">
-                <span className="hero-icon">🎵</span>
+              <div className="hero-inner" style={{ gap: '6px' }}>
+                <span className="hero-icon" style={{ display: 'flex' }}><Icons.Music size={32} color="#534AB7" /></span>
                 <div style={{fontSize: '11px', color: '#AFA9EC'}}>imagen del evento</div>
               </div>
               <div className="hero-badge">
@@ -124,8 +103,8 @@ export default function EventDetails({ onBack, onGoToStaff }: { onBack: () => vo
               <div className="blink-box">
                 <div className="blink-url">fiestia.app/e/noche-jazz-cdmx-3xK7f9</div>
                 <div className="btn-row">
-                  <button className="btn-sm" onClick={handleCopy}>
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1"/><path d="M3 8H2a1 1 0 01-1-1V2a1 1 0 011-1h5a1 1 0 011 1v1" stroke="currentColor" strokeWidth="1"/></svg>
+                  <button className="btn-sm" style={{ display: 'flex', gap: '6px', alignItems: 'center' }} onClick={handleCopy}>
+                    <Icons.Copy size={12} />
                     Copiar link
                   </button>
                   <button className="btn-sm btn-teal" onClick={() => alert("Mostrando detalle Blink de compra...")}>Ver Blink ↗</button>
@@ -199,52 +178,52 @@ export default function EventDetails({ onBack, onGoToStaff }: { onBack: () => vo
             <div className="action-title">Acciones del evento</div>
             
             <button className="action-btn" onClick={onGoToStaff}>
-              <div className="action-icon ai-purple">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="2" width="4" height="4" rx="1" stroke="#534AB7" strokeWidth="1.2"/><rect x="8" y="2" width="4" height="4" rx="1" stroke="#534AB7" strokeWidth="1.2"/><rect x="2" y="8" width="4" height="4" rx="1" stroke="#534AB7" strokeWidth="1.2"/><rect x="8" y="9" width="1.5" height="3" rx=".5" fill="#534AB7"/><rect x="10.5" y="9" width="1.5" height="1.5" rx=".5" fill="#534AB7"/></svg>
+              <div className="action-icon ai-purple" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <Icons.ScanLine size={16} color="#534AB7" />
               </div>
               <div className="action-label">
                 <div style={{fontSize: '13px'}}>Panel de staff</div>
                 <div className="action-sub">Verificar entradas en puerta</div>
               </div>
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4 2l4 4-4 4" stroke="var(--color-text-tertiary)" strokeWidth="1.2" strokeLinecap="round"/></svg>
+              <Icons.ChevronRight size={14} color="var(--color-text-tertiary)" />
             </button>
             
             <button className="action-btn" onClick={() => alert("Mostrando vista Wallet intra-evento...")}>
-              <div className="action-icon ai-teal">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="3" width="12" height="8" rx="2" stroke="#0F6E56" strokeWidth="1.2"/><path d="M9 7a1 1 0 110 2 1 1 0 010-2z" fill="#0F6E56"/></svg>
+              <div className="action-icon ai-teal" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <Icons.Wallet size={16} color="#0F6E56" />
               </div>
               <div className="action-label">
                 <div style={{fontSize: '13px'}}>Wallet intra-evento</div>
                 <div className="action-sub">Pagos en barras y merch</div>
               </div>
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4 2l4 4-4 4" stroke="var(--color-text-tertiary)" strokeWidth="1.2" strokeLinecap="round"/></svg>
+              <Icons.ChevronRight size={14} color="var(--color-text-tertiary)" />
             </button>
             
             <button className="action-btn" onClick={() => alert("Mostrando vista Generar POAPs...")}>
-              <div className="action-icon ai-amber">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5" stroke="#854F0B" strokeWidth="1.2"/><path d="M5 7l1.5 1.5L9 5.5" stroke="#854F0B" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              <div className="action-icon ai-amber" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <Icons.Medal size={16} color="#854F0B" />
               </div>
               <div className="action-label">
                 <div style={{fontSize: '13px'}}>Generar POAPs</div>
                 <div className="action-sub">Mutar tickets al terminar</div>
               </div>
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4 2l4 4-4 4" stroke="var(--color-text-tertiary)" strokeWidth="1.2" strokeLinecap="round"/></svg>
+              <Icons.ChevronRight size={14} color="var(--color-text-tertiary)" />
             </button>
             
             <button className="action-btn" style={{marginTop: '4px', borderColor: 'var(--color-border-tertiary)'}} onClick={() => alert("Redirigiendo a Editar Evento...")}>
-              <div className="action-icon" style={{background: 'var(--color-background-tertiary)'}}>
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M7 2v10" stroke="#5F5E5A" strokeWidth="1.2" strokeLinecap="round"/></svg>
+              <div className="action-icon" style={{background: 'var(--color-background-tertiary)', display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
+                <Icons.Pencil size={16} color="#5F5E5A" />
               </div>
               <div className="action-label">
                 <div style={{fontSize: '13px'}}>Editar evento</div>
                 <div className="action-sub">Cambiar info o aforo</div>
               </div>
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4 2l4 4-4 4" stroke="var(--color-text-tertiary)" strokeWidth="1.2" strokeLinecap="round"/></svg>
+              <Icons.ChevronRight size={14} color="var(--color-text-tertiary)" />
             </button>
             
             <button className="action-btn" style={{color: '#A32D2D', borderColor: 'var(--color-border-tertiary)'}}>
-              <div className="action-icon ai-red">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="#A32D2D" strokeWidth="1.2" strokeLinecap="round"/></svg>
+              <div className="action-icon ai-red" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <Icons.Ban size={16} color="#A32D2D" />
               </div>
               <div className="action-label">
                 <div style={{fontSize: '13px', color: '#A32D2D'}}>Cancelar evento</div>

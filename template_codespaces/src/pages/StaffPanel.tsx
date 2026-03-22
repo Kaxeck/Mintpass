@@ -1,4 +1,6 @@
 import { useState } from "react";
+import * as Icons from "lucide-react";
+import PageNav from "../components/PageNav";
 
 export default function StaffPanel({ onBack }: { onBack: () => void }) {
   // Estados principales del escáner
@@ -103,20 +105,18 @@ export default function StaffPanel({ onBack }: { onBack: () => void }) {
   return (
     <div className="app">
       {/* ======= NAVBAR OSCURO PARA STAFF ======= */}
-      <div className="navbar">
-        <div className="nav-back" onClick={onBack}>
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="#888" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-        </div>
-        <span className="nav-title">Panel de staff</span>
-        <div className="live-chip"><div className="live-dot-staff"></div>En vivo</div>
-      </div>
+      <PageNav 
+        onBack={onBack} 
+        title="Panel de staff" 
+        rightElement={<div className="live-chip"><div className="live-dot-staff"></div>En vivo</div>} 
+      />
 
       {/* ======= CONTENEDOR PRINCIPAL ======= */}
       <div className="staff-panel-main">
         
         {/* Chips de contexto del evento */}
         <div className="event-chip">
-          <div className="chip-icon">🎵</div>
+          <div className="chip-icon" style={{ display: 'flex' }}><Icons.Music size={20} color="#534AB7" /></div>
           <div>
             <div className="chip-name">Noche de Jazz — CDMX</div>
             <div className="chip-meta">Hoy · 21:00 h · Foro Indie</div>
@@ -194,8 +194,9 @@ export default function StaffPanel({ onBack }: { onBack: () => void }) {
             <div 
               className={`btn-torch ${torchOn ? 'on' : ''}`} 
               onClick={() => setTorchOn(!torchOn)}
+              style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1v2M8 13v2M3 8H1M15 8h-2M4.2 4.2L2.8 2.8M13.2 13.2l-1.4-1.4M11.8 4.2l1.4-1.4M2.8 13.2l1.4-1.4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.2"/></svg>
+              <Icons.Flashlight size={18} color="currentColor" />
             </div>
           </div>
 
@@ -211,7 +212,7 @@ export default function StaffPanel({ onBack }: { onBack: () => void }) {
         {/* Registro en tiempo real de los escaneos (Logs) */}
         <div className="log-card">
           <div className="log-header">
-            <span className="log-title">Registro de escaneos</span>
+            <span className="log-title" style={{ display: 'flex', gap: '6px', alignItems: 'center' }}><Icons.List size={14} /> Registro de escaneos</span>
             <span className="log-clear" onClick={() => setLogs([])}>Limpiar</span>
           </div>
           <div className="log-list">

@@ -1,11 +1,8 @@
 import { useState, useEffect } from "react";
-import "./index.css";
+import * as Icons from "lucide-react";
+import "../index.css";
 
-// Interface para el evento (coincide con los campos de data.ts)
-type EventModel = {
-  id: number; icon: string; bg: string; name: string; cat: string;
-  date: string; venue: string; duration: string; price: number; total: number; sold: number;
-};
+import { EventModel } from '../types';
 
 export default function BuyerPurchase({ event, onBack, onGoToMyTicket }: { event: EventModel, onBack: () => void, onGoToMyTicket: () => void }) {
   // Manejo de pantallas internas (flujo de compra)
@@ -43,6 +40,8 @@ export default function BuyerPurchase({ event, onBack, onGoToMyTicket }: { event
     }, 900);
   };
 
+  const EventIcon = (Icons as any)[event.icon] || Icons.HelpCircle;
+
   return (
     <div className="app">
       {/* ======= HERO DEL EVENTO ======= */}
@@ -56,7 +55,7 @@ export default function BuyerPurchase({ event, onBack, onGoToMyTicket }: { event
         </div>
 
         <div className="hero-cover" style={{ background: event.bg, height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-          <div className="hero-icon" style={{ fontSize: '64px' }}>{event.icon}</div>
+          <div className="hero-icon" style={{ display: 'flex' }}><EventIcon size={64} color={event.color} /></div>
           <div className="hero-gradient" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '80px', background: 'linear-gradient(transparent, var(--color-background-primary))', pointerEvents: 'none' }}></div>
         </div>
         <div className="hero-body" style={{ padding: '16px 20px 0' }}>
@@ -133,12 +132,12 @@ export default function BuyerPurchase({ event, onBack, onGoToMyTicket }: { event
               <div className="ws-label">Conecta tu wallet para pagar</div>
               <div className="wallet-opts">
                 <div className={`wallet-opt ${wallet === 'phantom' ? 'selected' : ''}`} onClick={() => setWallet('phantom')}>
-                  <div className="wo-icon" style={{ background: 'rgba(83,74,183,0.15)' }}>👻</div>
+                  <div className="wo-icon" style={{ background: 'rgba(83,74,183,0.15)' }}><Icons.Ghost size={20} color="#7F77DD" /></div>
                   <div><div className="wo-name">Phantom</div><div className="wo-sub">La más usada en Solana</div></div>
                   <div className="wo-check">{wallet === 'phantom' && <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}</div>
                 </div>
                 <div className={`wallet-opt ${wallet === 'backpack' ? 'selected' : ''}`} onClick={() => setWallet('backpack')}>
-                  <div className="wo-icon" style={{ background: 'rgba(29,158,117,0.15)' }}>🎒</div>
+                  <div className="wo-icon" style={{ background: 'rgba(29,158,117,0.15)' }}><Icons.Backpack size={20} color="#1D9E75" /></div>
                   <div><div className="wo-name">Backpack</div><div className="wo-sub">xNFT wallet</div></div>
                   <div className="wo-check">{wallet === 'backpack' && <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}</div>
                 </div>
@@ -200,7 +199,7 @@ export default function BuyerPurchase({ event, onBack, onGoToMyTicket }: { event
               <div className="success-sub">Tu NFT-ticket está en tu wallet</div>
               
               <div className="nft-card">
-                <div className="nft-cover" style={{ background: event.bg }}>{event.icon}</div>
+                <div className="nft-cover" style={{ background: event.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><EventIcon size={32} color={event.color} /></div>
                 <div className="nft-body">
                   <div className="nft-label">NFT-ticket · Solana</div>
                   <div className="nft-name">{event.name} #{event.sold + 1}</div>

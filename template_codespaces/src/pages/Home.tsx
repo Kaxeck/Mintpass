@@ -1,6 +1,7 @@
 import { useState } from "react";
-import "./Home.css";
-import { EVENTS } from "./data";
+import * as Icons from "lucide-react";
+import "../Home.css";
+import { EVENTS } from "../data/events";
 
 export default function Home({ onGoToOrganizer, onEventClick }: { onGoToOrganizer: () => void, onEventClick: (id: number) => void }) {
   const [walletOn, setWalletOn] = useState(false);
@@ -16,7 +17,7 @@ export default function Home({ onGoToOrganizer, onEventClick }: { onGoToOrganize
       <div className="nav">
         <div className="nav-brand">
           <div className="nav-logo">
-            <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1.5" fill="#fff"/><rect x="9" y="2" width="5" height="5" rx="1.5" fill="#fff" opacity=".7"/><rect x="2" y="9" width="5" height="5" rx="1.5" fill="#fff" opacity=".7"/><rect x="9" y="9" width="5" height="5" rx="1.5" fill="#fff" opacity=".4"/></svg>
+            <Icons.Layers size={20} color="#fff" />
           </div>
           <span className="nav-name">Mintpass</span>
         </div>
@@ -44,39 +45,34 @@ export default function Home({ onGoToOrganizer, onEventClick }: { onGoToOrganize
           <button className="hbtn-main" onClick={() => document.getElementById('events-section')?.scrollIntoView({ behavior: 'smooth' })}>Ver eventos</button>
           <button className="hbtn-sec" onClick={onGoToOrganizer}>Soy organizador</button>
         </div>
-        <div className="hero-stats">
-          <div className="hs"><div className="hs-val">12</div><div className="hs-lbl">Eventos activos</div></div>
-          <div className="hs"><div className="hs-val">1,284</div><div className="hs-lbl">NFTs minteados</div></div>
-          <div className="hs"><div className="hs-val" style={{color:'#5DCAA5'}}>0%</div><div className="hs-lbl">Fraude registrado</div></div>
-        </div>
       </div>
 
       {/* Features Grid */}
       <div className="features">
         <div className="feat">
           <div className="feat-icon" style={{background:'#12122a'}}>
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="2" width="6" height="6" rx="1.5" stroke="#7F77DD" strokeWidth="1.2"/><rect x="10" y="2" width="6" height="6" rx="1.5" stroke="#7F77DD" strokeWidth="1.2" opacity=".5"/><rect x="2" y="10" width="6" height="6" rx="1.5" stroke="#7F77DD" strokeWidth="1.2" opacity=".5"/><rect x="11" y="11" width="2" height="5" rx=".5" fill="#7F77DD"/><rect x="14.5" y="11" width="2" height="2" rx=".5" fill="#7F77DD"/></svg>
+            <Icons.QrCode size={18} color="#7F77DD" />
           </div>
           <div className="feat-title">QR dinámico anti-fraude</div>
           <div className="feat-desc">El código rota cada 30 segundos. Imposible duplicar por screenshot.</div>
         </div>
         <div className="feat">
           <div className="feat-icon" style={{background:'#0a1a12'}}>
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="5" width="14" height="10" rx="2" stroke="#5DCAA5" strokeWidth="1.2"/><circle cx="12" cy="10" r="1.5" fill="#5DCAA5"/></svg>
+            <Icons.Wallet size={18} color="#5DCAA5" />
           </div>
           <div className="feat-title">Wallet intra-evento</div>
           <div className="feat-desc">Paga en barras y merch con tu mismo ticket. Sin efectivo ni apps extra.</div>
         </div>
         <div className="feat">
           <div className="feat-icon" style={{background:'#1a0a0a'}}>
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7" stroke="#F0997B" strokeWidth="1.2"/><path d="M6 9l2 2 4-4" stroke="#F0997B" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            <Icons.CheckCircle size={18} color="#F0997B" />
           </div>
           <div className="feat-title">Verificación instantánea</div>
           <div className="feat-desc">El staff escanea y en 2 segundos sabe si el ticket es válido on-chain.</div>
         </div>
         <div className="feat">
           <div className="feat-icon" style={{background:'#0a1a0a'}}>
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="7" r="3" stroke="#5DCAA5" strokeWidth="1.2"/><path d="M3 16c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="#5DCAA5" strokeWidth="1.2" strokeLinecap="round"/></svg>
+            <Icons.Medal size={18} color="#5DCAA5" />
           </div>
           <div className="feat-title">POAP coleccionable</div>
           <div className="feat-desc">Tu ticket muta en recuerdo NFT al salir. Prueba que estuviste ahí.</div>
@@ -100,10 +96,11 @@ export default function Home({ onGoToOrganizer, onEventClick }: { onGoToOrganize
             const avail = e.total - e.sold;
             const isSold = avail <= 0;
             const barColor = pct > 85 ? '#E24B4A' : pct > 60 ? '#EF9F27' : '#534AB7';
+            const EventIcon = (Icons as any)[e.icon] || Icons.HelpCircle;
             return (
               <div className="ecard" key={e.id} onClick={() => onEventClick(e.id)}>
                 <div className="ecard-cover" style={{background: e.bg}}>
-                  <span className="ecard-icon">{e.icon}</span>
+                  <span className="ecard-icon" style={{ display: 'flex' }}><EventIcon size={32} color={e.color} /></span>
                   {e.badge && <div className={`ecard-badge b-${e.badge}`}>{e.bLabel}</div>}
                   <div className="nft-chip">NFT</div>
                 </div>

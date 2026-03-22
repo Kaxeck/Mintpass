@@ -1,29 +1,30 @@
 import { useState } from "react";
-import "./index.css";
+import * as Icons from "lucide-react";
+
+import "../index.css";
 
 export default function OrganizerDashboard({ onBack, onCreate, onEventClick }: { onBack: () => void, onCreate: () => void, onEventClick: (id: number) => void }) {
   const [activeTab, setActiveTab] = useState('activos');
   const [walletOn, setWalletOn] = useState(false);
-
   const events = [
     {
       id: 1, cat: 'activos', name: 'Noche de Jazz — CDMX', meta: 'Hoy · 21:00 h · Foro Indie, Roma Norte',
-      coverText: '🎵', coverClass: 'cover-purple', progress: 78, progressColor: '#534AB7', progressLabel: '156 / 200 entradas vendidas',
+      coverText: 'Music', coverClass: 'cover-purple', progress: 78, progressColor: '#534AB7', progressLabel: '156 / 200 entradas vendidas',
       statusClass: 's-active', statusText: 'En curso', price: '0.05 SOL', actions: ['Panel staff', 'Ver QR Blink', 'Compartir'], primaryAction: 0
     },
     {
       id: 2, cat: 'proximos', name: 'Expo Diseño Independiente', meta: 'Sáb 29 Mar · 12:00 h · La Ciudadela',
-      coverText: '🎨', coverClass: 'cover-teal', progress: 34, progressColor: '#1D9E75', progressLabel: '102 / 300 entradas vendidas',
+      coverText: 'Palette', coverClass: 'cover-teal', progress: 34, progressColor: '#1D9E75', progressLabel: '102 / 300 entradas vendidas',
       statusClass: 's-soon', statusText: 'Próximo', price: 'Gratis', actions: ['Ver QR Blink', 'Editar', 'Compartir']
     },
     {
       id: 3, cat: 'proximos', name: 'Torneo Fut 7 — León', meta: 'Dom 30 Mar · 09:00 h · Unidad Deportiva',
-      coverText: '⚽', coverClass: 'cover-coral', progress: 55, progressColor: '#D85A30', progressLabel: '22 / 40 equipos registrados',
+      coverText: 'Activity', coverClass: 'cover-coral', progress: 55, progressColor: '#D85A30', progressLabel: '22 / 40 equipos registrados',
       statusClass: 's-soon', statusText: 'Próximo', price: '0.02 SOL', actions: ['Ver QR Blink', 'Editar', 'Compartir']
     },
     {
       id: 4, cat: 'pasados', name: 'Open Mic — Guadalajara', meta: '15 Mar · 127 asistentes',
-      coverText: '🎤', coverClass: '', coverStyle: { background: 'var(--color-background-tertiary)' }, progress: 100, progressColor: '#555555', progressLabel: '127 / 127 — sold out',
+      coverText: 'MicVocal', coverClass: '', coverStyle: { background: 'var(--color-background-tertiary)' }, progress: 100, progressColor: '#555555', progressLabel: '127 / 127 — sold out',
       statusClass: 's-past', statusText: 'Terminado', price: '0.03 SOL', priceStyle: { color: 'var(--color-text-tertiary)' }, actions: ['Ver POAPs', 'Estadísticas']
     }
   ];
@@ -110,9 +111,13 @@ export default function OrganizerDashboard({ onBack, onCreate, onEventClick }: {
           {filteredEvents.length === 0 ? (
             <div className="empty-state">No hay eventos en esta categoría.</div>
           ) : (
-            filteredEvents.map(ev => (
+            filteredEvents.map(ev => {
+              const EventIcon = (Icons as any)[ev.coverText] || Icons.HelpCircle;
+              return (
               <div className="event-card" key={ev.id} onClick={() => onEventClick(ev.id)}>
-                <div className={`event-cover ${ev.coverClass}`} style={{ fontSize: '24px', ...(ev.coverStyle || {}) }}>{ev.coverText}</div>
+                <div className={`event-cover ${ev.coverClass}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', ...(ev.coverStyle || {}) }}>
+                  <EventIcon size={24} color="#fff" />
+                </div>
                 
                 <div className="event-info">
                   <div className="event-name">{ev.name}</div>
@@ -141,7 +146,8 @@ export default function OrganizerDashboard({ onBack, onCreate, onEventClick }: {
                   <span className="event-price" style={ev.priceStyle || {}}>{ev.price}</span>
                 </div>
               </div>
-            ))
+            );
+          })
           )}
         </div>
       </div>

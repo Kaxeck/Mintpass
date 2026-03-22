@@ -5,12 +5,13 @@ import StaffPanel from "./StaffPanel";
 import OrganizerDashboard from "./OrganizerDashboard";
 import Home from "./Home";
 import BuyerPurchase from "./BuyerPurchase";
+import MyTicket from "./MyTicket";
 import { EVENTS } from "./data";
 import "./index.css";
 
 export default function App() {
   // Estado para controlar qué pantalla se muestra
-  const [view, setView] = useState<'home' | 'dashboard' | 'create' | 'details' | 'staff' | 'purchase'>('home');
+  const [view, setView] = useState<'home' | 'dashboard' | 'create' | 'details' | 'staff' | 'purchase' | 'myticket'>('home');
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
 
   if (view === 'home') {
@@ -29,13 +30,23 @@ export default function App() {
     return <BuyerPurchase 
       event={ev} 
       onBack={() => setView('home')} 
-      onGoToMyTicket={() => alert("Imagina: Mostrando pantalla 'Mi Ticket' con QR dinámico")} 
+      onGoToMyTicket={() => setView('myticket')} 
+    />;
+  }
+
+  // Vista del Ticket Comprado (Blink App/QR dinámico)
+  if (view === 'myticket') {
+    const ev = EVENTS.find(e => e.id === selectedEventId) || EVENTS[0];
+    return <MyTicket 
+      event={ev} 
+      onBack={() => setView('purchase')} 
     />;
   }
 
   // Vista del dashboard de organizador
   if (view === 'dashboard') {
     return <OrganizerDashboard 
+      onBack={() => setView('home')} 
       onCreate={() => setView('create')} 
       onEventClick={() => setView('details')} 
     />;

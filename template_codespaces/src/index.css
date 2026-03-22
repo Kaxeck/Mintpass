@@ -76,7 +76,7 @@
 .main { padding: 20px; max-width: 720px; margin: 0 auto; }
 
 /* Barra de navegación */
-.navbar { background: rgba(8,8,16,.9); border-bottom: 0.5px solid var(--color-border-primary); padding: 0 20px; height: 52px; display: flex; align-items: center; justify-content: space-between; }
+.navbar { background: rgba(8,8,16,.9); border-bottom: 0.5px solid var(--color-border-primary); padding: 0 28px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
 .nav-brand { display: flex; align-items: center; gap: 8px; }
 .nav-logo { width: 28px; height: 28px; background: #534AB7; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
 .nav-logo svg { width: 16px; height: 16px; }
@@ -381,6 +381,58 @@
 .btn-half { flex: 1; padding: 11px; border-radius: 12px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: background 0.2s; }
 .btn-secondary { background: var(--color-background-tertiary); color: var(--color-text-secondary); border: 0.5px solid var(--color-border-secondary); }
 .explorer-link { font-size: 11px; color: #534AB7; margin-top: 16px; cursor: pointer; display: inline-block; }
+
+/* ==========================================================
+   ESTILOS DE PANTALLA MI TICKET (BUYER)
+   ========================================================== */
+.wallet-chip { background: var(--color-background-tertiary); border: 0.5px solid var(--color-border-secondary); border-radius: 20px; padding: 3px 10px; font-size: 11px; color: var(--color-text-tertiary); font-family: var(--font-mono); }
+.ticket-card { background: var(--color-background-tertiary); border: 0.5px solid var(--color-border-secondary); border-radius: 24px; overflow: hidden; margin-bottom: 12px; position: relative; }
+.ticket-header { padding: 20px 20px 16px; text-align: center; position: relative; }
+.ticket-event-icon { font-size: 36px; margin-bottom: 8px; }
+.ticket-event-name { font-size: 17px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 4px; }
+.ticket-event-meta { font-size: 12px; color: var(--color-text-secondary); line-height: 1.6; }
+.ticket-num { position: absolute; top: 14px; right: 14px; background: #534AB7; border-radius: 20px; padding: 2px 9px; font-size: 11px; color: #fff; font-weight: 500; }
+.ticket-divider { display: flex; align-items: center; position: relative; margin: 0 -1px; }
+.ticket-cut { width: 20px; height: 20px; border-radius: 50%; background: var(--color-background-primary); border: 0.5px solid var(--color-border-secondary); flex-shrink: 0; }
+.ticket-cut-left { margin-left: -10px; }
+.ticket-cut-right { margin-right: -10px; }
+.ticket-dash { flex: 1; border-top: 1.5px dashed var(--color-border-tertiary); }
+.qr-section { padding: 20px; text-align: center; }
+.qr-label { font-size: 12px; font-weight: 500; margin-bottom: 14px; transition: color 0.3s; }
+.qr-outer { display: inline-block; background: #fff; border-radius: 16px; padding: 14px; position: relative; }
+.qr-grid { display: grid; grid-template-columns: repeat(11, 1fr); grid-template-rows: repeat(11, 1fr); gap: 2px; width: 154px; height: 154px; }
+.qc { border-radius: 1.5px; transition: background .05s; }
+.qr-logo { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 28px; height: 28px; background: #534AB7; border-radius: 6px; display: flex; align-items: center; justify-content: center; border: 2px solid #fff; }
+.timer-section { padding: 0 20px 20px; }
+.timer-bar-wrap { height: 4px; background: var(--color-background-primary); border-radius: 2px; margin-bottom: 8px; overflow: hidden; }
+.timer-bar { height: 4px; border-radius: 2px; transition: width 1s linear, background .3s; }
+.timer-footer { display: flex; align-items: center; justify-content: space-between; }
+.timer-dot { width: 6px; height: 6px; border-radius: 50%; transition: background .3s; }
+.timer-txt { font-size: 12px; color: var(--color-text-secondary); }
+.timer-secs { font-size: 12px; font-weight: 500; transition: color .3s; }
+.rotate-badge { font-size: 10px; color: var(--color-text-tertiary); }
+.ticket-footer { padding: 14px 20px; border-top: 0.5px solid var(--color-border-secondary); }
+.tf-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.tf-row:last-child { margin-bottom: 0; }
+.tf-label { font-size: 11px; color: var(--color-text-secondary); }
+.tf-value { font-size: 12px; color: var(--color-text-tertiary); font-family: var(--font-mono); }
+.tf-value-purple { color: #7F77DD; }
+.action-row { display: flex; gap: 8px; margin-bottom: 12px; }
+.act-btn { flex: 1; background: var(--color-background-tertiary); border: 0.5px solid var(--color-border-secondary); border-radius: 12px; padding: 11px; font-size: 13px; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.2s, color 0.2s; }
+.act-btn:hover { background: var(--color-background-secondary); color: var(--color-text-primary); }
+.act-btn-primary { background: rgba(83,74,183,0.1); border-color: rgba(83,74,183,0.3); color: #AFA9EC; }
+.act-btn-primary:hover { background: rgba(83,74,183,0.2); }
+.features-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; margin-bottom: 12px; }
+.feat { background: var(--color-background-tertiary); border: 0.5px solid var(--color-border-secondary); border-radius: 12px; padding: 10px 8px; text-align: center; cursor: pointer; transition: border-color .15s; }
+.feat:hover { border-color: #534AB7; }
+.feat-icon { font-size: 18px; margin-bottom: 4px; }
+.feat-label { font-size: 10px; color: var(--color-text-secondary); line-height: 1.3; }
+.nfc-banner { background: rgba(83,74,183,0.1); border: 0.5px solid rgba(83,74,183,0.3); border-radius: 12px; padding: 10px 14px; display: flex; align-items: center; gap: 10px; }
+.nfc-pulse { width: 10px; height: 10px; border-radius: 50%; background: #534AB7; flex-shrink: 0; animation: npulse 1.6s ease-in-out infinite; }
+@keyframes npulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.5);opacity:.4} }
+.nfc-text { font-size: 12px; color: #AFA9EC; flex: 1; line-height: 1.5; }
+.refresh-flash { position: absolute; inset: 0; background: rgba(83,74,183,.15); border-radius: 16px; opacity: 0; pointer-events: none; transition: opacity .15s; }
+.refresh-flash.show { opacity: 1; }
 
 /* ==========================================================
    ESTILOS DE PANEL DE STAFF

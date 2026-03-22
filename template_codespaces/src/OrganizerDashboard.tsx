@@ -1,11 +1,9 @@
-import { useWalletConnection } from "@solana/react-hooks";
 import { useState } from "react";
 import "./index.css";
 
-export default function OrganizerDashboard({ onCreate, onEventClick }: { onCreate: () => void, onEventClick: (id: number) => void }) {
-  const { connectors, connect, disconnect, wallet, status } = useWalletConnection();
-  const address = wallet?.account.address.toString();
+export default function OrganizerDashboard({ onBack, onCreate, onEventClick }: { onBack: () => void, onCreate: () => void, onEventClick: (id: number) => void }) {
   const [activeTab, setActiveTab] = useState('activos');
+  const [walletOn, setWalletOn] = useState(false);
 
   const events = [
     {
@@ -33,31 +31,32 @@ export default function OrganizerDashboard({ onCreate, onEventClick }: { onCreat
   const filteredEvents = events.filter(e => e.cat === activeTab);
 
   const handleWalletClick = () => {
-    if (address) disconnect();
-    else {
-      const targetConnector = connectors.find(c => c.id === 'phantom') || connectors[0];
-      if (targetConnector) connect(targetConnector.id);
-    }
+    setWalletOn(!walletOn);
   };
 
   return (
     <div className="app">
       <div className="navbar">
-        <div className="nav-brand">
-          <div className="nav-logo">
-            <svg viewBox="0 0 16 16" fill="none">
-              <rect x="2" y="2" width="5" height="5" rx="1.5" fill="#fff" />
-              <rect x="9" y="2" width="5" height="5" rx="1.5" fill="#fff" opacity=".6" />
-              <rect x="2" y="9" width="5" height="5" rx="1.5" fill="#fff" opacity=".6" />
-              <rect x="9" y="9" width="5" height="5" rx="1.5" fill="#fff" opacity=".3" />
-            </svg>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div className="nav-back" onClick={onBack}>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </div>
-          <span className="nav-name">Mintpass Organizador</span>
+          <div className="nav-brand">
+            <div className="nav-logo">
+              <svg viewBox="0 0 16 16" fill="none">
+                <rect x="2" y="2" width="5" height="5" rx="1.5" fill="#fff" />
+                <rect x="9" y="2" width="5" height="5" rx="1.5" fill="#fff" opacity=".6" />
+                <rect x="2" y="9" width="5" height="5" rx="1.5" fill="#fff" opacity=".6" />
+                <rect x="9" y="9" width="5" height="5" rx="1.5" fill="#fff" opacity=".3" />
+              </svg>
+            </div>
+            <span className="nav-name">Mintpass Organizador</span>
+          </div>
         </div>
         
         <div className="nav-right">
-          <div className="wallet-chip" onClick={handleWalletClick}>
-            {status === "connecting" ? "Conectando..." : address ? `${address.slice(0, 4)}…${address.slice(-4)}` : "Conectar Wallet"}
+          <div className="wallet-chip" onClick={handleWalletClick} style={{ cursor: 'pointer', borderColor: walletOn ? '#534AB7' : '', color: walletOn ? '#AFA9EC' : '' }}>
+            {walletOn ? '7xKf…9pQm' : "Conectar Wallet"}
           </div>
           <div className="avatar">KR</div>
         </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-export default function EventDetails({ onBack }: { onBack: () => void }) {
+export default function EventDetails({ onBack, onGoToStaff }: { onBack: () => void, onGoToStaff: () => void }) {
   // Estado para la simulación de ventas
   const [sold, setSold] = useState(156);
   // Estado para la simulación de check-ins
@@ -198,7 +198,7 @@ export default function EventDetails({ onBack }: { onBack: () => void }) {
           <div className="action-card">
             <div className="action-title">Acciones del evento</div>
             
-            <button className="action-btn" onClick={() => alert("Mostrando vista Panel de Staff...")}>
+            <button className="action-btn" onClick={onGoToStaff}>
               <div className="action-icon ai-purple">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="2" width="4" height="4" rx="1" stroke="#534AB7" strokeWidth="1.2"/><rect x="8" y="2" width="4" height="4" rx="1" stroke="#534AB7" strokeWidth="1.2"/><rect x="2" y="8" width="4" height="4" rx="1" stroke="#534AB7" strokeWidth="1.2"/><rect x="8" y="9" width="1.5" height="3" rx=".5" fill="#534AB7"/><rect x="10.5" y="9" width="1.5" height="1.5" rx=".5" fill="#534AB7"/></svg>
               </div>

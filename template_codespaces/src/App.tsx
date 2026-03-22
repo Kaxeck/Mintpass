@@ -2,11 +2,12 @@ import { useState } from "react";
 import { useWalletConnection } from "@solana/react-hooks";
 import CreateEvent from "./CreateEvent";
 import EventDetails from "./EventDetails";
+import StaffPanel from "./StaffPanel";
 import "./index.css";
 
 export default function App() {
   // Estado para controlar qué pantalla se muestra
-  const [view, setView] = useState<'dashboard' | 'create' | 'details'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'create' | 'details' | 'staff'>('dashboard');
 
   // Hook de Solana para manejar la conexión de la billetera (Phantom, Solflare, etc.)
   const { connectors, connect, disconnect, wallet, status } = useWalletConnection();
@@ -105,7 +106,12 @@ export default function App() {
 
   // Renderizamos el detalle
   if (view === 'details') {
-    return <EventDetails onBack={() => setView('dashboard')} />;
+    return <EventDetails onBack={() => setView('dashboard')} onGoToStaff={() => setView('staff')} />;
+  }
+
+  // Renderizamos panel staff
+  if (view === 'staff') {
+    return <StaffPanel onBack={() => setView('details')} />;
   }
 
   // De lo contrario, renderizamos el Dashboard principal

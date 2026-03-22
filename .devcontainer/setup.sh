@@ -42,8 +42,12 @@ echo "================ Wallet Address: ======================"
 echo "========================================"
 solana-keygen new --no-bip39-passphrase --outfile ~/.config/solana/id.json
 
-npx -y create-solana-dapp@latest \
-    -t solana-foundation/templates/kit/react-vite-anchor \
-    "template_codespaces"
+if [ ! -d "template_codespaces" ]; then
+    npx -y create-solana-dapp@latest \
+        -t solana-foundation/templates/kit/react-vite-anchor \
+        "template_codespaces"
+else
+    echo "✅ La carpeta 'template_codespaces' ya existe. Omitiendo la creación."
+fi
     
 echo "Entorno listo para usar!!! :D"

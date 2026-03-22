@@ -168,9 +168,13 @@ fi
 
 echo "--- Creando proyecto dApp ---"
 
-npx -y create-solana-dapp@latest \
-    -t solana-foundation/templates/kit/react-vite-anchor \
-    "template_codespaces"
+if [ ! -d "template_codespaces" ]; then
+    npx -y create-solana-dapp@latest \
+        -t solana-foundation/templates/kit/react-vite-anchor \
+        "template_codespaces"
+else
+    echo "✅ La carpeta 'template_codespaces' ya existe. Omitiendo la creación."
+fi
 
 echo "========================================"
 echo "✅ Entorno listo para usar!!! :D"

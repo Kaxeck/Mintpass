@@ -45,6 +45,7 @@ export default function App() {
 
   if (view === 'home') {
     return <Home 
+      createdEvents={createdEvents}
       onGoToOrganizer={() => setView('dashboard')} 
       onEventClick={(id: number) => {
         setSelectedEventId(id);

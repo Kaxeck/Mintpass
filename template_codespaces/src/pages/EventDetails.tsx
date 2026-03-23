@@ -228,13 +228,13 @@ export default function EventDetails({ event, stats, ownedTickets = [], onBack, 
               <Icons.ChevronRight size={14} color="var(--color-text-tertiary)" />
             </button>
             
-            <button className="action-btn" onClick={() => alert("Mostrando vista Generar POAPs...")}>
+            <button className="action-btn" onClick={() => alert("Mostrando panel de distribución masiva de POAPs para los asistentes verificados.")}>
               <div className="action-icon ai-amber" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                 <Icons.Medal size={16} color="#854F0B" />
               </div>
               <div className="action-label">
                 <div style={{fontSize: '13px'}}>Generar POAPs</div>
-                <div className="action-sub">Mutar tickets al terminar</div>
+                <div className="action-sub">Mutar tickets masivamente</div>
               </div>
               <Icons.ChevronRight size={14} color="var(--color-text-tertiary)" />
             </button>

@@ -1921,6 +1921,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "mintpass-checkin"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "litesvm",
+ "solana-sdk",
+]
+
+[[package]]
+name = "mintpass-escrow"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "litesvm",
+ "solana-sdk",
+]
+
+[[package]]
+name = "mintpass-reputation"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "litesvm",
+ "solana-sdk",
+]
+
+[[package]]
 name = "mio"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

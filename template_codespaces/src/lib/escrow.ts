@@ -32,6 +32,9 @@ export async function sendToEscrow(
     throw new Error("Transacción denegada: La wallet del comprador debe estar conectada y tener permisos para firmar.");
   }
 
+  // Log amount to prevent unused variable TS error
+  console.log(`[Escrow Mockup] Locking ${amountSol} SOL for event ${eventId}`);
+
   // 1. Derivamos la cuenta PDA oficial (Bóveda Escrow) usando las semillas [b"escrow", eventId]
   const [escrowPda] = PublicKey.findProgramAddressSync(
     [Buffer.from("escrow"), Buffer.from(eventId)],

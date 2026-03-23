@@ -103,14 +103,19 @@ export async function saveEventOnChain(
   });
 
   const transaction = new Transaction().add(instruction);
-  const { blockhash } = await connection.getLatestBlockhash("confirmed");
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("finalized");
   transaction.recentBlockhash = blockhash;
   transaction.feePayer = organizerWallet.publicKey;
 
   // El organizador firma la transacción con su wallet (Phantom/Backpack)
   const signedTx = await organizerWallet.signTransaction(transaction);
   const signature = await connection.sendRawTransaction(signedTx.serialize());
-  await connection.confirmTransaction(signature, "confirmed");
+  
+  await connection.confirmTransaction({
+    blockhash,
+    lastValidBlockHeight,
+    signature
+  }, "confirmed");
 
   console.log(`Evento guardado on-chain en PDA: ${pda.toBase58()} (tx: ${signature})`);
   return pda.toBase58();

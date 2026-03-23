@@ -7,6 +7,7 @@ import Home from "./pages/Home";
 import BuyerPurchase from "./pages/BuyerPurchase";
 import MyTicket from "./pages/MyTicket";
 import { EVENTS } from "./data/events";
+import { EventModel } from "./types";
 import "./index.css";
 
 // Claves de localStorage para persistir eventos entre sesiones
@@ -32,6 +33,22 @@ export default function App() {
 
   const [ticketMint, setTicketMint] = useState<string>('');
 
+  const [eventStats, setEventStats] = useState<Record<number, { sold: number, checked: number }>>(() => {
+    try {
+      const saved = localStorage.getItem("mintpass_event_stats");
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  const updateStats = (id: number, type: 'sold' | 'checked', amount: number) => {
+    setEventStats(prev => {
+      const current = prev[id] || { sold: 0, checked: 0 };
+      const next = { ...prev, [id]: { ...current, [type]: current[type] + amount } };
+      localStorage.setItem("mintpass_event_stats", JSON.stringify(next));
+      return next;
+    });
+  };
+
   // Cada vez que cambian los eventos creados, los persistimos en localStorage
   useEffect(() => {
     localStorage.setItem(LS_EVENTS_KEY, JSON.stringify(createdEvents));
@@ -56,11 +73,35 @@ export default function App() {
 
   // Vista de compra (Buyer)
   if (view === 'purchase') {
-    const ev = EVENTS.find(e => e.id === selectedEventId) || EVENTS[0];
+    const evCreated = createdEvents.find(e => e.id === selectedEventId);
+    let eventModel: EventModel;
+    
+    if (evCreated) {
+      eventModel = {
+         id: evCreated.id,
+         name: evCreated.name,
+         date: `${evCreated.date} · ${evCreated.time}`,
+         duration: '3h',
+         venue: evCreated.venue,
+         price: evCreated.priceType === 'free' ? 0 : evCreated.price,
+         total: evCreated.aforo,
+         sold: eventStats[evCreated.id]?.sold || 0,
+         cat: evCreated.category,
+         icon: 'Ticket',
+         bg: '#534AB7', color: '#fff'
+      };
+    } else {
+      const evDummy = EVENTS.find(e => e.id === selectedEventId) || EVENTS[0];
+      eventModel = { ...evDummy, sold: eventStats[evDummy.id]?.sold || evDummy.sold };
+    }
+
     return <BuyerPurchase 
-      event={ev} 
-      collectionMint={collectionMint}
-      onSuccessMint={(mintInfo) => setTicketMint(mintInfo)}
+      event={eventModel} 
+      collectionMint={evCreated ? evCreated.collectionMint : collectionMint}
+      onSuccessMint={(mintInfo, qty) => {
+         updateStats(eventModel.id, 'sold', qty);
+         setTicketMint(mintInfo);
+      }}
       onBack={() => setView('home')} 
       onGoToMyTicket={() => setView('myticket')} 
     />;
@@ -82,7 +123,7 @@ export default function App() {
       createdEvents={createdEvents}
       onBack={() => setView('home')} 
       onCreate={() => setView('create')} 
-      onEventClick={() => setView('details')} 
+      onEventClick={(id) => { setSelectedEventId(id); setView('details'); }} 
     />;
   }
 
@@ -101,12 +142,15 @@ export default function App() {
 
   // Detalle del evento con simulación en tiempo real (Vista del organizador)
   if (view === 'details') {
-    return <EventDetails onBack={() => setView('dashboard')} onGoToStaff={() => setView('staff')} />;
+    const ev = createdEvents.find(e => e.id === selectedEventId) || createdEvents[0];
+    if (!ev) return null;
+    return <EventDetails event={ev} stats={eventStats[ev.id]} onBack={() => setView('dashboard')} onGoToStaff={() => setView('staff')} />;
   }
 
   // Panel de Staff para escaneo de los códigos QRs
   if (view === 'staff') {
-    return <StaffPanel onBack={() => setView('details')} />;
+    const ev = createdEvents.find(e => e.id === selectedEventId) || createdEvents[0];
+    return <StaffPanel event={ev} stats={eventStats[ev?.id]} onCheckIn={() => { if(ev) updateStats(ev.id, 'checked', 1); }} onBack={() => setView('details')} />;
   }
 
   return null;

@@ -1,21 +1,19 @@
 import { useState } from "react";
 import * as Icons from "lucide-react";
 import PageNav from "../components/PageNav";
-import { useLiveStats } from "../hooks/useLiveStats";
+import { CreatedEvent } from "./CreateEvent";
 
-export default function EventDetails({ onBack, onGoToStaff }: { onBack: () => void, onGoToStaff: () => void }) {
-  const { sold, checked } = useLiveStats(156, 97, 200);
-  // Estado para controlar el mensaje de link copiado
+export default function EventDetails({ event, stats, onBack, onGoToStaff }: { event: CreatedEvent, stats?: {sold: number, checked: number}, onBack: () => void, onGoToStaff: () => void }) {
+  const sold = stats?.sold || 0;
+  const checked = stats?.checked || 0;
   const [copied, setCopied] = useState(false);
 
-  // Función para simular el copiado del enlace Blink
   const handleCopy = () => {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Cálculo del porcentaje de aforo completado
-  const pct = Math.round((sold / 200) * 100);
+  const pct = Math.round((sold / (event.aforo || 1)) * 100);
 
   // Matriz de ejemplo para renderizar un QR falso usando celdas de grid
   const qrPattern = [
@@ -33,7 +31,7 @@ export default function EventDetails({ onBack, onGoToStaff }: { onBack: () => vo
       {/* ======= NAVBAR SECUNDARIO ======= */}
       <PageNav 
         onBack={onBack} 
-        title="Noche de Jazz — CDMX" 
+        title={event.name} 
         rightElement={<span className="status-pill s-active"><span className="live-dot"></span>En curso</span>} 
       />
 
@@ -56,16 +54,16 @@ export default function EventDetails({ onBack, onGoToStaff }: { onBack: () => vo
 
             {/* Metadatos principales del evento */}
             <div className="card-section">
-              <div className="event-title">Noche de Jazz — CDMX</div>
+              <div className="event-title">{event.name}</div>
               <div className="event-meta-row">
-                <span>Hoy · 21:00 h</span>
+                <span>{event.date} · {event.time} h</span>
                 <span className="meta-dot"></span>
-                <span>Foro Indie, Roma Norte</span>
+                <span>{event.venue}</span>
               </div>
               <div className="event-meta-row">
-                <span>Música / Concierto</span>
+                <span>{event.category || 'Categoría general'}</span>
                 <span className="meta-dot"></span>
-                <span>0.05 SOL por entrada</span>
+                <span>{event.priceType === 'free' ? 'Gratis' : `${event.price} ${event.priceType.toUpperCase()} por entrada`}</span>
               </div>
             </div>
 
@@ -82,7 +80,7 @@ export default function EventDetails({ onBack, onGoToStaff }: { onBack: () => vo
                   <div className="stat-lbl">Escaneados</div>
                 </div>
                 <div className="stat">
-                  <div className="stat-val">{200 - sold}</div>
+                  <div className="stat-val">{event.aforo - sold}</div>
                   <div className="stat-lbl">Disponibles</div>
                 </div>
               </div>
@@ -236,17 +234,21 @@ export default function EventDetails({ onBack, onGoToStaff }: { onBack: () => vo
           <div className="card" style={{margin: 0}}>
             <div className="card-section">
               <div className="sec-label">Recaudación estimada</div>
-              <div style={{fontSize: '22px', fontWeight: 500, color: 'var(--color-text-primary)'}}>{(sold * 0.05).toFixed(2)} SOL</div>
-              <div style={{fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '2px'}}>{sold} tickets × 0.05 SOL</div>
+              <div style={{fontSize: '22px', fontWeight: 500, color: 'var(--color-text-primary)'}}>
+                {event.priceType === 'free' ? '0' : (sold * event.price).toFixed(2)} {event.priceType.toUpperCase()}
+              </div>
+              <div style={{fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '2px'}}>
+                {sold} tickets × {event.priceType === 'free' ? '0' : event.price} {event.priceType.toUpperCase()}
+              </div>
               <div style={{fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: '4px'}}>Sin comisiones de plataforma</div>
             </div>
             <div className="card-section">
-              <div className="sec-label">Contrato NFT</div>
+              <div className="sec-label">Contrato NFT (On-Chain)</div>
               <div style={{fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--color-text-secondary)', wordBreak: 'break-all', lineHeight: 1.6}}>
-                FiEs…7pKm<br/>
+                {event.collectionMint}<br/>
                 <span style={{color: 'var(--color-text-tertiary)'}}>Metaplex Core · devnet</span>
               </div>
-              <button className="btn-sm" style={{marginTop: '8px', fontSize: '11px'}}>Ver en Solana Explorer ↗</button>
+              <button className="btn-sm" style={{marginTop: '8px', fontSize: '11px'}} onClick={() => window.open(`https://explorer.solana.com/address/${event.collectionMint}?cluster=devnet`, '_blank')}>Ver en Solana Explorer ↗</button>
             </div>
           </div>
           

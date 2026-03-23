@@ -1,19 +1,21 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import * as Icons from "lucide-react";
 import PageNav from "../components/PageNav";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { createCheckInPDA } from "../lib/checkin-pda";
+import { CreatedEvent } from "./CreateEvent";
 import "../index.css";
-export default function StaffPanel({ onBack }: { onBack: () => void }) {
+
+export default function StaffPanel({ event, stats, onCheckIn, onBack }: { event?: CreatedEvent, stats?: {sold: number, checked: number}, onCheckIn?: () => void, onBack: () => void }) {
   // Estados principales del escáner
   const [scanning, setScanning] = useState(true);
   const [torchOn, setTorchOn] = useState(false);
   
-  // Contadores de estadísticas (Mockup)
-  const [okCount, setOkCount] = useState(97);
-  const [errCount, setErrCount] = useState(2);
-  const [dupCount, setDupCount] = useState(1);
+  // Contadores de estadísticas
+  const okCount = stats?.checked || 0;
+  const [errCount, setErrCount] = useState(0);
+  const [dupCount, setDupCount] = useState(0);
   
   // Estado para el overlay de resultados flotante
   const [resultData, setResultData] = useState<{
@@ -93,7 +95,9 @@ export default function StaffPanel({ onBack }: { onBack: () => void }) {
     });
 
     // Actualizamos estadísticas
-    if (type === 'valid') setOkCount(c => c + 1);
+    if (type === 'valid') {
+       if (onCheckIn) onCheckIn();
+    }
     else if (type === 'invalid') setErrCount(c => c + 1);
     else setDupCount(c => c + 1);
 
@@ -156,11 +160,11 @@ export default function StaffPanel({ onBack }: { onBack: () => void }) {
         <div className="event-chip">
           <div className="chip-icon" style={{ display: 'flex' }}><Icons.Music size={20} color="#534AB7" /></div>
           <div>
-            <div className="chip-name">Noche de Jazz — CDMX</div>
-            <div className="chip-meta">Hoy · 21:00 h · Foro Indie</div>
+            <div className="chip-name">{event ? event.name : "Noche de Jazz — CDMX"}</div>
+            <div className="chip-meta">{event ? `${event.date} · ${event.venue}` : "Hoy · 21:00 h · Foro Indie"}</div>
           </div>
           <div className="chip-right">
-            <div className="chip-capacity">{okCount}/200</div>
+            <div className="chip-capacity">{okCount}/{event ? event.aforo : 200}</div>
             <div className="chip-cap-lbl">ingresaron</div>
           </div>
         </div>
@@ -237,7 +241,7 @@ export default function StaffPanel({ onBack }: { onBack: () => void }) {
               <div className="strip-lbl">Duplicados</div>
             </div>
             <div className="strip-stat">
-              <div className="strip-val v-white">{Math.max(0, 200 - okCount - errCount)}</div>
+              <div className="strip-val v-white">{Math.max(0, (event ? event.aforo : 200) - okCount - errCount)}</div>
               <div className="strip-lbl">Pendientes</div>
             </div>
           </div>

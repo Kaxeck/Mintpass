@@ -105,7 +105,12 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
       }, 900);
     } catch (e: any) {
       console.error(e);
-      alert("Error ejecutando la transacción en devnet:\n" + e.message);
+      const errorMsg = e.message || String(e);
+      if (errorMsg.toLowerCase().includes("blockhash") || errorMsg.toLowerCase().includes("fund")) {
+        alert("⚠️ Error de transacción: Es muy probable que no tengas suficientes fondos (SOL de prueba) en tu wallet para pagar la cuota de la red. Por favor, solicita SOL en el Faucet de Devnet e intenta de nuevo.");
+      } else {
+        alert("Error ejecutando la transacción en devnet:\n" + errorMsg);
+      }
       setIsCreating(false);
       setCreationStep(0);
     }
@@ -192,18 +197,6 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
                 <label>Lugar / Venue *</label>
                 <input type="text" placeholder="Ej. Foro Indie, Roma Norte, CDMX" value={venue} onChange={e => setVenue(e.target.value)} />
               </div>
-            </div>
-
-            <div className="form-section">
-              <div className="section-label">Imagen del evento</div>
-              <div className="upload-zone" onClick={() => alert("Integración de subida de imagen de Next.js/IPFS pendiente.")}>
-                <div className="upload-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
-                  <Icons.UploadCloud size={20} color="#534AB7" />
-                </div>
-                <div className="upload-text">Arrastra tu imagen aquí o haz click</div>
-                <div className="upload-sub">PNG, JPG — máx. 5 MB · Recomendado 1200×630 px</div>
-              </div>
-              <div className="hint">La imagen se guarda en IPFS como parte del metadata del NFT.</div>
             </div>
 
             <div className="form-section">
@@ -309,7 +302,6 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
             </div>
             <div className="preview-footer">
               <div className="preview-price">{displayPrice}</div>
-              <button className="preview-btn">Comprar</button>
             </div>
           </div>
 
@@ -335,6 +327,9 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
               {creationStep === 0 ? 'Crear evento y generar Blink' : (creationStep === 1 ? 'Creando colección NFT...' : 'Evento creado — generando Blink...')}
             </button>
             <button className="btn-outline" onClick={onBack}>Cancelar</button>
+            <div className="hint" style={{ marginTop: '12px', textAlign: 'center', lineHeight: '1.4' }}>
+              * Al crear el evento pagarás una pequeña tarifa de red (gas) en SOL para alojar los datos de manera permanente en la blockchain.
+            </div>
           </div>
         </div>
 

@@ -6,7 +6,7 @@ import { mintTicket, getOrganizerReputation } from "../lib/metaplex";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 
-export default function BuyerPurchase({ event, collectionMint, onSuccessMint, onBack, onGoToMyTicket }: { event: EventModel, collectionMint: string, onSuccessMint: (mint: string) => void, onBack: () => void, onGoToMyTicket: () => void }) {
+export default function BuyerPurchase({ event, collectionMint, onSuccessMint, onBack, onGoToMyTicket }: { event: EventModel, collectionMint: string, onSuccessMint: (mint: string, qty: number) => void, onBack: () => void, onGoToMyTicket: () => void }) {
   const umi = useUmi();
   const wallet = useWallet();
   const { connection } = useConnection();
@@ -78,7 +78,7 @@ export default function BuyerPurchase({ event, collectionMint, onSuccessMint, on
       });
       clearInterval(interval);
       setProgressStep(4);
-      onSuccessMint(ticketMintAddr);
+      onSuccessMint(ticketMintAddr, qty);
       setTimeout(() => setScreen('success'), 600);
     } catch (e: any) {
       console.error(e);

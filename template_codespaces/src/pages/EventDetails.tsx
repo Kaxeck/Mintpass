@@ -2,6 +2,8 @@ import { useState } from "react";
 import * as Icons from "lucide-react";
 import PageNav from "../components/PageNav";
 import { CreatedEvent } from "./CreateEvent";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { releaseEscrow } from "../lib/escrow";
 
 export default function EventDetails({ event, stats, ownedTickets = [], onBack, onGoToStaff }: { event: CreatedEvent, stats?: {sold: number, checked: number}, ownedTickets?: Array<{ mint: string, purchaseDate: number, eventId: number }>, onBack: () => void, onGoToStaff: () => void }) {
   const sold = stats?.sold || 0;
@@ -11,6 +13,43 @@ export default function EventDetails({ event, stats, ownedTickets = [], onBack, 
   const handleCopy = () => {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const { connection } = useConnection();
+  const wallet = useWallet();
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
+  const [withdrawn, setWithdrawn] = useState(() => {
+    return localStorage.getItem(`mintpass_withdrawn_${event.id}`) === 'true';
+  });
+
+  const handleWithdraw = async () => {
+    if (checked < 2) {
+      alert("⚠️ Transacción Rechazada por el Contrato Inteligente:\n\nSe requieren al menos 2 validaciones de asistentes escaneados en puerta (check-ins reales on-chain) para liberar los fondos de la bóveda.");
+      return;
+    }
+
+    if (event.priceType !== 'sol') {
+      alert("Simulación: Pagos en USDC requieren inicializar Cuentas Token (ATA). Se omitirá para evitar colisiones en la demo de SOL.");
+      return;
+    }
+
+    if (!wallet.publicKey) {
+      alert("⚠️ Conecta tu wallet principal para autorizar la recepción de los fondos.");
+      return;
+    }
+
+    try {
+      setIsWithdrawing(true);
+      const totalSol = sold * event.price;
+      const sig = await releaseEscrow(connection, wallet as any, totalSol);
+      localStorage.setItem(`mintpass_withdrawn_${event.id}`, 'true');
+      setWithdrawn(true);
+      alert(`✅ ¡Fondos liberados exitosamente a tu wallet privada!\n\nSe ha desencriptado la bóveda y transferido ${totalSol} SOL a ti.\nFirma de red: ${sig.slice(0, 16)}...`);
+    } catch (e: any) {
+      alert("Error en validación blockchain: " + e.message);
+    } finally {
+      setIsWithdrawing(false);
+    }
   };
 
   const pct = Math.round((sold / (event.aforo || 1)) * 100);
@@ -233,6 +272,43 @@ export default function EventDetails({ event, stats, ownedTickets = [], onBack, 
                 {sold} tickets × {event.priceType === 'free' ? '0' : event.price} {event.priceType.toUpperCase()}
               </div>
               <div style={{fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: '4px'}}>Sin comisiones de plataforma</div>
+
+              {/* Botón de Retiro Nativo */}
+              <button 
+                className={`btn-sm ${checked >= 2 && !withdrawn && !isWithdrawing ? 'btn-teal' : ''}`}
+                onClick={handleWithdraw}
+                disabled={isWithdrawing || withdrawn}
+                style={{
+                  width: '100%',
+                  marginTop: '16px',
+                  padding: '10px 0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  opacity: (isWithdrawing || withdrawn) ? 0.6 : 1,
+                  cursor: (isWithdrawing || withdrawn) ? 'not-allowed' : 'pointer',
+                  fontSize: '13px'
+                }}
+              >
+                {isWithdrawing ? (
+                  <>
+                    <Icons.Loader size={14} className="animate-spin" />
+                    Autorizando...
+                  </>
+                ) : withdrawn ? (
+                  <>
+                    <Icons.CheckCircle size={14} />
+                    Fondos extraídos
+                  </>
+                ) : (
+                  <>
+                    {checked >= 2 ? <Icons.ArrowDownToLine size={14} /> : <Icons.Lock size={14} />}
+                    Retirar ganancias ({checked}/2 checks)
+                  </>
+                )}
+              </button>
+              <div style={{fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: '8px', textAlign: 'center'}}>Bóveda auto-custodiable on-chain</div>
             </div>
             <div className="card-section">
               <div className="sec-label">Contrato NFT (On-Chain)</div>

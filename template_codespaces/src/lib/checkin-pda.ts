@@ -25,22 +25,14 @@ export interface ScanResult {
  * @returns {Promise<boolean>} Devuelve true exclusivamente si ya se registró la entrada en blockchain.
  */
 export async function isCheckedIn(connection: Connection, mintAddress: string): Promise<boolean> {
-  let mintPubkey: PublicKey;
+  // En el Demo MVP, usamos LocalStorage para simular el PDA ya que no tenemos el programa en Rust.
+  // Esto previene dobles escaneos en la presentación si se escanea dos veces el mismo QR.
   try {
-    mintPubkey = new PublicKey(mintAddress);
+    const list = JSON.parse(localStorage.getItem('mintpass_demo_checkins') || '[]');
+    return list.includes(mintAddress);
   } catch (e) {
-    return false; // Dirección invalida
+    return false;
   }
-
-  // Se deriva la semilla combinada determinística
-  const [pda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("checkin"), mintPubkey.toBuffer()],
-    CHECKIN_PROGRAM_ID
-  );
-
-  const accountInfo = await connection.getAccountInfo(pda);
-  // Si encontramos metadata, la cuenta PDA ya fue inicializada, indicando un acceso repetido.
-  return accountInfo !== null;
 }
 
 /**
@@ -105,27 +97,13 @@ export async function createCheckInPDA(
   try {
     const mintPubkey = new PublicKey(mintAddress);
 
-    // 3. Calculamos la misma PDA en la transacción final hacia el Smart Contract.
-    const [pda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("checkin"), mintPubkey.toBuffer()],
-      CHECKIN_PROGRAM_ID
-    );
-
-    // Integramos la información on-chain que viajará al programa: { checkedIn: true, timestamp: Date.now() }
-    const payloadBuffer = Buffer.from(
-      JSON.stringify({ checkedIn: true, timestamp: Date.now() })
-    );
-
-    const instruction = new TransactionInstruction({
-      programId: CHECKIN_PROGRAM_ID,
-      keys: [
-        { pubkey: pda, isSigner: false, isWritable: true },
-        { pubkey: staffWallet.publicKey, isSigner: true, isWritable: true },
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-      ],
-      // En Anchor esto usaría serialización de layout específica (Borsh); 
-      // Aquí lo enviamos codificado nativamente a modo de ejemplo.
-      data: payloadBuffer,
+    // 3. Simulación de la Transacción del Smart Contract (Dado que CHECKIN_PROGRAM_ID no existe)
+    // Para que la wallet Phantom te pida firmar legítimamente y se apruebe una transacción real en Devnet,
+    // usamos una transferencia simbólica de 0 lamports del staff hacia sí mismo.
+    const instruction = SystemProgram.transfer({
+      fromPubkey: staffWallet.publicKey,
+      toPubkey: staffWallet.publicKey,
+      lamports: 0
     });
 
     const transaction = new Transaction().add(instruction);
@@ -137,6 +115,11 @@ export async function createCheckInPDA(
     const signedTx = await staffWallet.signTransaction(transaction);
     const signature = await connection.sendRawTransaction(signedTx.serialize());
     await connection.confirmTransaction(signature, "confirmed");
+
+    // Guardamos estatus a nivel local de forma persistente para bloquear el ticket si lo vuelven a presentar
+    const list = JSON.parse(localStorage.getItem('mintpass_demo_checkins') || '[]');
+    list.push(mintAddress);
+    localStorage.setItem('mintpass_demo_checkins', JSON.stringify(list));
 
     return {
       valid: true,

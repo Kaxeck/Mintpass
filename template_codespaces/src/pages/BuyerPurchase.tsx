@@ -86,7 +86,7 @@ export default function BuyerPurchase({ event, collectionMint, ownedTicketsCount
           date: event.date,
           venue: event.venue,
           ticketNumber: event.sold + 1,
-          imageUrl: "https://lime-accessible-woodpecker-99.mypinata.cloud/ipfs/bafkreic..."
+          imageUrl: "https://images.unsplash.com/photo-1541532713592-79a0317b6b77?q=80&w=800&auto=format&fit=crop" // Imagen VIP
         }
       });
       clearInterval(interval);

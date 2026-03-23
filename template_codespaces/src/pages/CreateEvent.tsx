@@ -64,7 +64,7 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
       const collectionAddr = await createEventCollection(umi, {
         name: name || "Evento Mintpass",
         description: desc || "Un evento seguro con tickets NFT dinámicos.",
-        imageUrl: "https://lime-accessible-woodpecker-99.mypinata.cloud/ipfs/bafkreif4xoh5gdt3j3p7hsvqmbmbgckmczxmtxy23tzjlyt3y4c4m3hsqa", // Imagen Dummy
+        imageUrl: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=800&auto=format&fit=crop", // Imagen Unsplash para la Demo
         organizerWallet: wallet.publicKey.toBase58()
       });
 

@@ -113,14 +113,10 @@ export async function mintTicket(umi: Umi, params: {
   const connection = new Connection("https://api.devnet.solana.com", "confirmed");
 
   // 2. Ejecutar pago seguro a Escrow enviando los SOL especificados de priceSol 
-  // En este demo, asignamos el ID del bundle de colección principal como la semilla del evento, y una key en "0s" al organizador flotante
-  const ORGANIZER_PLACEHOLDER = "11111111111111111111111111111111";
   await sendToEscrow(
     connection,
     params.buyerWalletObj,
-    ORGANIZER_PLACEHOLDER,
-    params.priceSol,
-    params.collectionMint // Relacionar lógicamente al mismo evento
+    params.priceSol
   );
 
   // 3. Crear el Keypair transitorio on-chain del Ticket que se convertirá en Asset Real

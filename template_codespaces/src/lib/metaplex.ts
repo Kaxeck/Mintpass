@@ -2,7 +2,7 @@ import { generateSigner, Umi, publicKey } from "@metaplex-foundation/umi";
 import { createCollection, createV1, update, fetchAsset } from "@metaplex-foundation/mpl-core";
 import { uploadMetadata } from "./pinata";
 import { sendToEscrow } from "./escrow";
-import { Connection } from "@solana/web3.js";
+import { Connection, PublicKey, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 
 /**
@@ -183,4 +183,106 @@ export async function mutateToPoap(
     name: poapName,
     uri: newMetadataUri,
   }).sendAndConfirm(umi);
+}
+
+// TODO: Modificar con la dirección pública (PROGRAM_ID) verdadera de tu Smart Contract de Reputación
+const REPUTATION_PROGRAM_ID = new PublicKey("11111111111111111111111111111111");
+
+/**
+ * Modifica o inicializa la reputación inmutable de un organizador en la blockchain interactuando con su PDA.
+ *
+ * Reglas de negocio On-Chain invocadas:
+ * - Suma 10 puntos si un evento finaliza con éxito ("success").
+ * - Resta 20 puntos si el evento es cancelado abruptamente ("cancel").
+ * - Si la cuenta PDA (score global) no existe aún en la red, el Smart Contract asume un valor de 0 inicializándolo junto con el delta aplicado.
+ *
+ * @param connection - Instancia de conexión a la red de devnet.
+ * @param organizerWallet - Interfaz de la wallet conectada que firmará y ejecutará la transacción.
+ * @param result - Calificador del flujo del evento ("success" o "cancel").
+ * @returns {Promise<void>} Transacción validada correctamente.
+ */
+export async function updateOrganizerReputation(
+  connection: Connection,
+  organizerWallet: WalletContextState,
+  result: "success" | "cancel"
+): Promise<void> {
+  if (!organizerWallet.publicKey || !organizerWallet.signTransaction) {
+    throw new Error("Transacción denegada: La firma electrónica de la wallet organizadora es necesaria.");
+  }
+
+  // Se deriva la PDA inyectando el seed "reputation" sumado al buffer de la llave del organizador
+  const [pda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("reputation"), organizerWallet.publicKey.toBuffer()],
+    REPUTATION_PROGRAM_ID
+  );
+
+  // Formulamos el buffer de datos para instruir al Programa a aplicar la matemática respectiva
+  // (En aplicaciones de Anchor, esto se hace serializando Borsh, ahora lo envuelve un JSON emulado).
+  const payloadBuffer = Buffer.from(
+    JSON.stringify({ 
+      action: "update_score", 
+      result: result // El smart contract luego sumará 10 o restará 20
+    })
+  );
+
+  const instruction = new TransactionInstruction({
+    programId: REPUTATION_PROGRAM_ID,
+    keys: [
+      { pubkey: pda, isSigner: false, isWritable: true },
+      { pubkey: organizerWallet.publicKey, isSigner: true, isWritable: true },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+    data: payloadBuffer,
+  });
+
+  const transaction = new Transaction().add(instruction);
+  const { blockhash } = await connection.getLatestBlockhash("confirmed");
+  transaction.recentBlockhash = blockhash;
+  transaction.feePayer = organizerWallet.publicKey;
+
+  const signedTx = await organizerWallet.signTransaction(transaction);
+  const signature = await connection.sendRawTransaction(signedTx.serialize());
+  await connection.confirmTransaction(signature, "confirmed");
+}
+
+/**
+ * Consulta de forma descentralizada el puntaje histórico de reputación leyendo la PDA del organizador.
+ * Al usar getAccountInfo es extremadamente rápida, nativa y libre de costos (fees).
+ * 
+ * @param connection - Instancia de conectores RPC de devnet.
+ * @param organizerWallet - String de la dirección pública objetivo del organizador analizado.
+ * @returns {Promise<number>} El puntaje actual exacto del organizador o bien 0 preventivo si no cuenta con registros.
+ */
+export async function getOrganizerReputation(
+  connection: Connection,
+  organizerWallet: string
+): Promise<number> {
+  try {
+    const organizerPubkey = new PublicKey(organizerWallet);
+    const [pda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("reputation"), organizerPubkey.toBuffer()],
+      REPUTATION_PROGRAM_ID
+    );
+
+    const accountInfo = await connection.getAccountInfo(pda);
+    
+    // Si la lectura retorna null o metadata vacía, significa que la PDA aún no se inicializó. Su score es 0
+    if (!accountInfo || !accountInfo.data) {
+      return 0;
+    }
+
+    // Leemos el score extrayendo los bytes nativos almacenados.
+    const payload = accountInfo.data.toString("utf8");
+    try {
+      // Usaremos un parseo dinámico como sustituto del tipado IDL subyacente de Anchor
+      const parsed = JSON.parse(payload);
+      return typeof parsed.score === "number" ? parsed.score : 0;
+    } catch {
+      // Si la codificación en blockchain no fue JSON, protegemos la UI devolviendo 0 o evaluando parseInt
+      return 0; 
+    }
+  } catch (e) {
+    console.error("Fallo on-chain detectando el perfil de reputación de organizador:", e);
+    return 0;
+  }
 }

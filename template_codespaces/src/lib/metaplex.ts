@@ -1,5 +1,5 @@
 import { generateSigner, Umi, publicKey } from "@metaplex-foundation/umi";
-import { createCollection, createV1 } from "@metaplex-foundation/mpl-core";
+import { createCollection, createV1, update, fetchAsset } from "@metaplex-foundation/mpl-core";
 import { uploadMetadata } from "./pinata";
 import { sendToEscrow } from "./escrow";
 import { Connection } from "@solana/web3.js";
@@ -123,4 +123,64 @@ export async function mintTicket(umi: Umi, params: {
 
   // 5. Retornar textualmente la Public Key del ticket generado como string serializado   
   return assetSigner.publicKey.toString();
+}
+
+/**
+ * Evoluciona un Asset (Ticket) previamente minteado para convertirlo en un POAP (Proof of Attendance Protocol).
+ *
+ * Esta función se ejecuta típicamente después del check-in del usuario:
+ * 1. Genera un nuevo archivo JSON de metadatos apuntando a la nueva imagen y atributos honoríficos del POAP final.
+ * 2. Lo sube de forma nativa e inmutable empleando el proveedor configurado (Pinata IPFS).
+ * 3. Actualiza el Asset original en la cadena Solana mediante la instrucción `update` de Metaplex Core,
+ *    cruzando la metadata on-chain hacia la nueva URI off-chain.
+ * El activo subyacente sigue siendo exactamente el mismo criptográficamente (mantiene su address base y owner).
+ *
+ * @param umi - Cliente UMI conectado que posea la autoridad de actualización del Asset (Update Authority/Colección).
+ * @param params - Parámetros agrupados que referencian el Mint, los datos definitivos del evento tras finalizar y la url de la estampilla POAP.
+ * @returns {Promise<void>} Una promesa silenciada que se resuelve incondicionalmente al confirmar la firma off-chain y on-chain.
+ */
+export async function mutateToPoap(
+  umi: Umi,
+  params: {
+    mintAddress: string;
+    eventData: {
+      name: string;
+      date: string;
+      venue: string;
+      ticketNumber: number;
+      totalAttendees: number;
+    };
+    poapImageUrl: string;
+  }
+): Promise<void> {
+  // Construcción del title descriptivo del logro POAP
+  const poapName = `POAP — ${params.eventData.name} · ${params.eventData.date}`;
+
+  // 1. Empaquetar y subir la nueva metadata inyectando el valor de asistencia corroborada a IPFS
+  const newMetadataUri = await uploadMetadata({
+    name: poapName,
+    description: `Este digital coleccionable POAP verifica la participación asistida y confirmada en: ${params.eventData.name}.`,
+    image: params.poapImageUrl,
+    attributes: [
+      { trait_type: "Tipo", value: "POAP" },
+      { trait_type: "Fecha", value: params.eventData.date },
+      { trait_type: "Lugar", value: params.eventData.venue },
+      { 
+        trait_type: "Asistente", 
+        value: `#${params.eventData.ticketNumber} de ${params.eventData.totalAttendees}` 
+      },
+      { trait_type: "Verificado", value: "true" },
+    ],
+  });
+
+  // 2. Transmitir el mutation update a nivel blockchain (Metaplex Core)
+  // Solo la Update Authority (que típicamente es el publicador de la Colección conectada en UMI) podrá ejecutarlo on-chain.
+  // mpl-core requiere el objeto Asset (o parcial con owner/publicKey) para derivaciones internas.
+  const coreAsset = await fetchAsset(umi, publicKey(params.mintAddress));
+
+  await update(umi, {
+    asset: coreAsset,
+    name: poapName,
+    uri: newMetadataUri,
+  }).sendAndConfirm(umi);
 }

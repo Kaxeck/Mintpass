@@ -5,8 +5,9 @@ import { useUmi } from "../providers";
 import { mintTicket, getOrganizerReputation } from "../lib/metaplex";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import AlertModal, { AlertModalProps } from "../components/AlertModal";
 
-export default function BuyerPurchase({ event, collectionMint, ownedTicketsCount = 0, onSuccessMint, onBack, onGoToMyTicket }: { event: EventModel, collectionMint: string, ownedTicketsCount?: number, onSuccessMint: (mint: string, qty: number) => void, onBack: () => void, onGoToMyTicket: () => void }) {
+export default function BuyerPurchase({ event, collectionMint, ownedTicketsCount = 0, onSuccessMint, onBack, onGoToMyTicket }: { event: EventModel, collectionMint: string, ownedTicketsCount?: number, onSuccessMint: (mints: string | string[], qty: number) => void, onBack: () => void, onGoToMyTicket: () => void }) {
   const umi = useUmi();
   const wallet = useWallet();
   const { connection } = useConnection();
@@ -15,6 +16,15 @@ export default function BuyerPurchase({ event, collectionMint, ownedTicketsCount
   const [qty, setQty] = useState(1);
   const [progressStep, setProgressStep] = useState(0);
   const [orgReputation, setOrgReputation] = useState<number | null>(null);
+
+  const [alertConfig, setAlertConfig] = useState<AlertModalProps>({ 
+    isOpen: false, title: '', message: '', type: 'info', 
+    onClose: () => setAlertConfig(p => ({...p, isOpen: false})) 
+  });
+
+  const showAlert = (title: string, message: string, type: AlertModalProps['type'], signature?: string) => {
+    setAlertConfig(prev => ({ ...prev, isOpen: true, title, message, type, signature }));
+  };
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
@@ -61,11 +71,11 @@ export default function BuyerPurchase({ event, collectionMint, ownedTicketsCount
   // Ejecuta el minteo real en la blockchain
   const startPurchase = async () => {
     if (!wallet.publicKey) {
-      alert("⚠️ Conecta tu wallet para asegurar tu entrada.");
+      showAlert("Wallet Desconectada", "Conecta tu wallet (paso 1) para asegurar y encriptar tu entrada on-chain.", "warning");
       return;
     }
     if (!collectionMint) {
-      alert("⚠️ Este evento es una demo. El organizador aún no ha lanzado su contrato on-chain.");
+      showAlert("Demo Temporal", "Este evento es una demostración. El organizador aún no ha lanzado su contrato oficial on-chain.", "info");
       return;
     }
 
@@ -77,10 +87,11 @@ export default function BuyerPurchase({ event, collectionMint, ownedTicketsCount
     }, 900);
 
     try {
-      const ticketMintAddr = await mintTicket(umi, {
+      const ticketMints = await mintTicket(umi, {
         collectionMint,
         buyerWalletObj: wallet as any,
         priceSol: qty * event.price,
+        qty: qty,
         eventData: {
           name: event.name,
           date: event.date,
@@ -91,12 +102,12 @@ export default function BuyerPurchase({ event, collectionMint, ownedTicketsCount
       });
       clearInterval(interval);
       setProgressStep(4);
-      onSuccessMint(ticketMintAddr, qty);
+      onSuccessMint(ticketMints, qty);
       setTimeout(() => setScreen('success'), 600);
     } catch (e: any) {
       console.error(e);
       clearInterval(interval);
-      alert("Error en la transacción:\n" + e.message);
+      showAlert("Error de Transacción", "La compra no pudo ser procesada en la red:\n" + e.message, "error");
       setScreen('buy');
     }
   };
@@ -407,6 +418,7 @@ export default function BuyerPurchase({ event, collectionMint, ownedTicketsCount
         </div>
       )}
 
+      <AlertModal {...alertConfig} />
     </div>
   );
 }

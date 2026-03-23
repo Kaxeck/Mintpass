@@ -9,6 +9,7 @@ import BuyerPurchase from "./pages/BuyerPurchase";
 import MyTicket from "./pages/MyTicket";
 import { EVENTS } from "./data/events";
 import { EventModel } from "./types";
+import { useWallet } from "@solana/wallet-adapter-react";
 import "./index.css";
 
 // Claves de localStorage para persistir eventos entre sesiones
@@ -16,6 +17,9 @@ const LS_EVENTS_KEY = "mintpass_created_events";
 const LS_COLLECTION_KEY = "mintpass_last_collection";
 
 export default function App() {
+  const wallet = useWallet();
+  const currentWalletPk = wallet?.publicKey?.toBase58() || "unconnected";
+
   // Estado para controlar qué pantalla se muestra
   const [view, setView] = useState<'home' | 'dashboard' | 'create' | 'details' | 'staff' | 'purchase' | 'myticket' | 'ticketslist'>('home');
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
@@ -34,7 +38,7 @@ export default function App() {
 
   const [ticketMint, setTicketMint] = useState<string>('');
 
-  const [ownedTickets, setOwnedTickets] = useState<Array<{ eventId: number; mint: string; purchaseDate: number; readonly?: boolean }>>(() => {
+  const [ownedTickets, setOwnedTickets] = useState<Array<{ eventId: number; mint: string; purchaseDate: number; readonly?: boolean; owner?: string }>>(() => {
     try {
       const saved = localStorage.getItem("mintpass_owned_tickets");
       return saved ? JSON.parse(saved) : [];
@@ -108,13 +112,21 @@ export default function App() {
     return <BuyerPurchase 
       event={eventModel} 
       collectionMint={evCreated ? evCreated.collectionMint : collectionMint}
-      ownedTicketsCount={ownedTickets.filter(t => t.eventId === eventModel.id).length}
-      onSuccessMint={(mintInfo, qty) => {
+      ownedTicketsCount={ownedTickets.filter(t => t.eventId === eventModel.id && t.owner === currentWalletPk).length}
+      onSuccessMint={(mintInfos, qty) => {
          updateStats(eventModel.id, 'sold', qty);
-         setTicketMint(mintInfo);
-         const newTicket = { eventId: eventModel.id, mint: mintInfo, purchaseDate: Date.now() };
+         
+         // Normalizamos mintInfos para que siempre iteremos un arreglo (array)
+         const mintsArray = Array.isArray(mintInfos) ? mintInfos : [mintInfos];
+         
+         // Actualizamos el ticket actual (usaremos el primero para mostrar el QR inmediato)
+         setTicketMint(mintsArray[0]);
+
          setOwnedTickets(prev => {
-            const next = [...prev, newTicket];
+            const next = [...prev];
+            mintsArray.forEach(mintInfo => {
+               next.push({ eventId: eventModel.id, mint: mintInfo, purchaseDate: Date.now(), owner: currentWalletPk });
+            });
             localStorage.setItem("mintpass_owned_tickets", JSON.stringify(next));
             return next;
          });
@@ -137,8 +149,9 @@ export default function App() {
   // Lista de Tickets de la Wallet
   if (view === 'ticketslist') {
     const allEvents = [...EVENTS, ...createdEvents];
+    const myTickets = ownedTickets.filter(t => t.owner === currentWalletPk);
     return <TicketsList 
-       tickets={ownedTickets} 
+       tickets={myTickets} 
        allEvents={allEvents} 
        onBack={() => setView('home')} 
        onTicketClick={(mint) => {

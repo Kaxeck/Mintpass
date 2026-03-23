@@ -1,4 +1,4 @@
-import { generateSigner, Umi, publicKey, createSignerFromKeypair } from "@metaplex-foundation/umi";
+import { generateSigner, Umi, publicKey, createSignerFromKeypair, transactionBuilder } from "@metaplex-foundation/umi";
 import { createCollection, createV1, update, fetchAsset } from "@metaplex-foundation/mpl-core";
 import { uploadMetadata } from "./pinata";
 import { sendToEscrow } from "./escrow";
@@ -93,50 +93,55 @@ export async function mintTicket(umi: Umi, params: {
   collectionMint: string;
   buyerWalletObj: WalletContextState;
   priceSol: number;
+  qty: number;
   eventData: { name: string; date: string; venue: string; ticketNumber: number; imageUrl: string };
-}): Promise<string> {
-  const ticketName = `${params.eventData.name} #${params.eventData.ticketNumber}`;
-
-  // 1. Subir metadata del ticket a IPFS respetando la interfaz de lib/pinata.ts
+}): Promise<string[]> {
+  // 1. Subir metadata genérica para acelerar el minteo de múltiples tickets
   const metadataUri = await uploadMetadata({
-    name: ticketName,
+    name: `${params.eventData.name} Ticket`,
     description: `Ticket de entrada oficial para ${params.eventData.name}`,
     image: params.eventData.imageUrl,
     attributes: [
       { trait_type: "Fecha", value: params.eventData.date },
-      { trait_type: "Lugar", value: params.eventData.venue },
-      { trait_type: "Silla/Número", value: params.eventData.ticketNumber.toString() },
+      { trait_type: "Lugar", value: params.eventData.venue }
     ],
   });
 
-  // Habilitamos estrictamente la conexión local del backend proxy a devnet para firmar el bloqueo
+  // Habilitamos conexión local
   const connection = new Connection("https://api.devnet.solana.com", "confirmed");
 
-  // 2. Ejecutar pago seguro a Escrow enviando los SOL especificados de priceSol 
+  // 2. Ejecutar pago seguro a Escrow enviando los SOL especificados
   await sendToEscrow(
     connection,
     params.buyerWalletObj,
     params.priceSol
   );
 
-  // 3. Crear el Keypair transitorio on-chain del Ticket que se convertirá en Asset Real
-  const assetSigner = generateSigner(umi);
-
-  // 4. Utilizar createV1 de @metaplex-foundation/mpl-core para acuñar este Asset.
-  // Ahora Inyectamos el Asset DENTRO de la Colección usando la Firma del Master Signer del Backend.
+  // 3. Crear el builder de transacciones en lote (Batch)
   const appMasterSigner = getMasterSigner(umi);
+  let builder = transactionBuilder();
+  const mints: string[] = [];
 
-  await createV1(umi, {
-    asset: assetSigner,
-    collection: publicKey(params.collectionMint),
-    name: ticketName,
-    uri: metadataUri,
-    owner: publicKey(params.buyerWalletObj.publicKey!.toBase58()), // Envío directo a la wallet del cliente
-    authority: appMasterSigner, // Firma del servidor autorizando que este Asset entre a la colección
-  }).sendAndConfirm(umi);
+  for (let i = 0; i < params.qty; i++) {
+    const assetSigner = generateSigner(umi);
+    const ticketName = `${params.eventData.name} #${params.eventData.ticketNumber + i}`;
 
-  // 5. Retornar textualmente la Public Key del ticket generado como string serializado   
-  return assetSigner.publicKey.toString();
+    builder = builder.add(createV1(umi, {
+      asset: assetSigner,
+      collection: publicKey(params.collectionMint),
+      name: ticketName,
+      uri: metadataUri,
+      owner: publicKey(params.buyerWalletObj.publicKey!.toBase58()),
+      authority: appMasterSigner,
+    }));
+
+    mints.push(assetSigner.publicKey.toString());
+  }
+
+  // 4. Mandamos todos los tickets a acuñar en la misma transacción (1 sola firma del usuario) 
+  await builder.sendAndConfirm(umi);
+
+  return mints;
 }
 
 /**

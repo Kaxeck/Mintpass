@@ -5,6 +5,7 @@ import { useUmi } from "../providers";
 import { createEventCollection } from "../lib/metaplex";
 import { saveEventOnChain } from "../lib/event-pda";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
+import AlertModal, { AlertModalProps } from "../components/AlertModal";
 
 // Interfaz compartida para los eventos creados on-chain
 export interface CreatedEvent {
@@ -20,6 +21,7 @@ export interface CreatedEvent {
   priceType: 'free' | 'sol' | 'usdc';
   price: number;
   limitPerWallet?: number;
+  organizerWallet?: string;
   createdAt: number; // timestamp
 }
 
@@ -46,13 +48,22 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
   const [isCreating, setIsCreating] = useState(false);
   const [creationStep, setCreationStep] = useState(0);
 
+  const [alertConfig, setAlertConfig] = useState<AlertModalProps>({ 
+    isOpen: false, title: '', message: '', type: 'info', 
+    onClose: () => setAlertConfig(p => ({...p, isOpen: false})) 
+  });
+
+  const showAlert = (title: string, message: string, type: AlertModalProps['type']) => {
+    setAlertConfig(prev => ({ ...prev, isOpen: true, title, message, type }));
+  };
+
   // Validar si el formulario mínimo está lleno
   const isFilled = name && date && venue && aforo;
 
   // Lógica para comunicarse on-chain con el programa de Solana
   const handleCreate = async () => {
     if (!wallet.publicKey) {
-      alert("⚠️ Conecta tu wallet en la barra lateral primero para lanzar el contrato del evento.");
+      showAlert("Wallet Desconectada", "Conecta tu wallet en la barra principal primero para lanzar el contrato del evento en la blockchain.", "warning");
       return;
     }
 
@@ -102,6 +113,7 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
         // Regresamos el evento completo con todos sus datos al App.tsx
         onSuccess({
           id: Date.now(),
+          organizerWallet: wallet.publicKey?.toBase58(),
           ...eventDataOnChain
         });
       }, 900);
@@ -109,9 +121,9 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
       console.error(e);
       const errorMsg = e.message || String(e);
       if (errorMsg.toLowerCase().includes("blockhash") || errorMsg.toLowerCase().includes("fund")) {
-        alert("⚠️ Error de transacción: Es muy probable que no tengas suficientes fondos (SOL de prueba) en tu wallet para pagar la cuota de la red. Por favor, solicita SOL en el Faucet de Devnet e intenta de nuevo.");
+        showAlert("Fondos Insuficientes", "Error de transacción: Es muy probable que no tengas suficientes fondos (SOL de prueba) en tu wallet para pagar la cuota de la red. Por favor, solicita SOL en un Faucet e intenta de nuevo.", "error");
       } else {
-        alert("Error ejecutando la transacción en devnet:\n" + errorMsg);
+        showAlert("Error de Transacción", "Fallo al ejecutar instrucción en devnet:\n" + errorMsg, "error");
       }
       setIsCreating(false);
       setCreationStep(0);
@@ -336,6 +348,7 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
         </div>
 
       </div>
+      <AlertModal {...alertConfig} />
     </div>
   );
 }

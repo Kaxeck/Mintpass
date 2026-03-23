@@ -4,11 +4,20 @@ import PageNav from "../components/PageNav";
 import { CreatedEvent } from "./CreateEvent";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { releaseEscrow } from "../lib/escrow";
+import AlertModal, { AlertModalProps } from "../components/AlertModal";
 
 export default function EventDetails({ event, stats, ownedTickets = [], onBack, onGoToStaff }: { event: CreatedEvent, stats?: {sold: number, checked: number}, ownedTickets?: Array<{ mint: string, purchaseDate: number, eventId: number }>, onBack: () => void, onGoToStaff: () => void }) {
   const sold = stats?.sold || 0;
   const checked = stats?.checked || 0;
   const [copied, setCopied] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<AlertModalProps>({ 
+    isOpen: false, title: '', message: '', type: 'info', 
+    onClose: () => setAlertConfig(p => ({...p, isOpen: false})) 
+  });
+
+  const showAlert = (title: string, message: string, type: AlertModalProps['type'], signature?: string) => {
+    setAlertConfig(prev => ({ ...prev, isOpen: true, title, message, type, signature }));
+  };
 
   const handleCopy = () => {
     setCopied(true);
@@ -24,17 +33,22 @@ export default function EventDetails({ event, stats, ownedTickets = [], onBack, 
 
   const handleWithdraw = async () => {
     if (checked < 2) {
-      alert("⚠️ Transacción Rechazada por el Contrato Inteligente:\n\nSe requieren al menos 2 validaciones de asistentes escaneados en puerta (check-ins reales on-chain) para liberar los fondos de la bóveda.");
+      showAlert("Retiro Bloqueado", "Transacción Rechazada por el Contrato Inteligente:\n\nSe requieren al menos 2 validaciones de asistentes escaneados en puerta (check-ins reales on-chain) para liberar los fondos de la bóveda.", "warning");
       return;
     }
 
     if (event.priceType !== 'sol') {
-      alert("Simulación: Pagos en USDC requieren inicializar Cuentas Token (ATA). Se omitirá para evitar colisiones en la demo de SOL.");
+      showAlert("No Soportado", "Simulación: Pagos en USDC requieren inicializar Cuentas Token (ATA). Se omitirá para evitar colisiones en la demo de SOL.", "info");
       return;
     }
 
     if (!wallet.publicKey) {
-      alert("⚠️ Conecta tu wallet principal para autorizar la recepción de los fondos.");
+      showAlert("Wallet Desconectada", "Conecta tu wallet principal para autorizar la recepción de los fondos desde el contrato inteligente.", "warning");
+      return;
+    }
+
+    if (event.organizerWallet && wallet.publicKey.toBase58() !== event.organizerWallet) {
+      showAlert("Acceso Denegado", "Solo la wallet que creó legítimamente el evento tiene la autoridad criptográfica para extraer los fondos de la bóveda.", "error");
       return;
     }
 
@@ -44,9 +58,9 @@ export default function EventDetails({ event, stats, ownedTickets = [], onBack, 
       const sig = await releaseEscrow(connection, wallet as any, totalSol);
       localStorage.setItem(`mintpass_withdrawn_${event.id}`, 'true');
       setWithdrawn(true);
-      alert(`✅ ¡Fondos liberados exitosamente a tu wallet privada!\n\nSe ha desencriptado la bóveda y transferido ${totalSol} SOL a ti.\nFirma de red: ${sig.slice(0, 16)}...`);
+      showAlert("¡Retiro Exitoso!", `Los fondos han sido liberados desde el contrato a tu wallet privada.\n\nSe transfirieron ${totalSol} SOL de las ganancias.`, "success", sig);
     } catch (e: any) {
-      alert("Error en validación blockchain: " + e.message);
+      showAlert("Error de Validación Blockchain", e.message, "error");
     } finally {
       setIsWithdrawing(false);
     }
@@ -322,6 +336,7 @@ export default function EventDetails({ event, stats, ownedTickets = [], onBack, 
           
         </div>
       </div>
+      <AlertModal {...alertConfig} />
     </div>
   );
 }

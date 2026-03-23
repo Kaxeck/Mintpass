@@ -8,6 +8,7 @@ skip-lint = false
 vault = "BJcj2Sc2mUTY7TgstZGVwkCuW3JdpeJYoDXccwHiB4uf"
 mintpass_escrow = "11111111111111111111111111111111"
 mintpass_checkin = "11111111111111111111111111111111"
+mintpass_reputation = "11111111111111111111111111111111"
 
 [registry]
 url = "https://api.apr.dev"

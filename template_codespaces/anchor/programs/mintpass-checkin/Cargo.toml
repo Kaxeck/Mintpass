@@ -1,0 +1,24 @@
+[package]
+name = "mintpass-checkin"
+version = "0.1.0"
+description = "Programa anti-duplicados de Check-In para Mintpass — registra asistencia on-chain con PDAs"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "mintpass_checkin"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build"]
+
+[dependencies]
+anchor-lang = "0.32.1"
+
+[dev-dependencies]
+litesvm = "=0.7.1"
+solana-sdk = "2.3"

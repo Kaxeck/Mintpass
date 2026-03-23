@@ -13,6 +13,28 @@ export default function Home({ onGoToOrganizer, onEventClick }: { onGoToOrganize
 
   return (
     <div className="app-home">
+      {/* ======= FONDO DINÁMICO CON ÍCONOS FLOTANTES ======= */}
+      <div className="floating-bg" aria-hidden="true">
+        <span className="float-item" style={{ top: '5%', animationDuration: '18s', animationDelay: '0s', fontSize: '28px' }}>⚽</span>
+        <span className="float-item" style={{ top: '12%', animationDuration: '22s', animationDelay: '3s', fontSize: '24px' }}>🎵</span>
+        <span className="float-item" style={{ top: '20%', animationDuration: '20s', animationDelay: '1s', fontSize: '30px' }}>🎨</span>
+        <span className="float-item" style={{ top: '28%', animationDuration: '25s', animationDelay: '5s', fontSize: '22px' }}>🍕</span>
+        <span className="float-item" style={{ top: '36%', animationDuration: '19s', animationDelay: '2s', fontSize: '26px' }}>🎸</span>
+        <span className="float-item" style={{ top: '44%', animationDuration: '23s', animationDelay: '4s', fontSize: '28px' }}>😂</span>
+        <span className="float-item" style={{ top: '52%', animationDuration: '21s', animationDelay: '6s', fontSize: '24px' }}>⚽</span>
+        <span className="float-item" style={{ top: '60%', animationDuration: '17s', animationDelay: '1.5s', fontSize: '26px' }}>🎤</span>
+        <span className="float-item" style={{ top: '68%', animationDuration: '24s', animationDelay: '3.5s', fontSize: '22px' }}>🖌️</span>
+        <span className="float-item" style={{ top: '8%', animationDuration: '26s', animationDelay: '7s', fontSize: '20px' }}>🌮</span>
+        <span className="float-item" style={{ top: '25%', animationDuration: '20s', animationDelay: '8s', fontSize: '24px' }}>🎹</span>
+        <span className="float-item" style={{ top: '42%', animationDuration: '22s', animationDelay: '9s', fontSize: '26px' }}>🎭</span>
+        <span className="float-item" style={{ top: '58%', animationDuration: '18s', animationDelay: '10s', fontSize: '22px' }}>🏈</span>
+        <span className="float-item" style={{ top: '75%', animationDuration: '21s', animationDelay: '11s', fontSize: '28px' }}>🎶</span>
+        <span className="float-item" style={{ top: '82%', animationDuration: '25s', animationDelay: '12s', fontSize: '20px' }}>🎪</span>
+        <span className="float-item" style={{ top: '48%', animationDuration: '19s', animationDelay: '6.5s', fontSize: '24px' }}>🍿</span>
+        <span className="float-item" style={{ top: '90%', animationDuration: '23s', animationDelay: '13s', fontSize: '22px' }}>🎺</span>
+        <span className="float-item" style={{ top: '15%', animationDuration: '20s', animationDelay: '14s', fontSize: '26px' }}>🤣</span>
+      </div>
+
       {/* Navbar Superior */}
       <div className="nav">
         <div className="nav-brand">

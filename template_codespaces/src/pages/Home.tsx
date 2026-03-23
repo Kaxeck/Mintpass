@@ -15,7 +15,7 @@ const catMap: Record<string, { icon: string; color: string; bg: string; cat: str
   'Otro':               { icon: 'Sparkles', color: '#7F77DD', bg: 'rgba(83,74,183,0.2)', cat: 'Otro' },
 };
 
-export default function Home({ createdEvents, onGoToOrganizer, onEventClick }: { createdEvents: CreatedEvent[], onGoToOrganizer: () => void, onEventClick: (id: number) => void }) {
+export default function Home({ createdEvents, onGoToOrganizer, onEventClick, onGoToMyTickets }: { createdEvents: CreatedEvent[], onGoToOrganizer: () => void, onEventClick: (id: number) => void, onGoToMyTickets: () => void }) {
   const [catFilter, setCatFilter] = useState('Todos');
 
   // Convertimos los eventos creados on-chain al mismo formato que los eventos demo
@@ -81,8 +81,8 @@ export default function Home({ createdEvents, onGoToOrganizer, onEventClick }: {
         </div>
         <div className="nav-links">
           <span className="nav-link">Explorar</span>
-          <span className="nav-link">Mis tickets</span>
-          <span className="nav-link">Organizadores</span>
+          <span className="nav-link" onClick={onGoToMyTickets} style={{ cursor: 'pointer' }}>Mis tickets</span>
+          <span className="nav-link" onClick={onGoToOrganizer} style={{ cursor: 'pointer' }}>Organizadores</span>
         </div>
         <div className="nav-right">
           {/* Reemplazamos el mock por el botón real del WalletAdapter */}

@@ -1,9 +1,28 @@
-import { generateSigner, Umi, publicKey } from "@metaplex-foundation/umi";
+import { generateSigner, Umi, publicKey, createSignerFromKeypair } from "@metaplex-foundation/umi";
 import { createCollection, createV1, update, fetchAsset } from "@metaplex-foundation/mpl-core";
 import { uploadMetadata } from "./pinata";
 import { sendToEscrow } from "./escrow";
 import { Connection, PublicKey, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
 import { WalletContextState } from "@solana/wallet-adapter-react";
+
+/**
+ * Master Delegated Authority (Mockup de Backend)
+ * Usamos una semilla determinística de 32 bytes para generar siempre el mismo Keypair maestro en devnet.
+ * Esta Authority permite validar públicamente que los NFTs fueron minteados por la aplicación,
+ * simulando un entorno de servidor cerrado.
+ */
+const APP_MASTER_SEED = new Uint8Array([
+  25, 118, 43, 9, 210, 56, 102, 199, 44, 18, 93, 201, 74, 15, 88, 30,
+  145, 62, 8, 233, 111, 77, 10, 51, 108, 4, 135, 96, 23, 114, 82, 19
+]);
+
+/**
+ * Genera el Signer Maestro que simulará al servidor firmando operaciones de Colección restringidas.
+ */
+function getMasterSigner(umi: Umi) {
+  const masterKeypair = umi.eddsa.createKeypairFromSeed(APP_MASTER_SEED);
+  return createSignerFromKeypair(umi, masterKeypair);
+}
 
 /**
  * Crea una nueva Colección (Collection NFT) on-chain en Solana usando el estándar Metaplex Core.
@@ -43,11 +62,14 @@ export async function createEventCollection(
   // 2. Generar un nuevo Signer válido para la colección
   const collectionSigner = generateSigner(umi);
 
-  // 3. Enviar la instrucción on-chain para crear la colección (Metaplex Core)
+  // 3. Enviar la instrucción on-chain para crear la colección delegando la Update Authority al Backend
+  const appMasterSigner = getMasterSigner(umi);
+
   await createCollection(umi, {
     collection: collectionSigner,
     name: eventData.name,
     uri: metadataUri,
+    updateAuthority: appMasterSigner.publicKey, // El Backend administra la colección
   }).sendAndConfirm(umi);
 
   // Extraer y devolver la firma/llave pública (en formato texto) de la colección resultante
@@ -69,7 +91,7 @@ export async function createEventCollection(
  */
 export async function mintTicket(umi: Umi, params: {
   collectionMint: string;
-  buyerWallet: string;
+  buyerWalletObj: WalletContextState;
   priceSol: number;
   eventData: { name: string; date: string; venue: string; ticketNumber: number; imageUrl: string };
 }): Promise<string> {
@@ -90,19 +112,12 @@ export async function mintTicket(umi: Umi, params: {
   // Habilitamos estrictamente la conexión local del backend proxy a devnet para firmar el bloqueo
   const connection = new Connection("https://api.devnet.solana.com", "confirmed");
 
-  // Creamos un wrapper temporal contextual que encapsula la identidad logueada de UMI imitando el adapter estricto.
-  // (Nota de Frontend: esto resuelve la incompatibilidad delegando el trust temporal a Identity)
-  const dummyWalletAuth = {
-    publicKey: umi.identity.publicKey,
-    signTransaction: async (tx: any) => tx,
-  } as unknown as WalletContextState;
-
   // 2. Ejecutar pago seguro a Escrow enviando los SOL especificados de priceSol 
   // En este demo, asignamos el ID del bundle de colección principal como la semilla del evento, y una key en "0s" al organizador flotante
   const ORGANIZER_PLACEHOLDER = "11111111111111111111111111111111";
   await sendToEscrow(
     connection,
-    dummyWalletAuth,
+    params.buyerWalletObj,
     ORGANIZER_PLACEHOLDER,
     params.priceSol,
     params.collectionMint // Relacionar lógicamente al mismo evento
@@ -111,14 +126,17 @@ export async function mintTicket(umi: Umi, params: {
   // 3. Crear el Keypair transitorio on-chain del Ticket que se convertirá en Asset Real
   const assetSigner = generateSigner(umi);
 
-  // 4. Utilizar createV1 de @metaplex-foundation/mpl-core para acuñar este Asset y afiliarlo a la familia de la Colección.
-  // Importante: El owner es el "buyerWallet" como estipula la regla nativa
+  // 4. Utilizar createV1 de @metaplex-foundation/mpl-core para acuñar este Asset.
+  // Ahora Inyectamos el Asset DENTRO de la Colección usando la Firma del Master Signer del Backend.
+  const appMasterSigner = getMasterSigner(umi);
+
   await createV1(umi, {
     asset: assetSigner,
     collection: publicKey(params.collectionMint),
     name: ticketName,
     uri: metadataUri,
-    owner: publicKey(params.buyerWallet), // Envío directo del Ticket (NFT) a la wallet dueña del cliente depositante
+    owner: publicKey(params.buyerWalletObj.publicKey!.toBase58()), // Envío directo a la wallet del cliente
+    authority: appMasterSigner, // Firma del servidor autorizando que este Asset entre a la colección
   }).sendAndConfirm(umi);
 
   // 5. Retornar textualmente la Public Key del ticket generado como string serializado   

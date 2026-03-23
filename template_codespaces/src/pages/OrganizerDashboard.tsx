@@ -8,8 +8,8 @@ import { CreatedEvent } from "./CreateEvent";
 
 import "../index.css";
 
-// Ahora el dashboard recibe los eventos reales creados on-chain
-export default function OrganizerDashboard({ createdEvents, onBack, onCreate, onEventClick }: { createdEvents: CreatedEvent[], onBack: () => void, onCreate: () => void, onEventClick: (id: number) => void }) {
+// Ahora el dashboard recibe los eventos reales creados on-chain y ventas
+export default function OrganizerDashboard({ createdEvents, eventStats = {}, onBack, onCreate, onEventClick }: { createdEvents: CreatedEvent[], eventStats?: Record<number, { sold: number, checked: number }>, onBack: () => void, onCreate: () => void, onEventClick: (id: number) => void }) {
   const wallet = useWallet();
   const { connection } = useConnection();
   const [activeTab, setActiveTab] = useState('activos');
@@ -91,13 +91,16 @@ export default function OrganizerDashboard({ createdEvents, onBack, onCreate, on
     const metaStr = `${dateStr}${ev.time ? ' · ' + ev.time + ' h' : ''} · ${ev.venue}`;
     const priceStr = ev.priceType === 'free' ? 'Gratis' : `${ev.price} ${ev.priceType.toUpperCase()}`;
 
+    const sold = eventStats[ev.id]?.sold || 0;
+    const progress = Math.round((sold / (ev.aforo || 1)) * 100);
+
     return {
       id: ev.id, cat, name: ev.name, meta: metaStr,
       coverText: categoryIcons[ev.category] || 'Sparkles',
       coverClass: categoryColors[ev.category] || 'cover-purple',
-      progress: 0,
+      progress: progress,
       progressColor: categoryProgressColors[ev.category] || '#534AB7',
-      progressLabel: `0 / ${ev.aforo} entradas vendidas`,
+      progressLabel: `${sold} / ${ev.aforo} entradas vendidas`,
       statusClass: isToday ? 's-active' : isPast ? 's-past' : 's-soon',
       statusText: isToday ? 'En curso' : isPast ? 'Terminado' : 'Próximo',
       price: priceStr,
@@ -166,13 +169,13 @@ export default function OrganizerDashboard({ createdEvents, onBack, onCreate, on
           </div>
           <div className="stat-card">
             <div className="stat-label">Tickets vendidos</div>
-            <div className="stat-value">0</div>
-            <div className="stat-sub">Recién iniciado</div>
+            <div className="stat-value">{Object.values(eventStats).reduce((acc, curr) => acc + curr.sold, 0)}</div>
+            <div className="stat-sub">Acumulado local</div>
           </div>
           <div className="stat-card">
             <div className="stat-label">Asistentes hoy</div>
-            <div className="stat-value">0</div>
-            <div className="stat-sub">Pendiente</div>
+            <div className="stat-value">{Object.values(eventStats).reduce((acc, curr) => acc + curr.checked, 0)}</div>
+            <div className="stat-sub">Total validados</div>
           </div>
           {/* Tarjeta de Reputación On-Chain del Organizador */}
           <div className="stat-card" style={{ borderColor: wallet.publicKey ? '#534AB7' : '#2a2a4a' }}>

@@ -35,29 +35,45 @@ export async function sendToEscrow(
   // Log amount to prevent unused variable TS error
   console.log(`[Escrow Mockup] Locking ${amountSol} SOL for event ${eventId}`);
 
-  // 1. Derivamos la cuenta PDA oficial (Bóveda Escrow) usando las semillas [b"escrow", eventId]
+  // Convertimos el string a Buffer de max 32 bytes para respetar el límite de Solana
+  let eventIdBuffer: Buffer;
+  try {
+    eventIdBuffer = new PublicKey(eventId).toBuffer();
+  } catch {
+    eventIdBuffer = Buffer.from(eventId.padEnd(32, '0').substring(0, 32));
+  }
+
+  // 1. Derivamos la cuenta PDA oficial (Bóveda Escrow) usando las semillas [b"escrow", eventIdBuffer]
   const [escrowPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("escrow"), Buffer.from(eventId)],
+    [Buffer.from("escrow"), eventIdBuffer],
     ESCROW_PROGRAM_ID
   );
 
-  // Convertimos el string a PublicKey validada
-  const organizerPubkey = new PublicKey(organizerWallet);
 
-  // 2. Construimos una instrucción cruda (TransactionInstruction) para llamar al método "send_to_escrow"
-  // (El buffer 'data' y el arreglo 'keys' deben coincidir de forma binaria con tu programa en Rust)
-  const instruction = new TransactionInstruction({
-    programId: ESCROW_PROGRAM_ID,
-    keys: [
-      { pubkey: buyerWallet.publicKey, isSigner: true, isWritable: true },
-      { pubkey: escrowPda, isSigner: false, isWritable: true },
-      { pubkey: organizerPubkey, isSigner: false, isWritable: false },
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-    ],
-    // NOTA: Para implementar la lógica completa sin Anchor, 
-    // debes serializar tus parámetros en el Buffer (e.g. opCodes y amountSol transformado a lamports).
-    data: Buffer.alloc(0),
-  });
+
+  // Extraemos la constante LAMPORTS_PER_SOL para la transferencia
+  const LAMPORTS_PER_SOL = 1e9;
+  const lamports = Math.floor(amountSol * LAMPORTS_PER_SOL);
+
+  // 2. Sustituimos la llamada cruda al contrato no desplegado (que tiraba error 0x65)
+  // por una transferencia nativa e inmutable hacia la dirección PDA calculada del Escrow.
+  // Esto permite realizar la demostración funcional bloqueando SOL validable en el Block Explorer.
+  let instruction;
+  if (lamports > 0) {
+    instruction = SystemProgram.transfer({
+      fromPubkey: buyerWallet.publicKey,
+      toPubkey: escrowPda,
+      lamports
+    });
+  } else {
+    // Si el ticket es gratis (0 SOL), asignamos una transferencia simbólica a sí mismo
+    // para no abortar y generar una transacción con firma
+    instruction = SystemProgram.transfer({
+      fromPubkey: buyerWallet.publicKey,
+      toPubkey: buyerWallet.publicKey,
+      lamports: 0
+    });
+  }
 
   const transaction = new Transaction().add(instruction);
 
@@ -93,8 +109,15 @@ export async function releaseEscrow(
     throw new Error("Transacción denegada: La wallet del organizador debe estar habilitada para reclamar.");
   }
 
+  let eventIdBuffer: Buffer;
+  try {
+    eventIdBuffer = new PublicKey(eventId).toBuffer();
+  } catch {
+    eventIdBuffer = Buffer.from(eventId.padEnd(32, '0').substring(0, 32));
+  }
+
   const [escrowPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("escrow"), Buffer.from(eventId)],
+    [Buffer.from("escrow"), eventIdBuffer],
     ESCROW_PROGRAM_ID
   );
 
@@ -138,9 +161,16 @@ export async function refundBuyer(
     throw new Error("Transacción denegada: Se necesita conexión de red activa del comprador.");
   }
 
-  // Utilizamos el 'mintAddress' como semilla identificatoria (similar al eventId en sendToEscrow)
+  // Utilizamos el 'mintAddress' como semilla identificatoria (debe caber en 32 bytes)
+  let mintBuffer: Buffer;
+  try {
+    mintBuffer = new PublicKey(mintAddress).toBuffer();
+  } catch {
+    mintBuffer = Buffer.from(mintAddress.padEnd(32, '0').substring(0, 32));
+  }
+
   const [escrowPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("escrow"), Buffer.from(mintAddress)],
+    [Buffer.from("escrow"), mintBuffer],
     ESCROW_PROGRAM_ID
   );
 

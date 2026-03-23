@@ -4,6 +4,7 @@ import EventDetails from "./pages/EventDetails";
 import StaffPanel from "./pages/StaffPanel";
 import OrganizerDashboard from "./pages/OrganizerDashboard";
 import Home from "./pages/Home";
+import TicketsList from "./pages/TicketsList";
 import BuyerPurchase from "./pages/BuyerPurchase";
 import MyTicket from "./pages/MyTicket";
 import { EVENTS } from "./data/events";
@@ -16,7 +17,7 @@ const LS_COLLECTION_KEY = "mintpass_last_collection";
 
 export default function App() {
   // Estado para controlar qué pantalla se muestra
-  const [view, setView] = useState<'home' | 'dashboard' | 'create' | 'details' | 'staff' | 'purchase' | 'myticket'>('home');
+  const [view, setView] = useState<'home' | 'dashboard' | 'create' | 'details' | 'staff' | 'purchase' | 'myticket' | 'ticketslist'>('home');
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
 
   // Inicializamos desde localStorage para que los eventos sobrevivan un refresh
@@ -32,6 +33,13 @@ export default function App() {
   });
 
   const [ticketMint, setTicketMint] = useState<string>('');
+
+  const [ownedTickets, setOwnedTickets] = useState<Array<{ eventId: number; mint: string; purchaseDate: number; readonly?: boolean }>>(() => {
+    try {
+      const saved = localStorage.getItem("mintpass_owned_tickets");
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
 
   const [eventStats, setEventStats] = useState<Record<number, { sold: number, checked: number }>>(() => {
     try {
@@ -64,6 +72,7 @@ export default function App() {
     return <Home 
       createdEvents={createdEvents}
       onGoToOrganizer={() => setView('dashboard')} 
+      onGoToMyTickets={() => setView('ticketslist')}
       onEventClick={(id: number) => {
         setSelectedEventId(id);
         setView('purchase');
@@ -85,6 +94,7 @@ export default function App() {
          venue: evCreated.venue,
          price: evCreated.priceType === 'free' ? 0 : evCreated.price,
          total: evCreated.aforo,
+         limitPerWallet: evCreated.limitPerWallet,
          sold: eventStats[evCreated.id]?.sold || 0,
          cat: evCreated.category,
          icon: 'Ticket',
@@ -98,9 +108,16 @@ export default function App() {
     return <BuyerPurchase 
       event={eventModel} 
       collectionMint={evCreated ? evCreated.collectionMint : collectionMint}
+      ownedTicketsCount={ownedTickets.filter(t => t.eventId === eventModel.id).length}
       onSuccessMint={(mintInfo, qty) => {
          updateStats(eventModel.id, 'sold', qty);
          setTicketMint(mintInfo);
+         const newTicket = { eventId: eventModel.id, mint: mintInfo, purchaseDate: Date.now() };
+         setOwnedTickets(prev => {
+            const next = [...prev, newTicket];
+            localStorage.setItem("mintpass_owned_tickets", JSON.stringify(next));
+            return next;
+         });
       }}
       onBack={() => setView('home')} 
       onGoToMyTicket={() => setView('myticket')} 
@@ -109,11 +126,27 @@ export default function App() {
 
   // Vista del Ticket Comprado (Blink App/QR dinámico)
   if (view === 'myticket') {
-    const ev = EVENTS.find(e => e.id === selectedEventId) || EVENTS[0];
+    const ev = createdEvents.find(e => e.id === selectedEventId) || EVENTS.find(e => e.id === selectedEventId) || EVENTS[0];
     return <MyTicket 
       event={ev} 
       ticketMint={ticketMint || "11111111111111111111111111111111"}
-      onBack={() => setView('purchase')} 
+      onBack={() => setView('ticketslist')} 
+    />;
+  }
+
+  // Lista de Tickets de la Wallet
+  if (view === 'ticketslist') {
+    const allEvents = [...EVENTS, ...createdEvents];
+    return <TicketsList 
+       tickets={ownedTickets} 
+       allEvents={allEvents} 
+       onBack={() => setView('home')} 
+       onTicketClick={(mint) => {
+          setTicketMint(mint);
+          const t = ownedTickets.find(x => x.mint === mint);
+          if (t) setSelectedEventId(t.eventId);
+          setView('myticket');
+       }} 
     />;
   }
 
@@ -121,6 +154,7 @@ export default function App() {
   if (view === 'dashboard') {
     return <OrganizerDashboard 
       createdEvents={createdEvents}
+      eventStats={eventStats}
       onBack={() => setView('home')} 
       onCreate={() => setView('create')} 
       onEventClick={(id) => { setSelectedEventId(id); setView('details'); }} 
@@ -144,7 +178,13 @@ export default function App() {
   if (view === 'details') {
     const ev = createdEvents.find(e => e.id === selectedEventId) || createdEvents[0];
     if (!ev) return null;
-    return <EventDetails event={ev} stats={eventStats[ev.id]} onBack={() => setView('dashboard')} onGoToStaff={() => setView('staff')} />;
+    return <EventDetails 
+      event={ev} 
+      stats={eventStats[ev.id]} 
+      ownedTickets={ownedTickets.filter(t => t.eventId === ev.id)}
+      onBack={() => setView('dashboard')} 
+      onGoToStaff={() => setView('staff')} 
+    />;
   }
 
   // Panel de Staff para escaneo de los códigos QRs

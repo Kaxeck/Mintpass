@@ -124,6 +124,14 @@ export default function MyTicket({ event, ticketMint, onBack }: { event: any, ti
             <div className="tf-row"><span className="tf-label">Ticket ID (Mint)</span><span className="tf-value" style={{ fontSize: '10px' }}>{ticketMint.slice(0, 15)}...</span></div>
             <div className="tf-row"><span className="tf-label">Colección</span><span className="tf-value tf-value-purple">MINT PASS CORE</span></div>
             <div className="tf-row"><span className="tf-label">Red</span><span className="tf-value">Solana devnet</span></div>
+            <div className="tf-row" style={{ marginTop: '12px', display: 'block' }}>
+              <button 
+                style={{ width: '100%', background: '#1a1a2e', color: '#AFA9EC', fontSize: '10px', padding: '8px', borderRadius: '6px', border: '1px solid #2a2a4a', cursor: 'pointer' }}
+                onClick={() => window.open(`https://explorer.solana.com/address/${ticketMint}?cluster=devnet`, '_blank')}
+              >
+                Ver registro público en Solana Explorer ↗
+              </button>
+            </div>
           </div>
         </div>
 

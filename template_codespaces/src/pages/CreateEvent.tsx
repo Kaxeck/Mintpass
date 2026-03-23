@@ -19,6 +19,7 @@ export interface CreatedEvent {
   aforo: number;
   priceType: 'free' | 'sol' | 'usdc';
   price: number;
+  limitPerWallet?: number;
   createdAt: number; // timestamp
 }
 
@@ -82,6 +83,7 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
         aforo: parseInt(aforo) || 0,
         priceType: priceType as 'free' | 'sol' | 'usdc',
         price: priceType === 'free' ? 0 : parseFloat(price) || 0,
+        limitPerWallet: limit ? parseInt(limit) : undefined,
         collectionMint: collectionAddr,
         createdAt: Date.now()
       };

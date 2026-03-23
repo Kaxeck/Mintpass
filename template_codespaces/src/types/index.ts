@@ -11,6 +11,7 @@ export interface EventModel {
   price: number;
   total: number;
   sold: number;
+  limitPerWallet?: number;
   coverText?: string;
   coverClass?: string;
   badge?: string;

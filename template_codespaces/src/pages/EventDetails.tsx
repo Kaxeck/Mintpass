@@ -3,7 +3,7 @@ import * as Icons from "lucide-react";
 import PageNav from "../components/PageNav";
 import { CreatedEvent } from "./CreateEvent";
 
-export default function EventDetails({ event, stats, onBack, onGoToStaff }: { event: CreatedEvent, stats?: {sold: number, checked: number}, onBack: () => void, onGoToStaff: () => void }) {
+export default function EventDetails({ event, stats, ownedTickets = [], onBack, onGoToStaff }: { event: CreatedEvent, stats?: {sold: number, checked: number}, ownedTickets?: Array<{ mint: string, purchaseDate: number, eventId: number }>, onBack: () => void, onGoToStaff: () => void }) {
   const sold = stats?.sold || 0;
   const checked = stats?.checked || 0;
   const [copied, setCopied] = useState(false);
@@ -138,30 +138,22 @@ export default function EventDetails({ event, stats, onBack, onGoToStaff }: { ev
                 <span style={{fontSize: '11px', color: 'var(--color-text-tertiary)', cursor: 'pointer'}}>Ver todas</span>
               </div>
               <div className="attendee-list">
-                <div className="attendee-row">
-                  <div className="av av-p">AK</div>
-                  <div className="attendee-addr">7xKf…9pQm</div>
-                  <div className="attendee-time">hace 3 min</div>
-                  <span className="checked-badge">Ingresó</span>
-                </div>
-                <div className="attendee-row">
-                  <div className="av av-t">RL</div>
-                  <div className="attendee-addr">3mTv…2nLs</div>
-                  <div className="attendee-time">hace 11 min</div>
-                  <span className="checked-badge">Ingresó</span>
-                </div>
-                <div className="attendee-row">
-                  <div className="av av-c">MP</div>
-                  <div className="attendee-addr">9bWx…4kRd</div>
-                  <div className="attendee-time">hace 18 min</div>
-                  <span className="pending-badge">No llegó</span>
-                </div>
-                <div className="attendee-row">
-                  <div className="av av-p">SG</div>
-                  <div className="attendee-addr">1nPq…7cYe</div>
-                  <div className="attendee-time">hace 24 min</div>
-                  <span className="checked-badge">Ingresó</span>
-                </div>
+                {ownedTickets.length === 0 ? (
+                  <div style={{color: '#666', fontSize: '13px', textAlign: 'center', padding: '16px'}}>0 registros recibidos on-chain</div>
+                ) : (
+                  ownedTickets.slice().reverse().map((t, idx) => {
+                    const diffMins = Math.floor((Date.now() - t.purchaseDate) / 60000);
+                    const timeStr = diffMins === 0 ? 'Hace un instante' : diffMins < 60 ? `Hace ${diffMins} min` : `Hace ${Math.floor(diffMins/60)} h`;
+                    return (
+                      <div className="attendee-row" key={t.mint}>
+                        <div className="av av-p">T{(ownedTickets.length - idx).toString().padStart(2, '0')}</div>
+                        <div className="attendee-addr">{t.mint.substring(0,6)}...{t.mint.substring(t.mint.length-4)}</div>
+                        <div className="attendee-time">{timeStr}</div>
+                        <span className="checked-badge">Comprador</span>
+                      </div>
+                    )
+                  })
+                )}
               </div>
             </div>
 

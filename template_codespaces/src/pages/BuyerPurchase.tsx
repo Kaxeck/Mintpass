@@ -6,7 +6,7 @@ import { mintTicket, getOrganizerReputation } from "../lib/metaplex";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 
-export default function BuyerPurchase({ event, collectionMint, onSuccessMint, onBack, onGoToMyTicket }: { event: EventModel, collectionMint: string, onSuccessMint: (mint: string, qty: number) => void, onBack: () => void, onGoToMyTicket: () => void }) {
+export default function BuyerPurchase({ event, collectionMint, ownedTicketsCount = 0, onSuccessMint, onBack, onGoToMyTicket }: { event: EventModel, collectionMint: string, ownedTicketsCount?: number, onSuccessMint: (mint: string, qty: number) => void, onBack: () => void, onGoToMyTicket: () => void }) {
   const umi = useUmi();
   const wallet = useWallet();
   const { connection } = useConnection();
@@ -34,6 +34,19 @@ export default function BuyerPurchase({ event, collectionMint, onSuccessMint, on
 
   // Cálculos de disponibilidad
   const available = event.total - event.sold;
+
+  // Límite estricto por wallet y evento
+  let maxAllowed = 4; // Default max per txn
+  if (event.limitPerWallet) {
+    maxAllowed = Math.max(0, event.limitPerWallet - ownedTicketsCount);
+  }
+
+  // Sincronizar qty evitando valores imposibles si alcanzan límite
+  useEffect(() => {
+    if (maxAllowed === 0 && qty !== 0) setQty(0);
+    else if (maxAllowed > 0 && qty === 0) setQty(1);
+    else if (qty > maxAllowed) setQty(maxAllowed);
+  }, [maxAllowed, qty]);
   const pctSold = Math.round((event.sold / event.total) * 100);
   const progressBarColor = pctSold > 85
     ? 'bg-gradient-to-r from-[#E24B4A] to-[#ff6b6b]'
@@ -42,7 +55,7 @@ export default function BuyerPurchase({ event, collectionMint, onSuccessMint, on
       : 'bg-gradient-to-r from-[#1D9E75] to-[#5DCAA5]';
 
   const changeQty = (delta: number) => {
-    setQty(prev => Math.max(1, Math.min(4, Math.min(available, prev + delta))));
+    setQty(prev => Math.max(1, Math.min(maxAllowed, Math.min(available, prev + delta))));
   };
 
   // Ejecuta el minteo real en la blockchain
@@ -66,7 +79,7 @@ export default function BuyerPurchase({ event, collectionMint, onSuccessMint, on
     try {
       const ticketMintAddr = await mintTicket(umi, {
         collectionMint,
-        buyerWallet: wallet.publicKey.toBase58(),
+        buyerWalletObj: wallet as any,
         priceSol: qty * event.price,
         eventData: {
           name: event.name,
@@ -256,18 +269,18 @@ export default function BuyerPurchase({ event, collectionMint, onSuccessMint, on
                 ) : (
                   <button 
                     onClick={startPurchase} 
-                    disabled={available <= 0}
+                    disabled={available <= 0 || maxAllowed <= 0}
                     className="w-full relative group overflow-hidden rounded-[16px] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-shadow duration-300"
-                    style={{ boxShadow: available > 0 ? '0 8px 25px rgba(83,74,183,0.3)' : 'none' }}
+                    style={{ boxShadow: (available > 0 && maxAllowed > 0) ? '0 8px 25px rgba(83,74,183,0.3)' : 'none' }}
                   >
                     <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, #3B82F6 0%, #534AB7 35%, #7C3AED 65%, #E879A8 100%)' }}></div>
                     <div className="absolute inset-y-0 -left-[100%] w-1/2 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12 group-hover:left-[200%] transition-all duration-1000 ease-in-out"></div>
                     
                     <div className="relative h-[56px] flex items-center justify-center gap-2 px-6">
                       <span className="text-[14px] font-black text-white tracking-widest drop-shadow-md">
-                        {available <= 0 ? 'AGOTADO' : event.price === 0 ? 'DESBLOQUEAR TICKET' : `PROCESAR COMPRA`}
+                        {maxAllowed <= 0 ? 'LÍMITE ALCANZADO' : available <= 0 ? 'AGOTADO' : event.price === 0 ? 'DESBLOQUEAR TICKET' : `PROCESAR COMPRA`}
                       </span>
-                      {available > 0 && <Icons.ArrowRight size={18} className="text-white/80 group-hover:translate-x-1 transition-transform" />}
+                      {(available > 0 && maxAllowed > 0) && <Icons.ArrowRight size={18} className="text-white/80 group-hover:translate-x-1 transition-transform" />}
                     </div>
                   </button>
                 )}

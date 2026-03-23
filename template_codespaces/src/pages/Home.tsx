@@ -13,6 +13,28 @@ export default function Home({ onGoToOrganizer, onEventClick }: { onGoToOrganize
 
   return (
     <div className="app-home">
+      {/* ======= FONDO DINÁMICO CON ÍCONOS FLOTANTES ======= */}
+      <div className="floating-bg" aria-hidden="true">
+        <span className="float-item" style={{ top: '5%', animationDuration: '18s', animationDelay: '0s', fontSize: '28px' }}>⚽</span>
+        <span className="float-item" style={{ top: '12%', animationDuration: '22s', animationDelay: '3s', fontSize: '24px' }}>🎵</span>
+        <span className="float-item" style={{ top: '20%', animationDuration: '20s', animationDelay: '1s', fontSize: '30px' }}>🎨</span>
+        <span className="float-item" style={{ top: '28%', animationDuration: '25s', animationDelay: '5s', fontSize: '22px' }}>🍕</span>
+        <span className="float-item" style={{ top: '36%', animationDuration: '19s', animationDelay: '2s', fontSize: '26px' }}>🎸</span>
+        <span className="float-item" style={{ top: '44%', animationDuration: '23s', animationDelay: '4s', fontSize: '28px' }}>😂</span>
+        <span className="float-item" style={{ top: '52%', animationDuration: '21s', animationDelay: '6s', fontSize: '24px' }}>⚽</span>
+        <span className="float-item" style={{ top: '60%', animationDuration: '17s', animationDelay: '1.5s', fontSize: '26px' }}>🎤</span>
+        <span className="float-item" style={{ top: '68%', animationDuration: '24s', animationDelay: '3.5s', fontSize: '22px' }}>🖌️</span>
+        <span className="float-item" style={{ top: '8%', animationDuration: '26s', animationDelay: '7s', fontSize: '20px' }}>🌮</span>
+        <span className="float-item" style={{ top: '25%', animationDuration: '20s', animationDelay: '8s', fontSize: '24px' }}>🎹</span>
+        <span className="float-item" style={{ top: '42%', animationDuration: '22s', animationDelay: '9s', fontSize: '26px' }}>🎭</span>
+        <span className="float-item" style={{ top: '58%', animationDuration: '18s', animationDelay: '10s', fontSize: '22px' }}>🏈</span>
+        <span className="float-item" style={{ top: '75%', animationDuration: '21s', animationDelay: '11s', fontSize: '28px' }}>🎶</span>
+        <span className="float-item" style={{ top: '82%', animationDuration: '25s', animationDelay: '12s', fontSize: '20px' }}>🎪</span>
+        <span className="float-item" style={{ top: '48%', animationDuration: '19s', animationDelay: '6.5s', fontSize: '24px' }}>🍿</span>
+        <span className="float-item" style={{ top: '90%', animationDuration: '23s', animationDelay: '13s', fontSize: '22px' }}>🎺</span>
+        <span className="float-item" style={{ top: '15%', animationDuration: '20s', animationDelay: '14s', fontSize: '26px' }}>🤣</span>
+      </div>
+
       {/* Navbar Superior */}
       <div className="nav">
         <div className="nav-brand">
@@ -50,29 +72,29 @@ export default function Home({ onGoToOrganizer, onEventClick }: { onGoToOrganize
       {/* Features Grid */}
       <div className="features">
         <div className="feat">
-          <div className="feat-icon" style={{background:'#12122a'}}>
-            <Icons.QrCode size={18} color="#7F77DD" />
+          <div className="feat-icon" style={{background:'rgba(59,130,246,0.1)', border: '0.5px solid rgba(59,130,246,0.2)'}}>
+            <Icons.QrCode size={18} color="#60A5FA" />
           </div>
           <div className="feat-title">QR dinámico anti-fraude</div>
           <div className="feat-desc">El código rota cada 30 segundos. Imposible duplicar por screenshot.</div>
         </div>
         <div className="feat">
-          <div className="feat-icon" style={{background:'#0a1a12'}}>
+          <div className="feat-icon" style={{background:'rgba(29,158,117,0.1)', border: '0.5px solid rgba(29,158,117,0.2)'}}>
             <Icons.Wallet size={18} color="#5DCAA5" />
           </div>
           <div className="feat-title">Wallet intra-evento</div>
           <div className="feat-desc">Paga en barras y merch con tu mismo ticket. Sin efectivo ni apps extra.</div>
         </div>
         <div className="feat">
-          <div className="feat-icon" style={{background:'#1a0a0a'}}>
+          <div className="feat-icon" style={{background:'rgba(240,153,123,0.1)', border: '0.5px solid rgba(240,153,123,0.2)'}}>
             <Icons.CheckCircle size={18} color="#F0997B" />
           </div>
           <div className="feat-title">Verificación instantánea</div>
           <div className="feat-desc">El staff escanea y en 2 segundos sabe si el ticket es válido on-chain.</div>
         </div>
         <div className="feat">
-          <div className="feat-icon" style={{background:'#0a1a0a'}}>
-            <Icons.Medal size={18} color="#5DCAA5" />
+          <div className="feat-icon" style={{background:'rgba(232,121,168,0.1)', border: '0.5px solid rgba(232,121,168,0.2)'}}>
+            <Icons.Medal size={18} color="#E879A8" />
           </div>
           <div className="feat-title">POAP coleccionable</div>
           <div className="feat-desc">Tu ticket muta en recuerdo NFT al salir. Prueba que estuviste ahí.</div>

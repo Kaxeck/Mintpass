@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import * as Icons from "lucide-react";
 import { EventModel } from '../types';
 import { useUmi } from "../providers";
-import { mintTicket } from "../lib/metaplex";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { mintTicket, getOrganizerReputation } from "../lib/metaplex";
+import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 
 export default function BuyerPurchase({ event, collectionMint, onSuccessMint, onBack, onGoToMyTicket }: { event: EventModel, collectionMint: string, onSuccessMint: (mint: string) => void, onBack: () => void, onGoToMyTicket: () => void }) {
   const umi = useUmi();
   const wallet = useWallet();
+  const { connection } = useConnection();
   // Manejo de pantallas internas (flujo de compra)
   const [screen, setScreen] = useState<'buy' | 'processing' | 'success'>('buy');
   const [qty, setQty] = useState(1);
@@ -15,10 +16,29 @@ export default function BuyerPurchase({ event, collectionMint, onSuccessMint, on
   // Pasos de progreso para la animación de minteo
   const [progressStep, setProgressStep] = useState(0);
 
+  // Estado para la reputación on-chain del organizador
+  const [orgReputation, setOrgReputation] = useState<number | null>(null);
+
   // Mover el scroll hacia arriba al entrar a esta vista
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
+  // Consultamos la reputación del organizador desde la blockchain al cargar la página de compra
+  useEffect(() => {
+    async function fetchOrgRep() {
+      try {
+        // Usamos una wallet genérica del evento como organizador
+        // En producción, el organizerWallet vendría del metadata del Collection Mint
+        const score = await getOrganizerReputation(connection, collectionMint || '11111111111111111111111111111111');
+        setOrgReputation(score);
+      } catch (e) {
+        console.warn('No se pudo consultar la reputación del organizador:', e);
+        setOrgReputation(0);
+      }
+    }
+    fetchOrgRep();
+  }, [connection, collectionMint]);
 
   // Cálculos de disponibilidad
   const available = event.total - event.sold;
@@ -114,6 +134,23 @@ export default function BuyerPurchase({ event, collectionMint, onSuccessMint, on
                   <Icons.Star size={14} /> {event.cat}
                 </div>
                 <h1 className="text-[32px] md:text-[42px] font-extrabold text-white leading-[1.15] drop-shadow-xl">{event.name}</h1>
+                {/* Badge de reputación on-chain del organizador visible al comprador */}
+                <div className="mt-4 flex items-center gap-2 px-4 py-2 rounded-full bg-[#1a1a2e]/80 border border-[#2a2a4a] text-[12px]">
+                  <Icons.ShieldCheck size={14} className={orgReputation !== null && orgReputation >= 20 ? 'text-[#5DCAA5]' : 'text-[#666]'} />
+                  <span className="text-white/70">Organizador:</span>
+                  {orgReputation === null ? (
+                    <span className="text-[#AFA9EC]">Consultando...</span>
+                  ) : orgReputation >= 50 ? (
+                    <span className="text-[#5DCAA5] font-bold">⭐ Excelente ({orgReputation} pts)</span>
+                  ) : orgReputation >= 20 ? (
+                    <span className="text-[#EF9F27] font-bold">👍 Buena ({orgReputation} pts)</span>
+                  ) : orgReputation > 0 ? (
+                    <span className="text-[#AFA9EC] font-bold">🆕 Nueva ({orgReputation} pts)</span>
+                  ) : (
+                    <span className="text-[#666] font-bold">Sin historial on-chain</span>
+                  )}
+                  <span className="text-[10px] text-[#534AB7]">On-chain</span>
+                </div>
                 <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
                   <div className="flex items-center justify-center gap-2.5 px-5 py-3 rounded-xl bg-[#12122a]/90 backdrop-blur-xl border border-[#2a2a4a] text-[14px] md:text-[15px] font-semibold text-white shadow-xl w-full sm:w-auto">
                     <Icons.CalendarDays size={18} className="text-[#534AB7]" /> {event.date}

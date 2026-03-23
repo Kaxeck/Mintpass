@@ -9,7 +9,7 @@ import MyTicket from "./pages/MyTicket";
 import { EVENTS } from "./data/events";
 import "./index.css";
 
-// Developer Comment: Claves de localStorage para persistir eventos entre sesiones
+// Claves de localStorage para persistir eventos entre sesiones
 const LS_EVENTS_KEY = "mintpass_created_events";
 const LS_COLLECTION_KEY = "mintpass_last_collection";
 
@@ -18,7 +18,7 @@ export default function App() {
   const [view, setView] = useState<'home' | 'dashboard' | 'create' | 'details' | 'staff' | 'purchase' | 'myticket'>('home');
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
 
-  // Developer Comment: Inicializamos desde localStorage para que los eventos sobrevivan un refresh
+  // Inicializamos desde localStorage para que los eventos sobrevivan un refresh
   const [createdEvents, setCreatedEvents] = useState<CreatedEvent[]>(() => {
     try {
       const saved = localStorage.getItem(LS_EVENTS_KEY);
@@ -32,7 +32,7 @@ export default function App() {
 
   const [ticketMint, setTicketMint] = useState<string>('');
 
-  // Developer Comment: Cada vez que cambian los eventos creados, los persistimos en localStorage
+  // Cada vez que cambian los eventos creados, los persistimos en localStorage
   useEffect(() => {
     localStorage.setItem(LS_EVENTS_KEY, JSON.stringify(createdEvents));
   }, [createdEvents]);
@@ -90,7 +90,7 @@ export default function App() {
     return <CreateEvent 
       onBack={() => setView('dashboard')} 
       onSuccess={(newEvent) => {
-        // Developer Comment: Guardamos el evento creado en la lista y su collectionMint para compras futuras
+        // Guardamos el evento creado en la lista y su collectionMint para compras futuras
         setCreatedEvents(prev => [...prev, newEvent]);
         setCollectionMint(newEvent.collectionMint);
         setView('dashboard');

@@ -3,21 +3,26 @@ import * as Icons from "lucide-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { getOrganizerReputation } from "../lib/metaplex";
+import { readAllEventsFromChain, OnChainEventData } from "../lib/event-pda";
 import { CreatedEvent } from "./CreateEvent";
 
 import "../index.css";
 
-// Developer Comment: Ahora el dashboard recibe los eventos reales creados on-chain
+// Ahora el dashboard recibe los eventos reales creados on-chain
 export default function OrganizerDashboard({ createdEvents, onBack, onCreate, onEventClick }: { createdEvents: CreatedEvent[], onBack: () => void, onCreate: () => void, onEventClick: (id: number) => void }) {
   const wallet = useWallet();
   const { connection } = useConnection();
   const [activeTab, setActiveTab] = useState('activos');
 
-  // Developer Comment: Estado para almacenar el puntaje de reputación leído de la blockchain
+  // Estado para almacenar el puntaje de reputación leído de la blockchain
   const [reputationScore, setReputationScore] = useState<number | null>(null);
   const [loadingRep, setLoadingRep] = useState(false);
 
-  // Developer Comment: Al conectar la wallet, consultamos la PDA de reputación del organizador on-chain
+  // Eventos leídos directamente desde las PDAs on-chain
+  const [onChainEvents, setOnChainEvents] = useState<OnChainEventData[]>([]);
+  const [loadingEvents, setLoadingEvents] = useState(false);
+
+  // Al conectar la wallet, consultamos la PDA de reputación del organizador on-chain
   useEffect(() => {
     async function fetchReputation() {
       if (!wallet.publicKey) {
@@ -37,7 +42,32 @@ export default function OrganizerDashboard({ createdEvents, onBack, onCreate, on
     }
     fetchReputation();
   }, [wallet.publicKey, connection]);
-  // Developer Comment: Mapeamos los eventos guardados en la wallet/sesión al formato visual del dashboard
+
+  // Al conectar la wallet, también leemos los eventos guardados en las PDAs on-chain
+  useEffect(() => {
+    async function fetchOnChainEvents() {
+      if (!wallet.publicKey) {
+        setOnChainEvents([]);
+        return;
+      }
+      // Obtenemos los collectionMints conocidos de los eventos creados en la sesión
+      const knownMints = createdEvents.map(ev => ev.collectionMint);
+      if (knownMints.length === 0) return;
+
+      setLoadingEvents(true);
+      try {
+        const chainEvents = await readAllEventsFromChain(connection, wallet.publicKey, knownMints);
+        setOnChainEvents(chainEvents);
+        console.log(`Leídos ${chainEvents.length} eventos desde blockchain.`);
+      } catch (e) {
+        console.error("Error al leer eventos desde la blockchain:", e);
+      } finally {
+        setLoadingEvents(false);
+      }
+    }
+    fetchOnChainEvents();
+  }, [wallet.publicKey, connection, createdEvents]);
+  // Mapeamos los eventos guardados en la wallet/sesión al formato visual del dashboard
   const categoryIcons: Record<string, string> = {
     'Música / Concierto': 'Music', 'Arte y cultura': 'Palette', 'Deporte': 'Activity',
     'Feria y mercado': 'ShoppingBag', 'Teatro y danza': 'Drama', 'Otro': 'Sparkles'
@@ -51,7 +81,7 @@ export default function OrganizerDashboard({ createdEvents, onBack, onCreate, on
     'Feria y mercado': '#EF9F27', 'Teatro y danza': '#E879A8', 'Otro': '#534AB7'
   };
 
-  // Developer Comment: Transformamos CreatedEvent[] a la estructura visual que usa el listado
+  // Transformamos CreatedEvent[] a la estructura visual que usa el listado
   const events = createdEvents.map(ev => {
     const eventDate = ev.date ? new Date(ev.date + 'T12:00') : null;
     const isToday = eventDate && eventDate.toDateString() === new Date().toDateString();
@@ -79,7 +109,7 @@ export default function OrganizerDashboard({ createdEvents, onBack, onCreate, on
 
   const filteredEvents = events.filter(e => e.cat === activeTab);
 
-  // Developer Comment: Función helper para mostrar el nivel de reputación
+  // Función helper para mostrar el nivel de reputación
   const getReputationLevel = (score: number) => {
     if (score >= 50) return { label: 'Excelente', color: '#5DCAA5', icon: '⭐' };
     if (score >= 20) return { label: 'Buena', color: '#EF9F27', icon: '👍' };
@@ -108,7 +138,7 @@ export default function OrganizerDashboard({ createdEvents, onBack, onCreate, on
         </div>
         
         <div className="nav-right">
-          {/* Developer Comment: Reemplazamos el botón falso por WalletMultiButton real */}
+          {/* Reemplazamos el botón falso por WalletMultiButton real */}
           <WalletMultiButton className="wallet-chip" style={{ background: '#1a1a2e', color: '#AFA9EC', border: '1px solid #2a2a4a', padding: '6px 14px', fontSize: '12px', height: 'auto', lineHeight: 1, fontFamily: 'inherit' }} />
           <div className="avatar">KR</div>
         </div>
@@ -144,7 +174,7 @@ export default function OrganizerDashboard({ createdEvents, onBack, onCreate, on
             <div className="stat-value">0</div>
             <div className="stat-sub">Pendiente</div>
           </div>
-          {/* Developer Comment: Tarjeta de Reputación On-Chain del Organizador */}
+          {/* Tarjeta de Reputación On-Chain del Organizador */}
           <div className="stat-card" style={{ borderColor: wallet.publicKey ? '#534AB7' : '#2a2a4a' }}>
             <div className="stat-label">Reputación on-chain</div>
             <div className="stat-value" style={{ color: reputationScore !== null ? getReputationLevel(reputationScore).color : '#666' }}>
@@ -175,6 +205,13 @@ export default function OrganizerDashboard({ createdEvents, onBack, onCreate, on
         </div>
 
         <div className="event-list" id="event-list">
+          {/* Indicador de carga mientras se consultan las PDAs en blockchain */}
+          {loadingEvents && (
+            <div style={{ textAlign: 'center', padding: '12px', fontSize: '12px', color: '#AFA9EC' }}>
+              ⛓️ Consultando eventos en la blockchain de Solana...
+            </div>
+          )}
+
           {createdEvents.length === 0 ? (
             <div className="empty-state" style={{ textAlign: 'center', padding: '40px 20px' }}>
               <Icons.PlusCircle size={40} color="#534AB7" style={{ marginBottom: '12px' }} />
@@ -186,6 +223,8 @@ export default function OrganizerDashboard({ createdEvents, onBack, onCreate, on
           ) : (
             filteredEvents.map(ev => {
               const EventIcon = (Icons as any)[ev.coverText] || Icons.HelpCircle;
+              {/* Verificamos si este evento fue leído exitosamente desde la PDA on-chain */}
+              const isVerifiedOnChain = onChainEvents.some(oc => oc.collectionMint === ev.collectionMint);
               return (
               <div className="event-card" key={ev.id} onClick={() => onEventClick(ev.id)}>
                 <div className={`event-cover ${ev.coverClass}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -193,13 +232,26 @@ export default function OrganizerDashboard({ createdEvents, onBack, onCreate, on
                 </div>
                 
                 <div className="event-info">
-                  <div className="event-name">{ev.name}</div>
+                  <div className="event-name" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {ev.name}
+                    {/* Badge de verificación on-chain */}
+                    {isVerifiedOnChain && (
+                      <span title="Evento verificado en blockchain" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '9px', background: 'rgba(93,202,165,0.15)', color: '#5DCAA5', padding: '2px 6px', borderRadius: '8px', fontWeight: 600 }}>
+                        <Icons.ShieldCheck size={10} /> On-chain
+                      </span>
+                    )}
+                  </div>
                   <div className="event-meta">{ev.meta}</div>
                   
                   <div className="event-bar-wrap">
                     <div className="event-bar" style={{ width: `${ev.progress}%`, background: ev.progressColor }}></div>
                   </div>
                   <div className="event-bar-label">{ev.progressLabel}</div>
+                  
+                  {/* Mostramos el collectionMint truncado como referencia on-chain */}
+                  <div style={{ fontSize: '10px', color: '#666', marginTop: '4px', fontFamily: 'monospace' }}>
+                    🔗 {ev.collectionMint.slice(0, 8)}...{ev.collectionMint.slice(-4)}
+                  </div>
                   
                   <div className="event-actions">
                     {ev.actions.map((action, idx) => (

@@ -3,9 +3,10 @@ import * as Icons from "lucide-react";
 import PageNav from "../components/PageNav";
 import { useUmi } from "../providers";
 import { createEventCollection } from "../lib/metaplex";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { saveEventOnChain } from "../lib/event-pda";
+import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 
-// Developer Comment: Interfaz compartida para los eventos creados on-chain
+// Interfaz compartida para los eventos creados on-chain
 export interface CreatedEvent {
   id: number;
   collectionMint: string;
@@ -24,6 +25,7 @@ export interface CreatedEvent {
 export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void, onSuccess: (event: CreatedEvent) => void }) {
   const umi = useUmi();
   const wallet = useWallet();
+  const { connection } = useConnection();
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
   const [date, setDate] = useState('');
@@ -66,21 +68,39 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
       });
 
       setCreationStep(2);
+
+      // Después de crear la colección NFT, guardamos los metadatos
+      // del evento en una PDA on-chain (~0.003 SOL de rent-exempt deposit).
+      // Esto permite que los datos persistan en la blockchain y se lean desde cualquier cliente.
+      const eventDataOnChain = {
+        name: name || "Evento Mintpass",
+        description: desc || "Un evento seguro con tickets NFT dinámicos.",
+        date: date,
+        time: time,
+        venue: venue,
+        category: category,
+        aforo: parseInt(aforo) || 0,
+        priceType: priceType as 'free' | 'sol' | 'usdc',
+        price: priceType === 'free' ? 0 : parseFloat(price) || 0,
+        collectionMint: collectionAddr,
+        createdAt: Date.now()
+      };
+
+      try {
+        // Segunda transacción - guardar metadata en PDA on-chain
+        await saveEventOnChain(connection, wallet, eventDataOnChain);
+        console.log("Evento guardado exitosamente on-chain.");
+      } catch (pdaError: any) {
+        // Si falla el guardado en PDA, no bloqueamos el flujo
+        // ya que la colección NFT ya fue creada exitosamente.
+        console.warn("Advertencia: No se pudo guardar metadata en PDA on-chain:", pdaError.message);
+      }
+
       setTimeout(() => {
-        // Developer Comment: Regresamos el evento completo con todos sus datos al App.tsx
+        // Regresamos el evento completo con todos sus datos al App.tsx
         onSuccess({
           id: Date.now(),
-          collectionMint: collectionAddr,
-          name: name || "Evento Mintpass",
-          description: desc || "Un evento seguro con tickets NFT dinámicos.",
-          date: date,
-          time: time,
-          venue: venue,
-          category: category,
-          aforo: parseInt(aforo) || 0,
-          priceType: priceType,
-          price: priceType === 'free' ? 0 : parseFloat(price) || 0,
-          createdAt: Date.now()
+          ...eventDataOnChain
         });
       }, 900);
     } catch (e: any) {

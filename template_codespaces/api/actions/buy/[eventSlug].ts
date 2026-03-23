@@ -20,7 +20,7 @@ import { createV1 } from "@metaplex-foundation/mpl-core";
 import { toWeb3JsInstruction } from "@metaplex-foundation/umi-web3js-adapters"; 
 
 // Constantes integradas de nuestros módulos previos
-const ESCROW_PROGRAM_ID = new PublicKey("11111111111111111111111111111111");
+const ESCROW_PROGRAM_ID = new PublicKey("8NRJJTedLMqMVsZyFTzf3zKeHwgaSywmcTYsjVjB4kQz");
 const EVENT_COLLECTION_MINT = "11111111111111111111111111111111"; // Reemplazar con el Mint de la Colección del Evento
 const ORGANIZER_WALLET = new PublicKey("11111111111111111111111111111111"); // Wallet de quien organiza
 const TICKET_PRICE_SOL = 0.5;

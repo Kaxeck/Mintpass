@@ -8,7 +8,7 @@ import {
 import { WalletContextState } from "@solana/wallet-adapter-react";
 
 // TODO: Modificar con la dirección pública final del programa verificador on-chain.
-const CHECKIN_PROGRAM_ID = new PublicKey("11111111111111111111111111111111");
+const CHECKIN_PROGRAM_ID = new PublicKey("Dm5EGnhPWU1MGJNYRwfetzPTojSM9g1yJEAdd9bPdqTf");
 
 export interface ScanResult {
   valid: boolean;

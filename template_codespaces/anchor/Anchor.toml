@@ -5,10 +5,9 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-vault = "BJcj2Sc2mUTY7TgstZGVwkCuW3JdpeJYoDXccwHiB4uf"
-mintpass_escrow = "11111111111111111111111111111111"
-mintpass_checkin = "11111111111111111111111111111111"
-mintpass_reputation = "11111111111111111111111111111111"
+mintpass_escrow = "8NRJJTedLMqMVsZyFTzf3zKeHwgaSywmcTYsjVjB4kQz"
+mintpass_checkin = "Dm5EGnhPWU1MGJNYRwfetzPTojSM9g1yJEAdd9bPdqTf"
+mintpass_reputation = "79i2AbYFRQUj5gSStpvoJ51QSYcSwcN3dp6Jyrv13g6j"
 
 [registry]
 url = "https://api.apr.dev"

@@ -186,7 +186,7 @@ export async function mutateToPoap(
 }
 
 // TODO: Modificar con la dirección pública (PROGRAM_ID) verdadera de tu Smart Contract de Reputación
-const REPUTATION_PROGRAM_ID = new PublicKey("11111111111111111111111111111111");
+const REPUTATION_PROGRAM_ID = new PublicKey("79i2AbYFRQUj5gSStpvoJ51QSYcSwcN3dp6Jyrv13g6j");
 
 /**
  * Modifica o inicializa la reputación inmutable de un organizador en la blockchain interactuando con su PDA.

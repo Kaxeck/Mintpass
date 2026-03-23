@@ -24,7 +24,7 @@ use anchor_lang::system_program::{transfer, Transfer};
 // ============================================================================
 
 // TODO: Reemplazar con el Program ID real después de ejecutar `anchor build`
-declare_id!("11111111111111111111111111111111");
+declare_id!("8NRJJTedLMqMVsZyFTzf3zKeHwgaSywmcTYsjVjB4kQz");
 
 #[program]
 pub mod mintpass_escrow {

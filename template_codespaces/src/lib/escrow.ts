@@ -8,7 +8,7 @@ import {
 import { WalletContextState } from "@solana/wallet-adapter-react";
 
 // TODO: Reemplaza esto con el PublicKey real (PROGRAM_ID) de tu Smart Contract de Escrow en devnet.
-const ESCROW_PROGRAM_ID = new PublicKey("11111111111111111111111111111111");
+const ESCROW_PROGRAM_ID = new PublicKey("8NRJJTedLMqMVsZyFTzf3zKeHwgaSywmcTYsjVjB4kQz");
 
 /**
  * Transfiere SOL desde la wallet del comprador hacia una cuenta PDA del Escrow.

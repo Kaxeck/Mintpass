@@ -23,7 +23,7 @@ use anchor_lang::prelude::*;
 // ============================================================================
 
 // TODO: Reemplazar con el Program ID real después de ejecutar `anchor build`
-declare_id!("11111111111111111111111111111111");
+declare_id!("Dm5EGnhPWU1MGJNYRwfetzPTojSM9g1yJEAdd9bPdqTf");
 
 #[program]
 pub mod mintpass_checkin {

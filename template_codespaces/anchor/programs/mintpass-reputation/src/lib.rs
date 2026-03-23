@@ -20,7 +20,7 @@ use anchor_lang::prelude::*;
 // ============================================================================
 
 // TODO: Reemplazar con el Program ID real después de ejecutar `anchor build`
-declare_id!("11111111111111111111111111111111");
+declare_id!("79i2AbYFRQUj5gSStpvoJ51QSYcSwcN3dp6Jyrv13g6j");
 
 /// Puntos que se suman por un evento exitoso
 const SUCCESS_POINTS: u64 = 10;

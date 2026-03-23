@@ -50,29 +50,29 @@ export default function Home({ onGoToOrganizer, onEventClick }: { onGoToOrganize
       {/* Features Grid */}
       <div className="features">
         <div className="feat">
-          <div className="feat-icon" style={{background:'#12122a'}}>
-            <Icons.QrCode size={18} color="#7F77DD" />
+          <div className="feat-icon" style={{background:'rgba(59,130,246,0.1)', border: '0.5px solid rgba(59,130,246,0.2)'}}>
+            <Icons.QrCode size={18} color="#60A5FA" />
           </div>
           <div className="feat-title">QR dinámico anti-fraude</div>
           <div className="feat-desc">El código rota cada 30 segundos. Imposible duplicar por screenshot.</div>
         </div>
         <div className="feat">
-          <div className="feat-icon" style={{background:'#0a1a12'}}>
+          <div className="feat-icon" style={{background:'rgba(29,158,117,0.1)', border: '0.5px solid rgba(29,158,117,0.2)'}}>
             <Icons.Wallet size={18} color="#5DCAA5" />
           </div>
           <div className="feat-title">Wallet intra-evento</div>
           <div className="feat-desc">Paga en barras y merch con tu mismo ticket. Sin efectivo ni apps extra.</div>
         </div>
         <div className="feat">
-          <div className="feat-icon" style={{background:'#1a0a0a'}}>
+          <div className="feat-icon" style={{background:'rgba(240,153,123,0.1)', border: '0.5px solid rgba(240,153,123,0.2)'}}>
             <Icons.CheckCircle size={18} color="#F0997B" />
           </div>
           <div className="feat-title">Verificación instantánea</div>
           <div className="feat-desc">El staff escanea y en 2 segundos sabe si el ticket es válido on-chain.</div>
         </div>
         <div className="feat">
-          <div className="feat-icon" style={{background:'#0a1a0a'}}>
-            <Icons.Medal size={18} color="#5DCAA5" />
+          <div className="feat-icon" style={{background:'rgba(232,121,168,0.1)', border: '0.5px solid rgba(232,121,168,0.2)'}}>
+            <Icons.Medal size={18} color="#E879A8" />
           </div>
           <div className="feat-title">POAP coleccionable</div>
           <div className="feat-desc">Tu ticket muta en recuerdo NFT al salir. Prueba que estuviste ahí.</div>

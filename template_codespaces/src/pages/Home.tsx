@@ -47,9 +47,10 @@ export default function Home({ onGoToOrganizer, onEventClick }: { onGoToOrganize
           <span className="nav-link">Organizadores</span>
         </div>
         <div className="nav-right">
-          {/* Developer Comment: Reemplazamos el mock por el botón real del WalletAdapter */}
+          {/* Reemplazamos el mock por el botón real del WalletAdapter */}
           <WalletMultiButton className="btn-wallet" style={{ background: '#1a1a2e', fontFamily: 'inherit', height: 'auto', lineHeight: 1, padding: '8px 16px', fontSize: '13px' }} />
-          <div className="btn-cta" onClick={onGoToOrganizer}>Crear evento</div>
+          {/* Cambiamos 'Crear evento' a 'Soy organizador' según la solicitud del cliente */}
+          <div className="btn-cta" onClick={onGoToOrganizer}>Soy organizador</div>
         </div>
       </div>
 
@@ -57,7 +58,7 @@ export default function Home({ onGoToOrganizer, onEventClick }: { onGoToOrganize
       <div className="hero">
         <div className="hero-bg"><div className="hero-glow"></div></div>
         <div className="hero-tag"><div className="tag-dot"></div>Powered by Solana · Anti-fraude · Sin reventa</div>
-        <div className="hero-title">Tickets <span>NFT</span> para<br/>eventos en LATAM</div>
+        <div className="hero-title">Tickets <span>NFT</span> para<br />eventos en LATAM</div>
         <div className="hero-sub">Compra tu entrada, entra con QR verificado on-chain y llévate un coleccionable de cada experiencia.</div>
         <div className="hero-btns">
           <button className="hbtn-main" onClick={() => document.getElementById('events-section')?.scrollIntoView({ behavior: 'smooth' })}>Ver eventos</button>
@@ -68,28 +69,28 @@ export default function Home({ onGoToOrganizer, onEventClick }: { onGoToOrganize
       {/* Features Grid */}
       <div className="features">
         <div className="feat">
-          <div className="feat-icon" style={{background:'rgba(59,130,246,0.1)', border: '0.5px solid rgba(59,130,246,0.2)'}}>
+          <div className="feat-icon" style={{ background: 'rgba(59,130,246,0.1)', border: '0.5px solid rgba(59,130,246,0.2)' }}>
             <Icons.QrCode size={18} color="#60A5FA" />
           </div>
           <div className="feat-title">QR dinámico anti-fraude</div>
           <div className="feat-desc">El código rota cada 30 segundos. Imposible duplicar por screenshot.</div>
         </div>
         <div className="feat">
-          <div className="feat-icon" style={{background:'rgba(29,158,117,0.1)', border: '0.5px solid rgba(29,158,117,0.2)'}}>
+          <div className="feat-icon" style={{ background: 'rgba(29,158,117,0.1)', border: '0.5px solid rgba(29,158,117,0.2)' }}>
             <Icons.Wallet size={18} color="#5DCAA5" />
           </div>
           <div className="feat-title">Wallet intra-evento</div>
           <div className="feat-desc">Paga en barras y merch con tu mismo ticket. Sin efectivo ni apps extra.</div>
         </div>
         <div className="feat">
-          <div className="feat-icon" style={{background:'rgba(240,153,123,0.1)', border: '0.5px solid rgba(240,153,123,0.2)'}}>
+          <div className="feat-icon" style={{ background: 'rgba(240,153,123,0.1)', border: '0.5px solid rgba(240,153,123,0.2)' }}>
             <Icons.CheckCircle size={18} color="#F0997B" />
           </div>
           <div className="feat-title">Verificación instantánea</div>
           <div className="feat-desc">El staff escanea y en 2 segundos sabe si el ticket es válido on-chain.</div>
         </div>
         <div className="feat">
-          <div className="feat-icon" style={{background:'rgba(232,121,168,0.1)', border: '0.5px solid rgba(232,121,168,0.2)'}}>
+          <div className="feat-icon" style={{ background: 'rgba(232,121,168,0.1)', border: '0.5px solid rgba(232,121,168,0.2)' }}>
             <Icons.Medal size={18} color="#E879A8" />
           </div>
           <div className="feat-title">POAP coleccionable</div>
@@ -105,19 +106,19 @@ export default function Home({ onGoToOrganizer, onEventClick }: { onGoToOrganize
         </div>
         <div className="cats">
           {['Todos', 'Música', 'Arte', 'Deporte', 'Feria', 'Teatro'].map(c => (
-             <div key={c} className={`cat ${catFilter === c ? 'on' : ''}`} onClick={() => setCatFilter(c)}>{c}</div>
+            <div key={c} className={`cat ${catFilter === c ? 'on' : ''}`} onClick={() => setCatFilter(c)}>{c}</div>
           ))}
         </div>
         <div className="events-grid">
           {filteredEvents.map(e => {
-            const pct = Math.round((e.sold/e.total)*100);
+            const pct = Math.round((e.sold / e.total) * 100);
             const avail = e.total - e.sold;
             const isSold = avail <= 0;
             const barColor = pct > 85 ? '#E24B4A' : pct > 60 ? '#EF9F27' : '#534AB7';
             const EventIcon = (Icons as any)[e.icon] || Icons.HelpCircle;
             return (
               <div className="ecard" key={e.id} onClick={() => onEventClick(e.id)}>
-                <div className="ecard-cover" style={{background: e.bg}}>
+                <div className="ecard-cover" style={{ background: e.bg }}>
                   <span className="ecard-icon" style={{ display: 'flex' }}><EventIcon size={32} color={e.color} /></span>
                   {e.badge && <div className={`ecard-badge b-${e.badge}`}>{e.bLabel}</div>}
                   <div className="nft-chip">NFT</div>
@@ -125,10 +126,10 @@ export default function Home({ onGoToOrganizer, onEventClick }: { onGoToOrganize
                 <div className="ecard-body">
                   <div className="ecard-cat">{e.cat}</div>
                   <div className="ecard-name">{e.name}</div>
-                  <div className="ecard-meta">{e.date}<br/>{e.venue}</div>
-                  <div className="ecard-bar"><div className="ecard-bar-fill" style={{width: `${pct}%`, background: barColor}}></div></div>
+                  <div className="ecard-meta">{e.date}<br />{e.venue}</div>
+                  <div className="ecard-bar"><div className="ecard-bar-fill" style={{ width: `${pct}%`, background: barColor }}></div></div>
                   <div className="ecard-footer">
-                    <div className="ecard-price" style={{color: isSold ? '#444' : e.price === 0 ? '#5DCAA5' : '#7F77DD'}}>
+                    <div className="ecard-price" style={{ color: isSold ? '#444' : e.price === 0 ? '#5DCAA5' : '#7F77DD' }}>
                       {isSold ? 'Agotado' : e.price === 0 ? 'Gratis' : e.price + ' SOL'}
                     </div>
                     <div className="ecard-avail">{isSold ? '' : `${avail} disp.`}</div>

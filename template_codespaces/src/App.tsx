@@ -1,5 +1,5 @@
-import { useState } from "react";
-import CreateEvent from "./pages/CreateEvent";
+import { useState, useEffect } from "react";
+import CreateEvent, { CreatedEvent } from "./pages/CreateEvent";
 import EventDetails from "./pages/EventDetails";
 import StaffPanel from "./pages/StaffPanel";
 import OrganizerDashboard from "./pages/OrganizerDashboard";
@@ -9,14 +9,39 @@ import MyTicket from "./pages/MyTicket";
 import { EVENTS } from "./data/events";
 import "./index.css";
 
+// Developer Comment: Claves de localStorage para persistir eventos entre sesiones
+const LS_EVENTS_KEY = "mintpass_created_events";
+const LS_COLLECTION_KEY = "mintpass_last_collection";
+
 export default function App() {
   // Estado para controlar qué pantalla se muestra
   const [view, setView] = useState<'home' | 'dashboard' | 'create' | 'details' | 'staff' | 'purchase' | 'myticket'>('home');
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
 
-  // Developer Comment: Añadimos persistencia en memoria para el Collection Mint del evento y el Mint del Ticket
-  const [collectionMint, setCollectionMint] = useState<string>('');
+  // Developer Comment: Inicializamos desde localStorage para que los eventos sobrevivan un refresh
+  const [createdEvents, setCreatedEvents] = useState<CreatedEvent[]>(() => {
+    try {
+      const saved = localStorage.getItem(LS_EVENTS_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+
+  const [collectionMint, setCollectionMint] = useState<string>(() => {
+    return localStorage.getItem(LS_COLLECTION_KEY) || '';
+  });
+
   const [ticketMint, setTicketMint] = useState<string>('');
+
+  // Developer Comment: Cada vez que cambian los eventos creados, los persistimos en localStorage
+  useEffect(() => {
+    localStorage.setItem(LS_EVENTS_KEY, JSON.stringify(createdEvents));
+  }, [createdEvents]);
+
+  useEffect(() => {
+    if (collectionMint) {
+      localStorage.setItem(LS_COLLECTION_KEY, collectionMint);
+    }
+  }, [collectionMint]);
 
   if (view === 'home') {
     return <Home 
@@ -53,6 +78,7 @@ export default function App() {
   // Vista del dashboard de organizador
   if (view === 'dashboard') {
     return <OrganizerDashboard 
+      createdEvents={createdEvents}
       onBack={() => setView('home')} 
       onCreate={() => setView('create')} 
       onEventClick={() => setView('details')} 
@@ -63,9 +89,11 @@ export default function App() {
   if (view === 'create') {
     return <CreateEvent 
       onBack={() => setView('dashboard')} 
-      onSuccess={(newCollectionAddr) => {
-        setCollectionMint(newCollectionAddr);
-        setView('details');
+      onSuccess={(newEvent) => {
+        // Developer Comment: Guardamos el evento creado en la lista y su collectionMint para compras futuras
+        setCreatedEvents(prev => [...prev, newEvent]);
+        setCollectionMint(newEvent.collectionMint);
+        setView('dashboard');
       }} 
     />;
   }

@@ -1,38 +1,90 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import * as Icons from "lucide-react";
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import { useWallet, useConnection } from "@solana/wallet-adapter-react";
+import { getOrganizerReputation } from "../lib/metaplex";
+import { CreatedEvent } from "./CreateEvent";
 
 import "../index.css";
 
-export default function OrganizerDashboard({ onBack, onCreate, onEventClick }: { onBack: () => void, onCreate: () => void, onEventClick: (id: number) => void }) {
+// Developer Comment: Ahora el dashboard recibe los eventos reales creados on-chain
+export default function OrganizerDashboard({ createdEvents, onBack, onCreate, onEventClick }: { createdEvents: CreatedEvent[], onBack: () => void, onCreate: () => void, onEventClick: (id: number) => void }) {
+  const wallet = useWallet();
+  const { connection } = useConnection();
   const [activeTab, setActiveTab] = useState('activos');
-  const [walletOn, setWalletOn] = useState(false);
-  const events = [
-    {
-      id: 1, cat: 'activos', name: 'Noche de Jazz — CDMX', meta: 'Hoy · 21:00 h · Foro Indie, Roma Norte',
-      coverText: 'Music', coverClass: 'cover-purple', progress: 78, progressColor: '#534AB7', progressLabel: '156 / 200 entradas vendidas',
-      statusClass: 's-active', statusText: 'En curso', price: '0.05 SOL', actions: ['Panel staff', 'Ver QR Blink', 'Compartir'], primaryAction: 0
-    },
-    {
-      id: 2, cat: 'proximos', name: 'Expo Diseño Independiente', meta: 'Sáb 29 Mar · 12:00 h · La Ciudadela',
-      coverText: 'Palette', coverClass: 'cover-teal', progress: 34, progressColor: '#1D9E75', progressLabel: '102 / 300 entradas vendidas',
-      statusClass: 's-soon', statusText: 'Próximo', price: 'Gratis', actions: ['Ver QR Blink', 'Editar', 'Compartir']
-    },
-    {
-      id: 3, cat: 'proximos', name: 'Torneo Fut 7 — León', meta: 'Dom 30 Mar · 09:00 h · Unidad Deportiva',
-      coverText: 'Activity', coverClass: 'cover-coral', progress: 55, progressColor: '#D85A30', progressLabel: '22 / 40 equipos registrados',
-      statusClass: 's-soon', statusText: 'Próximo', price: '0.02 SOL', actions: ['Ver QR Blink', 'Editar', 'Compartir']
-    },
-    {
-      id: 4, cat: 'pasados', name: 'Open Mic — Guadalajara', meta: '15 Mar · 127 asistentes',
-      coverText: 'MicVocal', coverClass: '', coverStyle: { background: 'var(--color-background-tertiary)' }, progress: 100, progressColor: '#555555', progressLabel: '127 / 127 — sold out',
-      statusClass: 's-past', statusText: 'Terminado', price: '0.03 SOL', priceStyle: { color: 'var(--color-text-tertiary)' }, actions: ['Ver POAPs', 'Estadísticas']
+
+  // Developer Comment: Estado para almacenar el puntaje de reputación leído de la blockchain
+  const [reputationScore, setReputationScore] = useState<number | null>(null);
+  const [loadingRep, setLoadingRep] = useState(false);
+
+  // Developer Comment: Al conectar la wallet, consultamos la PDA de reputación del organizador on-chain
+  useEffect(() => {
+    async function fetchReputation() {
+      if (!wallet.publicKey) {
+        setReputationScore(null);
+        return;
+      }
+      setLoadingRep(true);
+      try {
+        const score = await getOrganizerReputation(connection, wallet.publicKey.toBase58());
+        setReputationScore(score);
+      } catch (e) {
+        console.error("Error al consultar la reputación on-chain:", e);
+        setReputationScore(0);
+      } finally {
+        setLoadingRep(false);
+      }
     }
-  ];
+    fetchReputation();
+  }, [wallet.publicKey, connection]);
+  // Developer Comment: Mapeamos los eventos guardados en la wallet/sesión al formato visual del dashboard
+  const categoryIcons: Record<string, string> = {
+    'Música / Concierto': 'Music', 'Arte y cultura': 'Palette', 'Deporte': 'Activity',
+    'Feria y mercado': 'ShoppingBag', 'Teatro y danza': 'Drama', 'Otro': 'Sparkles'
+  };
+  const categoryColors: Record<string, string> = {
+    'Música / Concierto': 'cover-purple', 'Arte y cultura': 'cover-teal', 'Deporte': 'cover-coral',
+    'Feria y mercado': 'cover-purple', 'Teatro y danza': 'cover-teal', 'Otro': 'cover-coral'
+  };
+  const categoryProgressColors: Record<string, string> = {
+    'Música / Concierto': '#534AB7', 'Arte y cultura': '#1D9E75', 'Deporte': '#D85A30',
+    'Feria y mercado': '#EF9F27', 'Teatro y danza': '#E879A8', 'Otro': '#534AB7'
+  };
+
+  // Developer Comment: Transformamos CreatedEvent[] a la estructura visual que usa el listado
+  const events = createdEvents.map(ev => {
+    const eventDate = ev.date ? new Date(ev.date + 'T12:00') : null;
+    const isToday = eventDate && eventDate.toDateString() === new Date().toDateString();
+    const isPast = eventDate && eventDate < new Date();
+    const cat = isToday ? 'activos' : isPast ? 'pasados' : 'proximos';
+    const dateStr = eventDate ? eventDate.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
+    const metaStr = `${dateStr}${ev.time ? ' · ' + ev.time + ' h' : ''} · ${ev.venue}`;
+    const priceStr = ev.priceType === 'free' ? 'Gratis' : `${ev.price} ${ev.priceType.toUpperCase()}`;
+
+    return {
+      id: ev.id, cat, name: ev.name, meta: metaStr,
+      coverText: categoryIcons[ev.category] || 'Sparkles',
+      coverClass: categoryColors[ev.category] || 'cover-purple',
+      progress: 0,
+      progressColor: categoryProgressColors[ev.category] || '#534AB7',
+      progressLabel: `0 / ${ev.aforo} entradas vendidas`,
+      statusClass: isToday ? 's-active' : isPast ? 's-past' : 's-soon',
+      statusText: isToday ? 'En curso' : isPast ? 'Terminado' : 'Próximo',
+      price: priceStr,
+      actions: ['Panel staff', 'Ver QR Blink', 'Compartir'],
+      primaryAction: 0,
+      collectionMint: ev.collectionMint
+    };
+  });
 
   const filteredEvents = events.filter(e => e.cat === activeTab);
 
-  const handleWalletClick = () => {
-    setWalletOn(!walletOn);
+  // Developer Comment: Función helper para mostrar el nivel de reputación
+  const getReputationLevel = (score: number) => {
+    if (score >= 50) return { label: 'Excelente', color: '#5DCAA5', icon: '⭐' };
+    if (score >= 20) return { label: 'Buena', color: '#EF9F27', icon: '👍' };
+    if (score > 0)  return { label: 'Nueva', color: '#AFA9EC', icon: '🆕' };
+    return { label: 'Sin historial', color: '#666', icon: '—' };
   };
 
   return (
@@ -56,9 +108,8 @@ export default function OrganizerDashboard({ onBack, onCreate, onEventClick }: {
         </div>
         
         <div className="nav-right">
-          <div className="wallet-chip" onClick={handleWalletClick} style={{ cursor: 'pointer', borderColor: walletOn ? '#534AB7' : '', color: walletOn ? '#AFA9EC' : '' }}>
-            {walletOn ? '7xKf…9pQm' : "Conectar Wallet"}
-          </div>
+          {/* Developer Comment: Reemplazamos el botón falso por WalletMultiButton real */}
+          <WalletMultiButton className="wallet-chip" style={{ background: '#1a1a2e', color: '#AFA9EC', border: '1px solid #2a2a4a', padding: '6px 14px', fontSize: '12px', height: 'auto', lineHeight: 1, fontFamily: 'inherit' }} />
           <div className="avatar">KR</div>
         </div>
       </div>
@@ -79,19 +130,35 @@ export default function OrganizerDashboard({ onBack, onCreate, onEventClick }: {
 
         <div className="stats-grid">
           <div className="stat-card">
-            <div className="stat-label">Eventos activos</div>
-            <div className="stat-value">3</div>
-            <div className="stat-sub">Este mes</div>
+            <div className="stat-label">Eventos creados</div>
+            <div className="stat-value">{createdEvents.length}</div>
+            <div className="stat-sub">En esta sesión</div>
           </div>
           <div className="stat-card">
             <div className="stat-label">Tickets vendidos</div>
-            <div className="stat-value">284</div>
-            <div className="stat-sub">+42 esta semana</div>
+            <div className="stat-value">0</div>
+            <div className="stat-sub">Recién iniciado</div>
           </div>
           <div className="stat-card">
             <div className="stat-label">Asistentes hoy</div>
-            <div className="stat-value">97</div>
-            <div className="stat-sub">En curso ahora</div>
+            <div className="stat-value">0</div>
+            <div className="stat-sub">Pendiente</div>
+          </div>
+          {/* Developer Comment: Tarjeta de Reputación On-Chain del Organizador */}
+          <div className="stat-card" style={{ borderColor: wallet.publicKey ? '#534AB7' : '#2a2a4a' }}>
+            <div className="stat-label">Reputación on-chain</div>
+            <div className="stat-value" style={{ color: reputationScore !== null ? getReputationLevel(reputationScore).color : '#666' }}>
+              {loadingRep ? '...' : reputationScore !== null ? `${getReputationLevel(reputationScore).icon} ${reputationScore}` : '—'}
+            </div>
+            <div className="stat-sub">
+              {!wallet.publicKey 
+                ? 'Conecta wallet para ver' 
+                : loadingRep 
+                  ? 'Consultando blockchain...' 
+                  : reputationScore !== null 
+                    ? getReputationLevel(reputationScore).label
+                    : 'Sin datos'}
+            </div>
           </div>
         </div>
 
@@ -108,14 +175,20 @@ export default function OrganizerDashboard({ onBack, onCreate, onEventClick }: {
         </div>
 
         <div className="event-list" id="event-list">
-          {filteredEvents.length === 0 ? (
+          {createdEvents.length === 0 ? (
+            <div className="empty-state" style={{ textAlign: 'center', padding: '40px 20px' }}>
+              <Icons.PlusCircle size={40} color="#534AB7" style={{ marginBottom: '12px' }} />
+              <div style={{ fontSize: '14px', marginBottom: '4px' }}>Aún no has creado ningún evento</div>
+              <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>Presiona "Crear evento" para lanzar tu primera colección NFT en Solana</div>
+            </div>
+          ) : filteredEvents.length === 0 ? (
             <div className="empty-state">No hay eventos en esta categoría.</div>
           ) : (
             filteredEvents.map(ev => {
               const EventIcon = (Icons as any)[ev.coverText] || Icons.HelpCircle;
               return (
               <div className="event-card" key={ev.id} onClick={() => onEventClick(ev.id)}>
-                <div className={`event-cover ${ev.coverClass}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', ...(ev.coverStyle || {}) }}>
+                <div className={`event-cover ${ev.coverClass}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <EventIcon size={24} color="#fff" />
                 </div>
                 
@@ -143,7 +216,7 @@ export default function OrganizerDashboard({ onBack, onCreate, onEventClick }: {
                 
                 <div className="event-right">
                   <span className={`status-pill ${ev.statusClass}`}>{ev.statusText}</span>
-                  <span className="event-price" style={ev.priceStyle || {}}>{ev.price}</span>
+                  <span className="event-price">{ev.price}</span>
                 </div>
               </div>
             );

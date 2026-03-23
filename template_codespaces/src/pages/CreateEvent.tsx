@@ -5,7 +5,23 @@ import { useUmi } from "../providers";
 import { createEventCollection } from "../lib/metaplex";
 import { useWallet } from "@solana/wallet-adapter-react";
 
-export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void, onSuccess: (addr: string) => void }) {
+// Developer Comment: Interfaz compartida para los eventos creados on-chain
+export interface CreatedEvent {
+  id: number;
+  collectionMint: string;
+  name: string;
+  description: string;
+  date: string;
+  time: string;
+  venue: string;
+  category: string;
+  aforo: number;
+  priceType: 'free' | 'sol' | 'usdc';
+  price: number;
+  createdAt: number; // timestamp
+}
+
+export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void, onSuccess: (event: CreatedEvent) => void }) {
   const umi = useUmi();
   const wallet = useWallet();
   const [name, setName] = useState('');
@@ -51,8 +67,21 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
 
       setCreationStep(2);
       setTimeout(() => {
-        // Regresamos el Mint público de la colección al App.tsx
-        onSuccess(collectionAddr);
+        // Developer Comment: Regresamos el evento completo con todos sus datos al App.tsx
+        onSuccess({
+          id: Date.now(),
+          collectionMint: collectionAddr,
+          name: name || "Evento Mintpass",
+          description: desc || "Un evento seguro con tickets NFT dinámicos.",
+          date: date,
+          time: time,
+          venue: venue,
+          category: category,
+          aforo: parseInt(aforo) || 0,
+          priceType: priceType,
+          price: priceType === 'free' ? 0 : parseFloat(price) || 0,
+          createdAt: Date.now()
+        });
       }, 900);
     } catch (e: any) {
       console.error(e);

@@ -32,6 +32,7 @@ export default function StaffPanel({ event, stats, onCheckIn, onBack }: { event?
   const [logs, setLogs] = useState<Array<{
     dotClass: string;
     addr: string;
+    mint?: string;
     statusClass: string;
     statusText: string;
     time: string;
@@ -128,7 +129,7 @@ export default function StaffPanel({ event, stats, onCheckIn, onBack }: { event?
     const time = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
     
     setLogs(prev => [
-      { dotClass: r.dotClass, addr, statusClass: r.statusClass, statusText: r.statusText, time },
+      { dotClass: r.dotClass, addr, mint: realMintAddress, statusClass: r.statusClass, statusText: r.statusText, time },
       ...prev
     ]);
   };
@@ -353,7 +354,14 @@ export default function StaffPanel({ event, stats, onCheckIn, onBack }: { event?
               logs.map((log, i) => (
                 <div className="log-row" key={i}>
                   <div className={`log-dot ${log.dotClass}`}></div>
-                  <div className="log-addr">{log.addr}</div>
+                  <div className="log-addr" style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                    {log.addr}
+                    {log.mint && (
+                      <a href={`https://explorer.solana.com/address/${log.mint}?cluster=devnet`} target="_blank" rel="noreferrer" style={{color: '#AFA9EC', opacity: 0.8, display: 'flex'}}>
+                        <Icons.ExternalLink size={12} />
+                      </a>
+                    )}
+                  </div>
                   <div className={`log-status ${log.statusClass}`}>{log.statusText}</div>
                   <div className="log-time">{log.time}</div>
                 </div>

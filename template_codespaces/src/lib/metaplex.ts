@@ -1,5 +1,5 @@
 import { generateSigner, Umi, publicKey, createSignerFromKeypair, transactionBuilder } from "@metaplex-foundation/umi";
-import { createCollection, createV1, update, fetchAsset } from "@metaplex-foundation/mpl-core";
+import { createCollection, createV1, update, fetchAsset, fetchCollection } from "@metaplex-foundation/mpl-core";
 import { uploadMetadata } from "./pinata";
 import { sendToEscrow } from "./escrow";
 import { Connection, PublicKey, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
@@ -162,6 +162,7 @@ export async function mutateToPoap(
   umi: Umi,
   params: {
     mintAddress: string;
+    collectionMint: string;
     eventData: {
       name: string;
       date: string;
@@ -196,11 +197,15 @@ export async function mutateToPoap(
   // Solo la Update Authority (que típicamente es el publicador de la Colección conectada en UMI) podrá ejecutarlo on-chain.
   // mpl-core requiere el objeto Asset (o parcial con owner/publicKey) para derivaciones internas.
   const coreAsset = await fetchAsset(umi, publicKey(params.mintAddress));
+  const coreCollection = await fetchCollection(umi, publicKey(params.collectionMint));
+  const appMasterSigner = getMasterSigner(umi);
 
   await update(umi, {
     asset: coreAsset,
+    collection: coreCollection,
     name: poapName,
     uri: newMetadataUri,
+    authority: appMasterSigner,
   }).sendAndConfirm(umi);
 }
 

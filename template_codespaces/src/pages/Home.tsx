@@ -74,8 +74,8 @@ export default function Home({ createdEvents, onGoToOrganizer, onEventClick, onG
       {/* Navbar Superior */}
       <div className="nav">
         <div className="nav-brand">
-          <div className="nav-logo">
-            <Icons.Layers size={20} color="#fff" />
+          <div className="nav-logo" style={{ background: 'transparent', padding: 0, width: '26px', height: '26px' }}>
+            <img src="/icon.jpg" alt="Mintpass" style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '4px' }} />
           </div>
           <span className="nav-name">Mintpass</span>
         </div>

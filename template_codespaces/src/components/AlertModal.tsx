@@ -6,10 +6,12 @@ export interface AlertModalProps {
   message: string;
   type: 'error' | 'success' | 'info' | 'warning';
   signature?: string;
+  actionText?: string;
+  onAction?: () => void;
   onClose: () => void;
 }
 
-export default function AlertModal({ isOpen, title, message, type, signature, onClose }: AlertModalProps) {
+export default function AlertModal({ isOpen, title, message, type, signature, actionText, onAction, onClose }: AlertModalProps) {
   if (!isOpen) return null;
 
   const bgGradient = 
@@ -62,16 +64,26 @@ export default function AlertModal({ isOpen, title, message, type, signature, on
             </div>
           )}
 
-          <button 
-            onClick={onClose}
-            className="w-full h-[48px] rounded-[16px] font-black text-[14px] text-white tracking-widest uppercase transition-all duration-300 hover:scale-[1.02] shadow-lg"
-            style={{
-              background: type === 'success' ? '#1D9E75' : type === 'error' || type === 'warning' ? '#E24B4A' : '#534AB7',
-              boxShadow: type === 'success' ? '0 10px 20px rgba(29,158,117,0.2)' : type === 'error' ? '0 10px 20px rgba(226,75,74,0.2)' : '0 10px 20px rgba(83,74,183,0.2)'
-            }}
-          >
-            Entendido
-          </button>
+          <div className="w-full flex gap-3">
+            {actionText && onAction && (
+              <button 
+                onClick={onClose}
+                className="flex-1 h-[48px] rounded-[16px] font-bold text-[14px] text-[#AFA9EC] bg-[#1a1a2e] border border-[#2a2a4a] tracking-wide transition-all duration-300 hover:bg-[#2a2a4a]"
+              >
+                Cancelar
+              </button>
+            )}
+            <button 
+              onClick={actionText && onAction ? onAction : onClose}
+              className={`${actionText ? 'flex-1' : 'w-full'} h-[48px] rounded-[16px] font-black text-[14px] text-white tracking-widest uppercase transition-all duration-300 hover:scale-[1.02] shadow-lg`}
+              style={{
+                background: type === 'success' ? '#1D9E75' : type === 'error' || type === 'warning' ? '#E24B4A' : '#534AB7',
+                boxShadow: type === 'success' ? '0 10px 20px rgba(29,158,117,0.2)' : type === 'error' ? '0 10px 20px rgba(226,75,74,0.2)' : '0 10px 20px rgba(83,74,183,0.2)'
+              }}
+            >
+              {actionText || 'Entendido'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

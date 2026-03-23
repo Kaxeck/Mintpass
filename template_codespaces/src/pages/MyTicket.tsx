@@ -5,6 +5,7 @@ import PageNav from "../components/PageNav";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useUmi } from "../providers";
 import { mutateToPoap } from "../lib/metaplex";
+import AlertModal, { AlertModalProps } from "../components/AlertModal";
 import "../index.css";
 
 const PERIOD = 30; // 30 segundos de vigencia del código QR
@@ -17,6 +18,19 @@ export default function MyTicket({ event, ticketMint, onBack }: { event: any, ti
   
   const umi = useUmi();
   const [isMutating, setIsMutating] = useState(false);
+
+  const [alertConfig, setAlertConfig] = useState<AlertModalProps>({ 
+    isOpen: false, title: '', message: '', type: 'info', 
+    onClose: () => setAlertConfig(p => ({...p, isOpen: false})) 
+  });
+
+  const showAlert = (title: string, message: string, type: AlertModalProps['type'], actionText?: string, onAction?: () => void) => {
+    setAlertConfig(prev => ({ 
+      ...prev, isOpen: true, title, message, type, 
+      actionText, 
+      onAction: onAction ? () => { setAlertConfig(p => ({...p, isOpen: false})); onAction(); } : undefined 
+    }));
+  };
   
   // Validamos si este boleto ya fue pasado por el escáner del Staff
   const isCheckedIn = (() => {
@@ -33,32 +47,42 @@ export default function MyTicket({ event, ticketMint, onBack }: { event: any, ti
     } catch { return false; }
   });
 
-  const handleClaimPoap = async () => {
-    const isConfirmed = window.confirm("Evolucionar tu ticket a un POAP coleccionable requiere una tarifa de red de Solana (Gas Fee de 0.002 SOL aprox).\n\n¿Deseas firmar la transacción y continuar?");
-    if (!isConfirmed) return;
+  const handleClaimPoap = () => {
+    showAlert(
+      "Confirmar Evolución a POAP",
+      "Evolucionar tu ticket a un POAP coleccionable requiere una tarifa de red de Solana (Gas Fee de 0.002 SOL aprox).\n\n¿Deseas firmar la transacción y continuar?",
+      "info",
+      "Firmar y Evolucionar",
+      async () => {
+        setIsMutating(true);
+        try {
+          await mutateToPoap(umi, {
+            mintAddress: ticketMint,
+            collectionMint: event.collectionMint,
+            eventData: {
+              name: event.name,
+              date: event.date,
+              venue: event.venue,
+              ticketNumber: event.sold,
+              totalAttendees: event.sold,
+            },
+            poapImageUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&auto=format&fit=crop"
+          });
+          
+          const claimed = JSON.parse(localStorage.getItem('mintpass_demo_poaps') || '[]');
+          claimed.push(ticketMint);
+          localStorage.setItem('mintpass_demo_poaps', JSON.stringify(claimed));
+          setPoapClaimed(true);
 
-    setIsMutating(true);
-    try {
-      await mutateToPoap(umi, {
-        mintAddress: ticketMint,
-        eventData: {
-          name: event.name,
-          date: event.date,
-          venue: event.venue,
-          ticketNumber: event.sold,
-          totalAttendees: event.sold,
-        },
-        poapImageUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&auto=format&fit=crop" // Imagen Holográfica para POAP
-      });
-      
-      const claimed = JSON.parse(localStorage.getItem('mintpass_demo_poaps') || '[]');
-      claimed.push(ticketMint);
-      localStorage.setItem('mintpass_demo_poaps', JSON.stringify(claimed));
-      setPoapClaimed(true);
-    } catch(e: any) {
-      alert("Error reclamando POAP en la red: " + e.message);
-    }
-    setIsMutating(false);
+          setTimeout(() => {
+            showAlert("¡POAP Reclamado!", "Tu ticket ha mutado exitosamente en la blockchain y ahora es un coleccionable permanente e inmutable.", "success");
+          }, 300);
+        } catch(e: any) {
+          showAlert("Error Transaccional", "Fallo al reclamar POAP en devnet:\n" + e.message, "error");
+        }
+        setIsMutating(false);
+      }
+    );
   };
 
   // Hook para controlar el reloj descendente y la rotación del QR dinámico
@@ -233,7 +257,7 @@ export default function MyTicket({ event, ticketMint, onBack }: { event: any, ti
 
         {/* Acciones del comprador (Usa el Ticket Digital a la entrada, paga con la Wallet adentro) */}
         <div className="action-row">
-          <button className="act-btn act-btn-primary" onClick={() => alert("Dirigiendo a Mi wallet (vista intra-evento)...")}>
+          <button className="act-btn act-btn-primary" onClick={() => showAlert("Próximamente", "Esta es la vista intra-evento donde podrás recargar saldo y pagar en las barras usando tu wallet.", "info")}>
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="3" width="12" height="8" rx="2" stroke="currentColor" strokeWidth="1.2"/><circle cx="9" cy="7" r="1" fill="currentColor"/></svg>
             Mi wallet
           </button>
@@ -244,7 +268,7 @@ export default function MyTicket({ event, ticketMint, onBack }: { event: any, ti
               <><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="11" cy="3" r="1.5" stroke="currentColor" strokeWidth="1.2"/><circle cx="11" cy="11" r="1.5" stroke="currentColor" strokeWidth="1.2"/><circle cx="3" cy="7" r="1.5" stroke="currentColor" strokeWidth="1.2"/><path d="M4.4 6.2l5.1-2.7M4.4 7.8l5.1 2.7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg> Compartir</>
             )}
           </button>
-          <button className="act-btn" onClick={() => alert("Mostrando vista de Verificación on-chain...")}>
+          <button className="act-btn" onClick={() => showAlert("Verificación Integrada", "Vista de auditoría criptográfica. Permite a cualquier persona asegurar que tu boleto es 100% auténtico.", "info")}>
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1l1.5 3h3l-2.5 2 1 3L7 7.5 4 9l1-3L2.5 4h3z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"/></svg>
             Verificar
           </button>
@@ -272,6 +296,8 @@ export default function MyTicket({ event, ticketMint, onBack }: { event: any, ti
           <div className="nfc-text">Pulsera NFC activa — acerca al lector en la entrada para ingresar sin mostrar el QR</div>
         </div>
       </div>
+
+      <AlertModal {...alertConfig} />
     </div>
   );
 }

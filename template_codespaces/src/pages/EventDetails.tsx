@@ -200,7 +200,12 @@ export default function EventDetails({ event, stats, ownedTickets = [], onBack, 
                     return (
                       <div className="attendee-row" key={t.mint}>
                         <div className="av av-p">T{(ownedTickets.length - idx).toString().padStart(2, '0')}</div>
-                        <div className="attendee-addr">{t.mint.substring(0,6)}...{t.mint.substring(t.mint.length-4)}</div>
+                        <div className="attendee-addr" style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                          {t.mint.substring(0,6)}...{t.mint.substring(t.mint.length-4)}
+                          <a href={`https://explorer.solana.com/address/${t.mint}?cluster=devnet`} target="_blank" rel="noreferrer" style={{color: '#AFA9EC', opacity: 0.8, display: 'flex'}}>
+                            <Icons.ExternalLink size={12} />
+                          </a>
+                        </div>
                         <div className="attendee-time">{timeStr}</div>
                         <span className="checked-badge">Comprador</span>
                       </div>

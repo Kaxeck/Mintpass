@@ -6,6 +6,7 @@ skip-lint = false
 
 [programs.devnet]
 vault = "BJcj2Sc2mUTY7TgstZGVwkCuW3JdpeJYoDXccwHiB4uf"
+mintpass_escrow = "11111111111111111111111111111111"
 
 [registry]
 url = "https://api.apr.dev"

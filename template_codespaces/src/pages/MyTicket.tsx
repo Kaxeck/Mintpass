@@ -1,20 +1,14 @@
 import { useState, useEffect } from "react";
 import * as Icons from "lucide-react";
+import QRCode from "react-qr-code";
 import PageNav from "../components/PageNav";
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import "../index.css";
 
 const PERIOD = 30; // 30 segundos de vigencia del código QR
 
-// Diferentes patrones de QR (simulados con arrays de 0 y 1 para rellenar el grid)
-const patterns = [
-  [1,1,1,1,1,1,1,0,1,0,1,1,0,0,0,0,0,1,0,0,1,0,1,0,1,1,1,0,1,0,1,1,1,1,0,1,0,0,0,1,1,0,1,1,1,0,1,0,0,0,1,0,0,0,0,0,1,1,1,0,0,1,1,1,1,1,1,1,0,1,0,1,0,0,0,0,1,0,0,1,0,1,0,1,0,1,1,0,1,1,0,0,1,0,0,1,0,0,0,1,1,0,1,0,1,0,0,0,0,1,0,0,1,0,1,1,0,1,0,0,1],
-  [1,1,1,1,1,1,1,0,0,1,1,1,0,0,0,0,0,1,1,0,1,0,1,0,1,1,1,0,0,1,0,1,0,1,1,1,0,1,0,0,1,0,1,0,1,1,1,0,1,1,0,1,0,0,0,0,0,1,0,0,0,1,1,1,1,1,1,1,0,1,1,0,0,1,0,0,0,0,0,0,1,0,1,1,0,1,1,1,0,1,1,0,0,0,1,0,0,1,0,1,0,0,1,1,0,1,0,0,0,1,0,0,0,1,0,0,1,1,0,0,1],
-  [1,1,1,1,1,1,1,0,1,1,0,1,0,0,0,0,0,1,1,0,0,1,1,0,1,1,1,0,1,0,1,1,0,1,1,1,0,1,1,0,0,1,0,1,1,1,0,1,0,0,1,0,0,0,0,0,1,0,1,1,0,1,1,1,1,1,1,1,0,0,1,0,0,0,1,0,0,0,0,1,1,0,1,1,1,0,0,1,1,0,0,0,1,1,0,0,1,0,1,0,0,1,0,1,0,0,0,1,1,0,1,0,1,1,0,0,0,1,1,0,0],
-];
-
-export default function MyTicket({ event, onBack }: { event: any, onBack: () => void }) {
+export default function MyTicket({ event, ticketMint, onBack }: { event: any, ticketMint: string, onBack: () => void }) {
   const [secs, setSecs] = useState(PERIOD);
-  const [patIdx, setPatIdx] = useState(0);
   const [rotations, setRotations] = useState(0);
   const [flash, setFlash] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -30,8 +24,7 @@ export default function MyTicket({ event, onBack }: { event: any, onBack: () => 
           setFlash(true);
           setTimeout(() => setFlash(false), 200);
           
-          // Cambiamos al siguiente patrón QR circularmente
-          setPatIdx(p => (p + 1) % patterns.length);
+          // Cambiamos al siguiente patrón rotando la semilla (Simulado)
           setRotations(r => r + 1);
           return PERIOD; // Reseteamos el reloj
         }
@@ -55,8 +48,10 @@ export default function MyTicket({ event, onBack }: { event: any, onBack: () => 
   const labelColor = secs <= 5 ? '#E24B4A' : 'var(--color-text-secondary)';
   const labelText = secs <= 5 ? `Renovando QR en ${secs}s…` : 'Muestra este QR en la entrada';
 
-  // Obtenemos el grid del array binario del patrón actual (simulando los píxeles del QR)
-  const currentPattern = patterns[patIdx];
+  const cryptoPayload = JSON.stringify({ 
+    mint: ticketMint, 
+    rot: rotations // Incluimos el nonce de la rotación para evitar capturas de pantalla viejas
+  });
 
   const EventIcon = (Icons as any)[event?.icon || 'Music'] || Icons.HelpCircle;
 
@@ -64,8 +59,8 @@ export default function MyTicket({ event, onBack }: { event: any, onBack: () => 
     <div className="app">
       <PageNav 
         onBack={onBack} 
-        title="Mi ticket" 
-        rightElement={<span className="wallet-chip">7xKf…9pQm</span>} 
+        title="Mi ticket digital" 
+        rightElement={<WalletMultiButton className="wallet-chip" style={{ background: 'transparent', color: '#AFA9EC', border: '1px solid #2a2a4a', padding: '4px 10px', fontSize: '11px', height: 'auto', lineHeight: 1 }} />} 
       />
 
       <div className="main" style={{ maxWidth: '380px' }}>
@@ -88,14 +83,15 @@ export default function MyTicket({ event, onBack }: { event: any, onBack: () => 
           
           <div className="qr-section">
             <div className="qr-label" style={{ color: labelColor }}>{labelText}</div>
-            <div className="qr-outer">
-              <div className="qr-grid">
-                {currentPattern.map((v, i) => (
-                  <div key={i} className="qc" style={{ background: v ? '#111' : '#fff' }}></div>
-                ))}
-              </div>
-              <div className="qr-logo">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1.5" fill="#fff"/><rect x="9" y="2" width="5" height="5" rx="1.5" fill="#fff" opacity=".7"/><rect x="2" y="9" width="5" height="5" rx="1.5" fill="#fff" opacity=".7"/><rect x="9" y="9" width="5" height="5" rx="1.5" fill="#fff" opacity=".4"/></svg>
+            <div className="qr-outer" style={{ padding: '16px', background: '#fff', borderRadius: '16px', position: 'relative' }}>
+              <QRCode 
+                value={cryptoPayload} 
+                size={180} 
+                bgColor="#ffffff"
+                fgColor="#111111"
+              />
+              <div className="qr-logo" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: '#fff', padding: '4px', borderRadius: '4px' }}>
+                <Icons.CheckCircle size={24} color="#5DCAA5" />
               </div>
               {/* Overlay de destello al recargar el QR */}
               <div className={`refresh-flash ${flash ? 'show' : ''}`}></div>
@@ -125,8 +121,8 @@ export default function MyTicket({ event, onBack }: { event: any, onBack: () => 
           
           {/* Metadatos en Blockchain */}
           <div className="ticket-footer">
-            <div className="tf-row"><span className="tf-label">NFT mint</span><span className="tf-value">FiEs7pKm…3xK9</span></div>
-            <div className="tf-row"><span className="tf-label">Colección</span><span className="tf-value tf-value-purple">Jazz CDMX · Metaplex Core</span></div>
+            <div className="tf-row"><span className="tf-label">Ticket ID (Mint)</span><span className="tf-value" style={{ fontSize: '10px' }}>{ticketMint.slice(0, 15)}...</span></div>
+            <div className="tf-row"><span className="tf-label">Colección</span><span className="tf-value tf-value-purple">MINT PASS CORE</span></div>
             <div className="tf-row"><span className="tf-label">Red</span><span className="tf-value">Solana devnet</span></div>
           </div>
         </div>

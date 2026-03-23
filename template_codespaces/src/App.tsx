@@ -14,6 +14,10 @@ export default function App() {
   const [view, setView] = useState<'home' | 'dashboard' | 'create' | 'details' | 'staff' | 'purchase' | 'myticket'>('home');
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
 
+  // Developer Comment: Añadimos persistencia en memoria para el Collection Mint del evento y el Mint del Ticket
+  const [collectionMint, setCollectionMint] = useState<string>('');
+  const [ticketMint, setTicketMint] = useState<string>('');
+
   if (view === 'home') {
     return <Home 
       onGoToOrganizer={() => setView('dashboard')} 
@@ -29,6 +33,8 @@ export default function App() {
     const ev = EVENTS.find(e => e.id === selectedEventId) || EVENTS[0];
     return <BuyerPurchase 
       event={ev} 
+      collectionMint={collectionMint}
+      onSuccessMint={(mintInfo) => setTicketMint(mintInfo)}
       onBack={() => setView('home')} 
       onGoToMyTicket={() => setView('myticket')} 
     />;
@@ -39,6 +45,7 @@ export default function App() {
     const ev = EVENTS.find(e => e.id === selectedEventId) || EVENTS[0];
     return <MyTicket 
       event={ev} 
+      ticketMint={ticketMint || "11111111111111111111111111111111"}
       onBack={() => setView('purchase')} 
     />;
   }
@@ -54,7 +61,13 @@ export default function App() {
 
   // Formulario de crear evento nuevo
   if (view === 'create') {
-    return <CreateEvent onBack={() => setView('dashboard')} onSuccess={() => setView('details')} />;
+    return <CreateEvent 
+      onBack={() => setView('dashboard')} 
+      onSuccess={(newCollectionAddr) => {
+        setCollectionMint(newCollectionAddr);
+        setView('details');
+      }} 
+    />;
   }
 
   // Detalle del evento con simulación en tiempo real (Vista del organizador)

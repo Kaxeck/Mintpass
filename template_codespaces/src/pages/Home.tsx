@@ -1,15 +1,13 @@
 import { useState } from "react";
 import * as Icons from "lucide-react";
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import "../Home.css";
 import { EVENTS } from "../data/events";
 
 export default function Home({ onGoToOrganizer, onEventClick }: { onGoToOrganizer: () => void, onEventClick: (id: number) => void }) {
-  const [walletOn, setWalletOn] = useState(false);
   const [catFilter, setCatFilter] = useState('Todos');
 
   const filteredEvents = catFilter === 'Todos' ? EVENTS : EVENTS.filter(e => e.cat === catFilter);
-
-  const toggleWallet = () => setWalletOn(!walletOn);
 
   return (
     <div className="app-home">
@@ -49,10 +47,8 @@ export default function Home({ onGoToOrganizer, onEventClick }: { onGoToOrganize
           <span className="nav-link">Organizadores</span>
         </div>
         <div className="nav-right">
-          <div className="btn-wallet" onClick={toggleWallet} style={{ borderColor: walletOn ? '#534AB7' : '' }}>
-            <div className="wallet-dot" style={{ background: walletOn ? '#5DCAA5' : '#534AB7' }}></div>
-            <span>{walletOn ? '7xKf…9pQm' : 'Conectar wallet'}</span>
-          </div>
+          {/* Developer Comment: Reemplazamos el mock por el botón real del WalletAdapter */}
+          <WalletMultiButton className="btn-wallet" style={{ background: '#1a1a2e', fontFamily: 'inherit', height: 'auto', lineHeight: 1, padding: '8px 16px', fontSize: '13px' }} />
           <div className="btn-cta" onClick={onGoToOrganizer}>Crear evento</div>
         </div>
       </div>

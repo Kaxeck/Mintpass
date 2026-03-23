@@ -1,8 +1,13 @@
 import { useState } from 'react';
 import * as Icons from "lucide-react";
 import PageNav from "../components/PageNav";
+import { useUmi } from "../providers";
+import { createEventCollection } from "../lib/metaplex";
+import { useWallet } from "@solana/wallet-adapter-react";
 
-export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void, onSuccess: () => void }) {
+export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void, onSuccess: (addr: string) => void }) {
+  const umi = useUmi();
+  const wallet = useWallet();
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
   const [date, setDate] = useState('');
@@ -25,16 +30,36 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
   // Validar si el formulario mínimo está lleno
   const isFilled = name && date && venue && aforo;
 
-  // Lógica de click para simular la creación
-  const handleCreate = () => {
+  // Lógica para comunicarse on-chain con el programa de Solana
+  const handleCreate = async () => {
+    if (!wallet.publicKey) {
+      alert("⚠️ Conecta tu wallet en la barra lateral primero para lanzar el contrato del evento.");
+      return;
+    }
+
     setIsCreating(true);
     setCreationStep(1);
-    setTimeout(() => {
+
+    try {
+      // Creamos la colección NFT on-chain
+      const collectionAddr = await createEventCollection(umi, {
+        name: name || "Evento Mintpass",
+        description: desc || "Un evento seguro con tickets NFT dinámicos.",
+        imageUrl: "https://lime-accessible-woodpecker-99.mypinata.cloud/ipfs/bafkreif4xoh5gdt3j3p7hsvqmbmbgckmczxmtxy23tzjlyt3y4c4m3hsqa", // Imagen Dummy
+        organizerWallet: wallet.publicKey.toBase58()
+      });
+
       setCreationStep(2);
       setTimeout(() => {
-        onSuccess();
+        // Regresamos el Mint público de la colección al App.tsx
+        onSuccess(collectionAddr);
       }, 900);
-    }, 1400);
+    } catch (e: any) {
+      console.error(e);
+      alert("Error ejecutando la transacción en devnet:\n" + e.message);
+      setIsCreating(false);
+      setCreationStep(0);
+    }
   };
 
   // Preparar datos para la Preview de la tarjeta lateral

@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import * as Icons from "lucide-react";
 import PageNav from "../components/PageNav";
-
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import { useWallet, useConnection } from "@solana/wallet-adapter-react";
+import { createCheckInPDA } from "../lib/checkin-pda";
+import "../index.css";
 export default function StaffPanel({ onBack }: { onBack: () => void }) {
   // Estados principales del escáner
   const [scanning, setScanning] = useState(true);
@@ -75,7 +78,7 @@ export default function StaffPanel({ onBack }: { onBack: () => void }) {
 
   // Función central para simular el escaneo de un código
   const simulate = (type: keyof typeof resultTypes) => {
-    if (!scanning) return;
+    // if (!scanning) return; // Removed this check as verifyTicket handles scanning state
     const r = resultTypes[type];
 
     // Mostramos overlay de resultado
@@ -102,13 +105,48 @@ export default function StaffPanel({ onBack }: { onBack: () => void }) {
     }, 2200);
   };
 
+  // Solana Wallet & Connection
+  const wallet = useWallet();
+  const { connection } = useConnection();
+  const [manualMint, setManualMint] = useState('');
+
+  const verifyTicket = async (mintToVerify: string) => {
+    if (!wallet.publicKey) {
+      alert("⚠️ El staff debe conectar su wallet superior para firmar los accesos en la blockchain.");
+      return;
+    }
+
+    // Extraemos el mint si viene dentro de nuestro JSON cryptoPayload
+    let targetMint = mintToVerify;
+    try {
+      const parsed = JSON.parse(mintToVerify);
+      if (parsed.mint) targetMint = parsed.mint;
+    } catch(e) { }
+
+    setScanning(false);
+    
+    try {
+      // 1. Conexión real enviando la transacción PDA de registro
+      const res = await createCheckInPDA(connection, wallet as any, targetMint);
+      
+      // 2. Mostrar la respuesta UI
+      if (res.status === 'valid') simulate('valid');
+      else if (res.status === 'invalid') simulate('invalid');
+      else simulate('duplicate');
+      
+    } catch (e: any) {
+      alert("Falló la conexión de lectura con Solana Devnet: " + e.message);
+      setScanning(true);
+    }
+  };
+
   return (
-    <div className="app">
+    <div className="app bg-[#0a0a0f] min-h-screen text-white font-sans">
       {/* ======= NAVBAR OSCURO PARA STAFF ======= */}
       <PageNav 
         onBack={onBack} 
         title="Panel de staff" 
-        rightElement={<div className="live-chip"><div className="live-dot-staff"></div>En vivo</div>} 
+        rightElement={<WalletMultiButton className="wallet-chip" style={{ background: '#1a1a2e', color: '#AFA9EC', border: '1px solid #2a2a4a', padding: '4px 10px', fontSize: '11px', height: 'auto', lineHeight: 1 }} />} 
       />
 
       {/* ======= CONTENEDOR PRINCIPAL ======= */}
@@ -161,6 +199,27 @@ export default function StaffPanel({ onBack }: { onBack: () => void }) {
                 </>
               )}
             </div>
+
+            {/* Input Manual para Demo sin cámara física */}
+            {scanning && (
+              <div className="absolute bottom-6 left-0 w-full px-6 flex flex-col gap-2 z-20">
+                <input 
+                  type="text" 
+                  placeholder="Pegue aquí el Ticket Mint para probar..." 
+                  value={manualMint}
+                  onChange={e => setManualMint(e.target.value)}
+                  className="w-full bg-black/60 border border-white/20 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#534AB7] transition-colors"
+                />
+                <button 
+                  onClick={() => manualMint && verifyTicket(manualMint)}
+                  className="w-full bg-[#534AB7] hover:bg-[#433B95] text-white font-bold py-3 rounded-xl shadow-lg transition-transform active:scale-95 text-sm"
+                >
+                  Verificar Manualmente
+                </button>
+              </div>
+            )}
+            
+            {/* Animación de escaneo línea láser */}
           </div>
 
           {/* Estadísticas rápidas bajo el escáner */}

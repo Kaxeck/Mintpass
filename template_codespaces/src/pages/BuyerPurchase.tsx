@@ -1,12 +1,17 @@
 import { useState, useEffect } from "react";
 import * as Icons from "lucide-react";
 import { EventModel } from '../types';
+import { useUmi } from "../providers";
+import { mintTicket } from "../lib/metaplex";
+import { useWallet } from "@solana/wallet-adapter-react";
 
-export default function BuyerPurchase({ event, onBack, onGoToMyTicket }: { event: EventModel, onBack: () => void, onGoToMyTicket: () => void }) {
+export default function BuyerPurchase({ event, collectionMint, onSuccessMint, onBack, onGoToMyTicket }: { event: EventModel, collectionMint: string, onSuccessMint: (mint: string) => void, onBack: () => void, onGoToMyTicket: () => void }) {
+  const umi = useUmi();
+  const wallet = useWallet();
   // Manejo de pantallas internas (flujo de compra)
   const [screen, setScreen] = useState<'buy' | 'processing' | 'success'>('buy');
   const [qty, setQty] = useState(1);
-  const [wallet, setWallet] = useState<'phantom' | 'backpack' | null>('phantom');
+  const [selectedWalletApp, setSelectedWalletApp] = useState<'phantom' | 'backpack' | null>('phantom');
   // Pasos de progreso para la animación de minteo
   const [progressStep, setProgressStep] = useState(0);
 
@@ -31,18 +36,48 @@ export default function BuyerPurchase({ event, onBack, onGoToMyTicket }: { event
     setQty(prev => Math.max(1, Math.min(4, Math.min(available, prev + delta))));
   };
 
-  // Iniciar la transición a la pantalla de procesamiento y animar
-  const startPurchase = () => {
+  // Iniciar la transacción real de minteo
+  const startPurchase = async () => {
+    if (!wallet.publicKey) {
+      alert("⚠️ Por favor conecta tu wallet Solana usando el menú para asegurar tu entrada.");
+      return;
+    }
+    if (!collectionMint) {
+      alert("⚠️ Este evento es una demo y el organizador aún no ha lanzado su contrato principal (Collection). Vuelve después.");
+      return;
+    }
+
     setScreen('processing');
     let step = 0;
     const interval = setInterval(() => {
       step++;
-      setProgressStep(step);
-      if (step >= 4) {
-        clearInterval(interval);
-        setTimeout(() => setScreen('success'), 600);
-      }
+      if (step <= 3) setProgressStep(step);
     }, 900);
+
+    try {
+      // 1. Escrow. 2. Mint 3. Transfer
+      const ticketMintAddr = await mintTicket(umi, {
+        collectionMint,
+        buyerWallet: wallet.publicKey.toBase58(),
+        priceSol: qty * event.price,
+        eventData: {
+          name: event.name,
+          date: event.date,
+          venue: event.venue,
+          ticketNumber: event.sold + 1,
+          imageUrl: "https://lime-accessible-woodpecker-99.mypinata.cloud/ipfs/bafkreic..."
+        }
+      });
+      clearInterval(interval);
+      setProgressStep(4);
+      onSuccessMint(ticketMintAddr); // Guardamos la firma del ticket
+      setTimeout(() => setScreen('success'), 600);
+    } catch (e: any) {
+      console.error(e);
+      clearInterval(interval);
+      alert("Error ejecutando el minteo en blockchain:\n" + e.message);
+      setScreen('buy');
+    }
   };
 
   const EventIcon = (Icons as any)[event.icon] || Icons.HelpCircle;
@@ -207,21 +242,21 @@ export default function BuyerPurchase({ event, onBack, onGoToMyTicket }: { event
               <div className="text-[12px] font-bold text-[#888888] uppercase tracking-[0.2em] mb-6 text-center">Decide cómo recibir tu acceso</div>
               
               <div className="grid grid-cols-2 gap-5 mb-8">
-                <div onClick={() => setWallet('phantom')} className={`cursor-pointer rounded-[28px] p-[2px] transition-all duration-300 ${wallet === 'phantom' ? 'bg-gradient-to-br from-[#534AB7] to-[#3C3489] shadow-[0_0_25px_rgba(83,74,183,0.4)]' : 'bg-[#1a1a2e] hover:bg-[#2a2a4a]'}`}>
-                  <div className={`h-full rounded-[26px] p-7 flex flex-col items-center text-center relative ${wallet === 'phantom' ? 'border-transparent' : 'border border-[#2a2a4a]'}`} style={{ background: wallet === 'phantom' ? 'linear-gradient(145deg, #12102e 0%, #1a1545 100%)' : '#0d0d1e' }}>
-                    <Icons.Ghost size={40} className={`mb-4 ${wallet === 'phantom' ? 'text-[#7F77DD] drop-shadow-[0_0_10px_rgba(127,119,221,0.5)]' : 'text-[#666]'}`} />
-                    <div className={`text-[18px] font-bold mb-1 ${wallet === 'phantom' ? 'text-white' : 'text-[#888]'}`}>Phantom</div>
-                    <div className={`text-[12px] font-medium ${wallet === 'phantom' ? 'text-[#AFA9EC]' : 'text-[#555]'}`}>Popular en Solana</div>
-                    {wallet === 'phantom' && <div className="absolute top-5 right-5 w-7 h-7 bg-[#534AB7] rounded-full flex items-center justify-center shadow-[0_0_10px_rgba(83,74,183,0.6)]"><Icons.Check size={16} color="white" strokeWidth={3} /></div>}
+                <div onClick={() => setSelectedWalletApp('phantom')} className={`cursor-pointer rounded-[28px] p-[2px] transition-all duration-300 ${selectedWalletApp === 'phantom' ? 'bg-gradient-to-br from-[#534AB7] to-[#3C3489] shadow-[0_0_25px_rgba(83,74,183,0.4)]' : 'bg-[#1a1a2e] hover:bg-[#2a2a4a]'}`}>
+                  <div className={`h-full rounded-[26px] p-7 flex flex-col items-center text-center relative ${selectedWalletApp === 'phantom' ? 'border-transparent' : 'border border-[#2a2a4a]'}`} style={{ background: selectedWalletApp === 'phantom' ? 'linear-gradient(145deg, #12102e 0%, #1a1545 100%)' : '#0d0d1e' }}>
+                    <Icons.Ghost size={40} className={`mb-4 ${selectedWalletApp === 'phantom' ? 'text-[#7F77DD] drop-shadow-[0_0_10px_rgba(127,119,221,0.5)]' : 'text-[#666]'}`} />
+                    <div className={`text-[18px] font-bold mb-1 ${selectedWalletApp === 'phantom' ? 'text-white' : 'text-[#888]'}`}>Phantom</div>
+                    <div className={`text-[12px] font-medium ${selectedWalletApp === 'phantom' ? 'text-[#AFA9EC]' : 'text-[#555]'}`}>Popular en Solana</div>
+                    {selectedWalletApp === 'phantom' && <div className="absolute top-5 right-5 w-7 h-7 bg-[#534AB7] rounded-full flex items-center justify-center shadow-[0_0_10px_rgba(83,74,183,0.6)]"><Icons.Check size={16} color="white" strokeWidth={3} /></div>}
                   </div>
                 </div>
 
-                <div onClick={() => setWallet('backpack')} className={`cursor-pointer rounded-[28px] p-[2px] transition-all duration-300 ${wallet === 'backpack' ? 'bg-gradient-to-br from-[#1D9E75] to-[#0F6E56] shadow-[0_0_25px_rgba(29,158,117,0.4)]' : 'bg-[#1a1a2e] hover:bg-[#2a2a4a]'}`}>
-                  <div className={`h-full rounded-[26px] p-7 flex flex-col items-center text-center relative ${wallet === 'backpack' ? 'border-transparent' : 'border border-[#2a2a4a]'}`} style={{ background: wallet === 'backpack' ? 'linear-gradient(145deg, #0a1e18 0%, #0d2e22 100%)' : '#0d0d1e' }}>
-                    <Icons.Backpack size={40} className={`mb-4 ${wallet === 'backpack' ? 'text-[#5DCAA5] drop-shadow-[0_0_10px_rgba(93,202,165,0.5)]' : 'text-[#666]'}`} />
-                    <div className={`text-[18px] font-bold mb-1 ${wallet === 'backpack' ? 'text-white' : 'text-[#888]'}`}>Backpack</div>
-                    <div className={`text-[12px] font-medium ${wallet === 'backpack' ? 'text-[#9FE1CB]' : 'text-[#555]'}`}>Nativa xNFT</div>
-                    {wallet === 'backpack' && <div className="absolute top-5 right-5 w-7 h-7 bg-[#1D9E75] rounded-full flex items-center justify-center shadow-[0_0_10px_rgba(29,158,117,0.6)]"><Icons.Check size={16} color="white" strokeWidth={3} /></div>}
+                <div onClick={() => setSelectedWalletApp('backpack')} className={`cursor-pointer rounded-[28px] p-[2px] transition-all duration-300 ${selectedWalletApp === 'backpack' ? 'bg-gradient-to-br from-[#1D9E75] to-[#0F6E56] shadow-[0_0_25px_rgba(29,158,117,0.4)]' : 'bg-[#1a1a2e] hover:bg-[#2a2a4a]'}`}>
+                  <div className={`h-full rounded-[26px] p-7 flex flex-col items-center text-center relative ${selectedWalletApp === 'backpack' ? 'border-transparent' : 'border border-[#2a2a4a]'}`} style={{ background: selectedWalletApp === 'backpack' ? 'linear-gradient(145deg, #0a1e18 0%, #0d2e22 100%)' : '#0d0d1e' }}>
+                    <Icons.Backpack size={40} className={`mb-4 ${selectedWalletApp === 'backpack' ? 'text-[#5DCAA5] drop-shadow-[0_0_10px_rgba(93,202,165,0.5)]' : 'text-[#666]'}`} />
+                    <div className={`text-[18px] font-bold mb-1 ${selectedWalletApp === 'backpack' ? 'text-white' : 'text-[#888]'}`}>Backpack</div>
+                    <div className={`text-[12px] font-medium ${selectedWalletApp === 'backpack' ? 'text-[#9FE1CB]' : 'text-[#555]'}`}>Nativa xNFT</div>
+                    {selectedWalletApp === 'backpack' && <div className="absolute top-5 right-5 w-7 h-7 bg-[#1D9E75] rounded-full flex items-center justify-center shadow-[0_0_10px_rgba(29,158,117,0.6)]"><Icons.Check size={16} color="white" strokeWidth={3} /></div>}
                   </div>
                 </div>
               </div>

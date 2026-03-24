@@ -11,10 +11,7 @@ npm run dev
 
 ## Variables de entorno
 
-| Variable | Descripción |
-|----------|-------------|
-| `VITE_PINATA_API_KEY` | API Key de Pinata para subir metadata a IPFS |
-| `VITE_PINATA_SECRET_KEY` | Secret Key de Pinata |
+Las credenciales de servicios externos (IPFS, llaves de firma) se configuran en `.env.local`.
 
 ## Módulos principales
 

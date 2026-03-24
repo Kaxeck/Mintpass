@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://mintpass-kaxeck.vercel.app">🌐 Demo en Vercel</a> ·
+  <a href="https://mintpass-flame.vercel.app">🌐 Demo en Vercel</a> ·
   <a href="#">🎬 Video Demo (Loom)</a> ·
   <a href="https://explorer.solana.com/?cluster=devnet">🔗 Solana Explorer (Devnet)</a>
 </p>
@@ -32,6 +32,7 @@ En Latinoamérica, los eventos en vivo enfrentan un problema de fraude masivo:
 | Feature | Cómo funciona |
 |---------|---------------|
 | 🎫 **Ticket NFT** | Cada entrada es un activo digital real e irrepetible en la blockchain |
+| 🌍 **Libre Acceso (Permissionless)** | Cualquier persona puede conectar su wallet y crear un evento sin intermediarios ni aprobaciones de terceros |
 | 🔄 **QR Dinámico** | El código rota cada 30 segundos, eliminando las capturas de pantalla |
 | ✅ **Check-in On-Chain** | El staff verifica la autenticidad con un scanner conectado a devnet |
 | 🏆 **POAP Mutation** | Tras el evento, el ticket muta y se convierte en un coleccionable permanente |
@@ -83,14 +84,9 @@ npm install
 
 ### Variables de Entorno
 
-Crea un archivo `.env.local` en `template_codespaces/`:
+Crea un archivo `.env.local` en `template_codespaces/` con las credenciales necesarias. Consulta `.env.example` o contacta al equipo para obtener las llaves requeridas.
 
-```env
-VITE_PINATA_API_KEY=tu_api_key_de_pinata
-VITE_PINATA_SECRET_KEY=tu_secret_key_de_pinata
-```
-
-> Sin estas llaves la app funciona en modo demo con metadatos de prueba.
+> Sin las variables configuradas, la app funciona en modo demo.
 
 ### Iniciar
 
@@ -129,13 +125,19 @@ Mintpass/
     └── anchor/              # Smart contracts (Rust/Anchor)
 ```
 
-## 🏆 Hackathon — Solana LATAM (WayLearn × Solana Foundation)
+## 🗺️ Roadmap
 
-- **Categoría:** DeFi / Consumer
-- **Equipo:** 1 integrante
-- **Red:** Solana Devnet
-- **Periodo de construcción:** 20 – 23 de marzo 2026
+- [ ] Integración de **Solana Blinks** para compra de tickets directamente desde Links
+- [ ] Construcción avanzada del **sistema de reputación** para organizadores on-chain
+- [ ] Implementación de un **sistema de verificación** descentralizado para organizadores verificados
+- [ ] Manejo de control de reventa con **sistema de devoluciones** nativo
 
-## 📄 Licencia
+## Autores
 
-MIT — Libre para uso educativo y comercial.
+### Equipo Mintpass
+- [@Kaxeck](https://github.com/Kaxeck)
+- [@josedejesusnietorangel-debug](https://github.com/josedejesusnietorangel-debug)
+- [@legh27](https://github.com/legh27)
+
+### Plantilla base
+Proyecto construido sobre la plantilla de [@DvdRivas](https://github.com/DvdRivas).

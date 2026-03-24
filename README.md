@@ -10,8 +10,7 @@
 
 <p align="center">
   <a href="https://mintpass-flame.vercel.app">🌐 Demo en Vercel</a> ·
-  <a href="#">🎬 Video Demo (Loom)</a> ·
-  <a href="https://explorer.solana.com/?cluster=devnet">🔗 Solana Explorer (Devnet)</a>
+  <a href="https://youtu.be/X_fvnamb5Wg">🎬 Video Demo (YouTube)</a>
 </p>
 
 ---

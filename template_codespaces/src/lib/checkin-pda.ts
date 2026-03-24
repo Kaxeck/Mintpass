@@ -3,12 +3,11 @@ import {
   PublicKey,
   SystemProgram,
   Transaction,
-  TransactionInstruction,
 } from "@solana/web3.js";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 
 // TODO: Modificar con la dirección pública final del programa verificador on-chain.
-const CHECKIN_PROGRAM_ID = new PublicKey("Dm5EGnhPWU1MGJNYRwfetzPTojSM9g1yJEAdd9bPdqTf");
+export const CHECKIN_PROGRAM_ID = new PublicKey("Dm5EGnhPWU1MGJNYRwfetzPTojSM9g1yJEAdd9bPdqTf");
 
 export interface ScanResult {
   valid: boolean;
@@ -27,6 +26,7 @@ export interface ScanResult {
 export async function isCheckedIn(connection: Connection, mintAddress: string): Promise<boolean> {
   // En el Demo MVP, usamos LocalStorage para simular el PDA ya que no tenemos el programa en Rust.
   // Esto previene dobles escaneos en la presentación si se escanea dos veces el mismo QR.
+  void connection;
   try {
     const list = JSON.parse(localStorage.getItem('mintpass_demo_checkins') || '[]');
     return list.includes(mintAddress);
@@ -95,8 +95,6 @@ export async function createCheckInPDA(
   }
 
   try {
-    const mintPubkey = new PublicKey(mintAddress);
-
     // 3. Simulación de la Transacción del Smart Contract (Dado que CHECKIN_PROGRAM_ID no existe)
     // Para que la wallet Phantom te pida firmar legítimamente y se apruebe una transacción real en Devnet,
     // usamos una transferencia simbólica de 0 lamports del staff hacia sí mismo.

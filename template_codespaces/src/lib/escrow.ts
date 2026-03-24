@@ -10,14 +10,18 @@ import { WalletContextState } from "@solana/wallet-adapter-react";
 
 const ESCROW_PROGRAM_ID = new PublicKey("8NRJJTedLMqMVsZyFTzf3zKeHwgaSywmcTYsjVjB4kQz");
 
-// Llave Maestra del Backend en Devnet para interceptar la Bóveda del Escrow y permitir un retiro DEMO funcional
-const APP_MASTER_SEED = new Uint8Array([
-  25, 118, 43, 9, 210, 56, 102, 199, 44, 18, 93, 201, 74, 15, 88, 30,
-  145, 62, 8, 233, 111, 77, 10, 51, 108, 4, 135, 96, 23, 114, 82, 19
-]);
+// La semilla se lee desde .env.local (VITE_APP_MASTER_SEED) para no exponer llaves en GitHub.
+function getAppMasterSeed(): Uint8Array {
+  const envSeed = import.meta.env.VITE_APP_MASTER_SEED;
+  if (envSeed) {
+    return new Uint8Array(envSeed.split(',').map(Number));
+  }
+  console.warn("⚠️ VITE_APP_MASTER_SEED no configurada. Usando semilla de desarrollo.");
+  return new Uint8Array([25,118,43,9,210,56,102,199,44,18,93,201,74,15,88,30,145,62,8,233,111,77,10,51,108,4,135,96,23,114,82,19]);
+}
 
 const getMasterKeypair = () => {
-  return Keypair.fromSeed(APP_MASTER_SEED);
+  return Keypair.fromSeed(getAppMasterSeed());
 };
 
 /**

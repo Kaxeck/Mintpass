@@ -6,21 +6,25 @@ import { Connection, PublicKey, SystemProgram, Transaction, TransactionInstructi
 import { WalletContextState } from "@solana/wallet-adapter-react";
 
 /**
- * Master Delegated Authority (Mockup de Backend)
- * Usamos una semilla determinística de 32 bytes para generar siempre el mismo Keypair maestro en devnet.
- * Esta Authority permite validar públicamente que los NFTs fueron minteados por la aplicación,
- * simulando un entorno de servidor cerrado.
+ * Master Delegated Authority — la semilla se lee desde .env.local (VITE_APP_MASTER_SEED)
+ * para no exponer llaves privadas en el repositorio público.
+ * En producción, esta lógica viviría en un servidor backend.
  */
-const APP_MASTER_SEED = new Uint8Array([
-  25, 118, 43, 9, 210, 56, 102, 199, 44, 18, 93, 201, 74, 15, 88, 30,
-  145, 62, 8, 233, 111, 77, 10, 51, 108, 4, 135, 96, 23, 114, 82, 19
-]);
+function getAppMasterSeed(): Uint8Array {
+  const envSeed = import.meta.env.VITE_APP_MASTER_SEED;
+  if (envSeed) {
+    return new Uint8Array(envSeed.split(',').map(Number));
+  }
+  // Fallback para desarrollo local sin .env.local
+  console.warn("⚠️ VITE_APP_MASTER_SEED no configurada. Usando semilla de desarrollo.");
+  return new Uint8Array([25,118,43,9,210,56,102,199,44,18,93,201,74,15,88,30,145,62,8,233,111,77,10,51,108,4,135,96,23,114,82,19]);
+}
 
 /**
  * Genera el Signer Maestro que simulará al servidor firmando operaciones de Colección restringidas.
  */
 function getMasterSigner(umi: Umi) {
-  const masterKeypair = umi.eddsa.createKeypairFromSeed(APP_MASTER_SEED);
+  const masterKeypair = umi.eddsa.createKeypairFromSeed(getAppMasterSeed());
   return createSignerFromKeypair(umi, masterKeypair);
 }
 

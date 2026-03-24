@@ -1,118 +1,31 @@
-# vite-anchor
+# Mintpass — Frontend
 
-React + Vite starter with Tailwind CSS, `@solana/react-hooks`, and an Anchor vault program example.
+Aplicación web construida con **React 18 + TypeScript + Vite** que sirve como el cliente conectado a la blockchain de Solana.
 
-## Getting Started
+## Inicio rápido
 
-```shell
-npx -y create-solana-dapp@latest -t solana-foundation/templates/kit/template_codespaces
-```
-
-```shell
-npm install   # Builds program and generates client automatically
+```bash
+npm install
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173), connect your wallet, and interact with the vault on devnet.
+## Variables de entorno
 
-## What's Included
+| Variable | Descripción |
+|----------|-------------|
+| `VITE_PINATA_API_KEY` | API Key de Pinata para subir metadata a IPFS |
+| `VITE_PINATA_SECRET_KEY` | Secret Key de Pinata |
 
-- **Wallet connection** via `@solana/react-hooks` with auto-discovery
-- **SOL Vault program** - deposit and withdraw SOL from a personal PDA vault
-- **Codama-generated client** - type-safe program interactions using `@solana/kit`
-- **Tailwind CSS v4** with light/dark mode
+## Módulos principales
 
-## Stack
+| Archivo | Responsabilidad |
+|---------|----------------|
+| `lib/metaplex.ts` | Creación de colecciones NFT, minteo de tickets, mutación a POAP |
+| `lib/escrow.ts` | Custodia de pagos SOL en bóveda on-chain |
+| `lib/event-pda.ts` | Lectura/escritura de datos de evento en PDAs de Solana |
+| `lib/checkin-pda.ts` | Verificación anti-duplicidad para check-in de asistentes |
+| `lib/pinata.ts` | Upload de metadata JSON e imágenes a IPFS |
 
-| Layer          | Technology                              |
-| -------------- | --------------------------------------- |
-| Frontend       | React 19, Vite, TypeScript              |
-| Styling        | Tailwind CSS v4                         |
-| Solana Client  | `@solana/client`, `@solana/react-hooks` |
-| Program Client | Codama-generated, `@solana/kit`         |
-| Program        | Anchor (Rust)                           |
+## Despliegue
 
-## Project Structure
-
-```
-├── src/
-│   ├── App.tsx               # Main app with wallet UI
-│   ├── VaultCard.tsx         # Vault deposit/withdraw UI
-│   ├── providers.tsx         # Solana client setup
-│   ├── generated/vault/      # Codama-generated program client
-│   └── main.tsx              # Entry point
-├── anchor/                   # Anchor workspace
-│   └── programs/vault/       # Vault program (Rust)
-└── codama.json               # Codama client generation config
-```
-
-## Deploy Your Own Vault
-
-The included vault program is already deployed to devnet. To deploy your own:
-
-### Prerequisites
-
-- [Rust](https://rustup.rs/)
-- [Solana CLI](https://solana.com/docs/intro/installation)
-- [Anchor](https://www.anchor-lang.com/docs/installation)
-
-### Steps
-
-1. **Configure Solana CLI for devnet**
-
-   ```bash
-   solana config set --url devnet
-   ```
-
-2. **Create a wallet (if needed) and fund it**
-
-   ```bash
-   solana-keygen new
-   solana airdrop 2
-   ```
-
-3. **Build and deploy the program**
-
-   ```bash
-   cd anchor
-   anchor build
-   anchor keys sync    # Updates program ID in source
-   anchor build        # Rebuild with new ID
-   anchor deploy
-   cd ..
-   ```
-
-4. **Regenerate the client and restart**
-   ```bash
-   npm run setup   # Rebuilds program and regenerates client
-   npm run dev
-   ```
-
-## Testing
-
-Tests use [LiteSVM](https://github.com/LiteSVM/litesvm), a fast lightweight Solana VM for testing.
-
-```bash
-npm run anchor-build   # Build the program first
-npm run anchor-test    # Run tests
-```
-
-The tests are in `anchor/programs/vault/src/tests.rs` and automatically use the program ID from `declare_id!`.
-
-## Regenerating the Client
-
-If you modify the program, regenerate the TypeScript client:
-
-```bash
-npm run setup   # Or: npm run anchor-build && npm run codama:js
-```
-
-This uses [Codama](https://github.com/codama-idl/codama) to generate a type-safe client from the Anchor IDL.
-
-## Learn More
-
-- [Solana Docs](https://solana.com/docs) - core concepts and guides
-- [Anchor Docs](https://www.anchor-lang.com/docs) - program development framework
-- [Deploying Programs](https://solana.com/docs/programs/deploying) - deployment guide
-- [framework-kit](https://github.com/solana-foundation/framework-kit) - the React hooks used here
-- [Codama](https://github.com/codama-idl/codama) - client generation from IDL
+El frontend se despliega en Vercel. Las variables de entorno deben configurarse en el panel de Vercel antes del deploy.

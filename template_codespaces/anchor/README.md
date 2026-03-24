@@ -1,76 +1,32 @@
-# Anchor Vault Program
+# Mintpass — Smart Contracts (Anchor/Rust)
 
-This template includes a simple SOL vault program built with [Anchor](https://www.anchor-lang.com/).
+Contratos inteligentes de Solana que soportan la lógica de negocio on-chain de Mintpass.
 
-## Pre-deployed Program
+## Programas
 
-The vault program is deployed on **devnet** at:
+| Programa | Program ID | Función |
+|----------|-----------|---------|
+| **Event Registry** | `9inMKT4XXyRApVDDFGPQr9kcdWnuCk5YKJiDT8pTbtNj` | Almacena metadatos de eventos en PDAs |
+| **Escrow** | `8NRJJTedLMqMVsZyFTzf3zKeHwgaSywmcTYsjVjB4kQz` | Custodia de pagos SOL del comprador |
+| **Check-in** | `Dm5EGnhPWU1MGJNYRwfetzPTojSM9g1yJEAdd9bPdqTf` | Registro anti-duplicidad de accesos |
+| **Reputation** | `79i2AbYFRQUj5gSStpvoJ51QSYcSwcN3dp6Jyrv13g6j` | Puntaje inmutable de organizadores |
 
-```
-F4jZpgbtTb6RWNWq6v35fUeiAsRJMrDczVPv9U23yXjB
-```
+## Red
 
-You can interact with it immediately by connecting your wallet to devnet.
+Todos los programas están desplegados en **Solana Devnet**.
 
-## Deploying Your Own Program
-
-To deploy your own version of the program:
-
-### 1. Generate a new program keypair
-
-```bash
-cd anchor
-solana-keygen new -o target/deploy/vault-keypair.json
-```
-
-### 2. Get the new program ID
+## Cómo construir
 
 ```bash
-solana address -k target/deploy/vault-keypair.json
-```
-
-### 3. Update the program ID
-
-Update the program ID in these files:
-
-- `anchor/Anchor.toml` - Update `vault = "..."` under `[programs.devnet]`
-- `anchor/programs/vault/src/lib.rs` - Update `declare_id!("...")`
-
-### 4. Build and deploy
-
-```bash
-# Build the program
 anchor build
-
-# Get devnet SOL for deployment (~2 SOL needed)
-solana airdrop 2 --url devnet
-
-# Deploy to devnet
 anchor deploy --provider.cluster devnet
 ```
 
-### 5. Regenerate the TypeScript client
+## Arquitectura de PDAs
 
-```bash
-cd ..
-npm run codama:js
 ```
-
-This updates the generated client code in `src/generated/vault/` with your new program ID.
-
-## Program Overview
-
-The vault program allows users to:
-
-- **Deposit**: Send SOL to a personal vault PDA (Program Derived Address)
-- **Withdraw**: Retrieve all SOL from your vault
-
-Each user gets their own vault derived from their wallet address.
-
-## Testing
-
-Run the Anchor tests:
-
-```bash
-anchor test --skip-deploy
+Event PDA:      ["event", organizer_pubkey, collection_mint]
+Escrow PDA:     ["escrow", mint_buffer]
+Check-in PDA:   ["checkin", ticket_mint]
+Reputation PDA: ["reputation", organizer_pubkey]
 ```

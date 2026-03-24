@@ -1,119 +1,141 @@
-# Solana Hackathon con WayLearn
-![Banner](./images/BANNERHACKATHON.png)
+# 🎟️ Mintpass — Tickets NFT Anti-Fraude para Eventos en LATAM
 
-Solana es una blockchain de capa 1, es decir, cuenta con su propia infraestructura y no depende de otras blockchains para funcionar. Se encuentra orientada al alto rendimiento, y fue creada para soportar aplicaciones descentralizadas a gran escala con costos mínimos y confirmaciones casi inmediatas. Su diseño prioriza la eficiencia en la ejecución y la paralelización de transacciones.
+<p align="center">
+  <img src="template_codespaces/public/icon.png" alt="Mintpass Logo" width="120" />
+</p>
 
-Rust es el lenguaje principal para desarrollar programas en Solana. A través de él se implementa la lógica on-chain utilizando el modelo de cuentas y programas de la red, permitiendo construir contratos inteligentes seguros, eficientes y altamente optimizables.
+<p align="center">
+  <strong>Plataforma descentralizada de boletos digitales construida sobre Solana con Metaplex Core.</strong>
+</p>
 
-Para facilitar el desarrollo en Rust sobre Solana existe Anchor, un framework que simplifica enormemente la creación de programas on-chain. Anchor proporciona:
+<p align="center">
+  <a href="https://mintpass-kaxeck.vercel.app">🌐 Demo en Vercel</a> ·
+  <a href="#">🎬 Video Demo (Loom)</a> ·
+  <a href="https://explorer.solana.com/?cluster=devnet">🔗 Solana Explorer (Devnet)</a>
+</p>
 
-* Un sistema de validación automática de cuentas mediante macros.
-* Manejo simplificado de serialización y deserialización de datos.
-* Gestión de PDAs (Program Derived Addresses) de forma declarativa.
-* Generación automática de IDL (Interface Definition Language) para facilitar la interacción desde el frontend.
-* Un entorno de testing más sencillo y estructurado.
+---
 
-Anchor, nos permite enfocarnos en la lógica del programa en lugar de manejar manualmente detalles de bajo nivel como validaciones repetitivas, manejo de bytes o verificación de firmas. Esto mejora la seguridad, reduce errores comunes y acelera el proceso de desarrollo.
+## 🚨 El Problema
 
-# Entornos de desarollo
-Hemos preparado el siguiente repositorio para que comiences a trabajar lo antes posible en tu proyecto si la necesidad de instalar nada de forma local!. Para ello, te porporcionamos las siguientes alternativas:
+En Latinoamérica, los eventos en vivo enfrentan un problema de fraude masivo:
 
-* Uso de Codespaces 
-* Uso de un Entorno Local (Tu Propia PC)
+- **Reventa ilegal** con márgenes de hasta 10x el precio original.
+- **Boletos clonados** por captura de pantalla que permiten múltiples accesos.
+- **Plataformas centralizadas** (Ticketmaster) que cobran comisiones abusivas sin ofrecer transparencia.
+- **Zero proof of attendance** — no queda registro verificable de que asististe.
 
-## Codespaces (Github)
-Puedes comenzar dándole Fork a este repositorio (abajo te explicamos cómo 👇)
+## ✅ Nuestra Solución
 
-![fork](./images/fork.png)
+**Mintpass** convierte cada boleto en un **NFT de Metaplex Core** en Solana:
 
-* Puedes renombrar el repositorio a lo que sea que se ajuste con tu proyecto.
-* Asegúrate de clonar este repositorio a tu cuenta usando el botón **`Fork`**.
-* Presiona el botón **`<> Code`** y luego haz click en la sección **`Codespaces`**
+| Feature | Cómo funciona |
+|---------|---------------|
+| 🎫 **Ticket NFT** | Cada entrada es un activo digital real e irrepetible en la blockchain |
+| 🔄 **QR Dinámico** | El código rota cada 30 segundos, eliminando las capturas de pantalla |
+| ✅ **Check-in On-Chain** | El staff verifica la autenticidad con un scanner conectado a devnet |
+| 🏆 **POAP Mutation** | Tras el evento, el ticket muta y se convierte en un coleccionable permanente |
+| 🔒 **Escrow de Pagos** | Los fondos del comprador se retienen y solo se liberan tras check-ins reales |
+| 📊 **Reputación On-Chain** | Los organizadores acumulan un puntaje público e inmutable |
 
-    ![codespaces](./images/codespaces.png)
+## 🧱 Arquitectura
 
-Por último, presiona **`Create codespace on master`**. Esto abrirá el proyecto en una interfaz gráfica de Visual Studio Code e instalará todas las herramientas necesarias para empezar a programar (es muy importante esperar a que este proceso termine):
-
-![instalacion](./images/Instalacion.png)
-
-El proceso de instalación finaliza cuando la terminal se reinicia y queda de la siguiente manera:
-
-![fin](images/fin.png)
-
-El `setup.sh` instala lo siguiente:
-
-* `rust`
-* dependencias para `Solana`
-* `Solana-cli`
-* `Anchor-cli`
-* `spl-token`
-* `surfpool`
-* `node` y `nvm`
-* `vite`
-
-Además:
-
-* Crea una wallet que pueds consultar con: `solana address`
-* Configura el entorno de RPC a devnet
-
-Finalmente, crea una carpeta llamada `template_codespaces` donde se encuentra todo lo necesario para desarrollar el proyecto, tanto la parte del `frontend` como el `backend`.
-
-> ⚠️ Al terminar el proceso de preparación del entorno es necesario ejecutar el siguiente comando: 
-
-```bash
-export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+```
+┌─────────────┐     ┌──────────────┐     ┌─────────────────┐
+│   Frontend   │────▶│  Solana RPC   │────▶│  Devnet Cluster  │
+│  React+Vite  │     │  (JSON-RPC)   │     │  (Validators)    │
+└──────┬───────┘     └──────────────┘     └─────────────────┘
+       │                                          │
+       ▼                                          ▼
+┌─────────────┐                          ┌─────────────────┐
+│  Pinata SDK  │                          │  Metaplex Core   │
+│  (IPFS JSON) │                          │  Collections &   │
+└─────────────┘                          │  Assets (NFTs)   │
+                                         └─────────────────┘
 ```
 
-> ℹ️ Recuerda moverte a la carpeta creada con el comando `cd template_codespaces`. Para correr proyecto e interactuar con el frontend es necesario ejecutar el comando `npm install` segudo de `npm run dev`, lo que levantara el puerto 5173 habilitando la siguiente dirección: `http://localhost:5173`
+## 🛠️ Tech Stack
 
-> ℹ️ El build del proyecto se hace con `anchor build` mientras que el despliegue con `anchor deploy`
+| Capa | Tecnología |
+|------|------------|
+| **Frontend** | React 18 + TypeScript + Vite |
+| **Blockchain** | Solana (Devnet) |
+| **NFTs** | Metaplex Core (mpl-core) + UMI |
+| **Wallet** | Solana Wallet Adapter (Phantom, Solflare, Backpack) |
+| **Storage** | IPFS via Pinata (metadata JSON) |
+| **Hosting** | Vercel |
+| **Styling** | Vanilla CSS + Tailwind (híbrido) |
+| **QR** | react-qr-code + html5-qrcode |
 
-> ⚠️ Antes de hacer el deploy a la devnet asegurate que en el archivo `anchor.toml` en la seccion `provider` sea: `cluster = "devnet"`, de lo contrario todas las pruebas a realizar se harán local (dentro de codespaces).
+## 🚀 Ejecución Local
 
+### Prerrequisitos
+- Node.js 18+
+- Una wallet de Solana (Phantom recomendado)
+- SOL de devnet ([Faucet](https://faucet.solana.com))
 
-## Entorno Local
-
-> ℹ️ Se recomienta el uso de sistemas operativos base linux o en su defecto WSL en el caso de usar Windows
-
-Lo primero que se debe hacer es un `git clone` al repositorio lo que se hace corriendo el siguiente comando en la terminal: 
+### Instalación
 
 ```bash
-git clone https://github.com/WayLearnLatam/Solana-Hackathon-Template-FullStack.git
+cd template_codespaces
+npm install
 ```
-Posteriormente nos movemos mediante `cd Solana-Hackathon-Template-FullStack` a la carpeta del proyecto donde tenemos dos posibles opciones para realizar la instalación:
 
-### Opción 1: instalación full local
+### Variables de Entorno
 
-Esta alternativa instala todas las dependencias en tu sistema. Para ello es necesario ejecutar el siguiente comando (tomando en cuenta que estas dentro de la carpeta `Solana-Hackathon-Template-FullStack`):
+Crea un archivo `.env.local` en `template_codespaces/`:
+
+```env
+VITE_PINATA_API_KEY=tu_api_key_de_pinata
+VITE_PINATA_SECRET_KEY=tu_secret_key_de_pinata
+```
+
+> Sin estas llaves la app funciona en modo demo con metadatos de prueba.
+
+### Iniciar
 
 ```bash
-chmod +x local-setup.sh
-
-./local-setup.sh
+npm run dev
 ```
 
-### Opción 2 (recomendado): instalación con devcontainer (docker)
+La aplicación estará disponible en `http://localhost:5173`
 
-> ℹ️ Como requisito es necesario contar con Vscode y tener las extensiones de `devcontainer` y `docker` instaladas. 
+## 📁 Estructura del Proyecto
 
-Docker es una plataforma que permite crear, ejecutar y gestionar aplicaciones en contenedores. Un contenedor Docker es una unidad estandarizada que empaqueta una aplicación junto con todo lo necesario para ejecutarse: código, bibliotecas, dependencias, herramientas de sistema y tiempo de ejecución. Esto garantiza que la aplicación funcione de forma consistente en cualquier entorno.
+```
+Mintpass/
+└── template_codespaces/
+    ├── public/              # Assets estáticos (icon.png)
+    ├── src/
+    │   ├── components/      # Componentes reutilizables (AlertModal, PageNav)
+    │   ├── data/            # Catálogo de eventos demo
+    │   ├── lib/             # Lógica de blockchain
+    │   │   ├── metaplex.ts  # Minteo NFT, POAP mutation, reputación
+    │   │   ├── escrow.ts    # Custodia de pagos on-chain
+    │   │   ├── event-pda.ts # PDAs de eventos
+    │   │   ├── checkin-pda.ts # Sistema anti-duplicidad
+    │   │   └── pinata.ts    # Upload a IPFS
+    │   ├── pages/           # Vistas principales
+    │   │   ├── Home.tsx           # Landing page
+    │   │   ├── BuyerPurchase.tsx  # Compra de tickets
+    │   │   ├── MyTicket.tsx       # QR dinámico + POAP
+    │   │   ├── StaffPanel.tsx     # Scanner de check-in
+    │   │   ├── CreateEvent.tsx    # Formulario de eventos
+    │   │   ├── OrganizerDashboard.tsx
+    │   │   ├── EventDetails.tsx
+    │   │   └── TicketsList.tsx
+    │   ├── providers/       # Wallet & UMI providers
+    │   └── types/           # TypeScript interfaces
+    └── anchor/              # Smart contracts (Rust/Anchor)
+```
 
-Docker se basa en la virtualización a nivel de sistema operativo, compartiendo el kernel del sistema anfitrión, lo que lo hace más ligero y eficiente que las máquinas virtuales tradicionales.
+## 🏆 Hackathon — Solana LATAM (WayLearn × Solana Foundation)
 
-Al abrir el proyecto (escribiendo `code .` en la terminal) nos abrirá Vscode con el siguiente mensaje en la parte inferior derecha: 
+- **Categoría:** DeFi / Consumer
+- **Equipo:** 1 integrante
+- **Red:** Solana Devnet
+- **Periodo de construcción:** 20 – 23 de marzo 2026
 
-![devcontainer](./images/devcontainer.png)
+## 📄 Licencia
 
-Donde daremos clic en `Reopen in Container`
-
-> ⚠️ Si no te aparece entonces da clic en el icono de la campana ubicado en la parte inferior derecha.
-
-En dado caso de que no tengas las extensiones instaladas te aparecerá la siguiente ventana (solo presiona install):
-
-![install](./images/install.png)
-
-> ⚠️ Al terminal la instalación de docker aparecerá de nuevo una ventana emergente en la parte inferior izquierda donde presionaremos `continue`
-
-Una vez empezado el proceso esperar a que termine. Puede tomar un tiempo debido a que se instalan todas las dependencias similar a la instalación en codespaces.
-
->ℹ️ Docuemntación oficial: https://solana.com/developers/templates/react-vite-anchor
+MIT — Libre para uso educativo y comercial.

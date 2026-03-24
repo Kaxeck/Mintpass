@@ -23,7 +23,7 @@
 }
 
 /* ======= NAVBAR ======= */
-.app-home .nav { padding: 0 28px; height: 60px; display: flex; align-items: center; justify-content: space-between; border-bottom: 0.5px solid rgba(26,26,46,0.6); background: rgba(8,8,16,.8); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 50; }
+.app-home .nav { padding: 4px 28px; height: 64px; display: flex; align-items: center; justify-content: space-between; border-bottom: 0.5px solid rgba(26,26,46,0.6); background: rgba(8,8,16,.8); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 50; }
 .app-home .nav-brand { display: flex; align-items: center; gap: 10px; }
 .app-home .nav-logo { width: 34px; height: 34px; background: linear-gradient(135deg, #534AB7, #7C3AED); border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px rgba(83,74,183,0.3); }
 .app-home .nav-name { font-size: 18px; font-weight: 600; color: #fff; letter-spacing: -.01em; }

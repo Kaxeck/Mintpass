@@ -123,21 +123,24 @@ export default function OrganizerDashboard({ createdEvents, eventStats = {}, onB
   return (
     <div className="app">
       <div className="navbar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', zIndex: 1 }}>
           <div className="nav-back" onClick={onBack}>
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </div>
-          <div className="nav-brand">
-            <div className="nav-logo">
-              <svg viewBox="0 0 16 16" fill="none">
-                <rect x="2" y="2" width="5" height="5" rx="1.5" fill="#fff" />
-                <rect x="9" y="2" width="5" height="5" rx="1.5" fill="#fff" opacity=".6" />
-                <rect x="2" y="9" width="5" height="5" rx="1.5" fill="#fff" opacity=".6" />
-                <rect x="9" y="9" width="5" height="5" rx="1.5" fill="#fff" opacity=".3" />
-              </svg>
+          <div className="nav-brand" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
+              <img src="/icon.png" alt="Logo" style={{ height: '100%', width: 'auto', objectFit: 'contain' }} />
             </div>
-            <span className="nav-name">Mintpass Organizador</span>
+            <div style={{ fontSize: '22px', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', letterSpacing: '-0.5px' }}>
+              <span style={{ color: '#4AA844', fontWeight: 800 }}>Mint</span>
+              <span style={{ color: '#ffffff', fontWeight: 600 }}>pass</span>
+            </div>
           </div>
+        </div>
+
+        {/* Etiqueta Central */}
+        <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', fontWeight: 600, fontSize: '14px', color: '#AFA9EC', letterSpacing: '1px', textTransform: 'uppercase', background: 'rgba(83,74,183,0.15)', padding: '4px 12px', border: '1px solid rgba(83,74,183,0.3)', borderRadius: '20px' }}>
+          Organizador
         </div>
         
         <div className="nav-right">

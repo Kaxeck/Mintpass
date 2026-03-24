@@ -1,23 +1,89 @@
 import { useState, useEffect } from "react";
 import * as Icons from "lucide-react";
+import QRCode from "react-qr-code";
 import PageNav from "../components/PageNav";
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import { useUmi } from "../providers";
+import { mutateToPoap } from "../lib/metaplex";
+import AlertModal, { AlertModalProps } from "../components/AlertModal";
 import "../index.css";
 
 const PERIOD = 30; // 30 segundos de vigencia del código QR
 
-// Diferentes patrones de QR (simulados con arrays de 0 y 1 para rellenar el grid)
-const patterns = [
-  [1,1,1,1,1,1,1,0,1,0,1,1,0,0,0,0,0,1,0,0,1,0,1,0,1,1,1,0,1,0,1,1,1,1,0,1,0,0,0,1,1,0,1,1,1,0,1,0,0,0,1,0,0,0,0,0,1,1,1,0,0,1,1,1,1,1,1,1,0,1,0,1,0,0,0,0,1,0,0,1,0,1,0,1,0,1,1,0,1,1,0,0,1,0,0,1,0,0,0,1,1,0,1,0,1,0,0,0,0,1,0,0,1,0,1,1,0,1,0,0,1],
-  [1,1,1,1,1,1,1,0,0,1,1,1,0,0,0,0,0,1,1,0,1,0,1,0,1,1,1,0,0,1,0,1,0,1,1,1,0,1,0,0,1,0,1,0,1,1,1,0,1,1,0,1,0,0,0,0,0,1,0,0,0,1,1,1,1,1,1,1,0,1,1,0,0,1,0,0,0,0,0,0,1,0,1,1,0,1,1,1,0,1,1,0,0,0,1,0,0,1,0,1,0,0,1,1,0,1,0,0,0,1,0,0,0,1,0,0,1,1,0,0,1],
-  [1,1,1,1,1,1,1,0,1,1,0,1,0,0,0,0,0,1,1,0,0,1,1,0,1,1,1,0,1,0,1,1,0,1,1,1,0,1,1,0,0,1,0,1,1,1,0,1,0,0,1,0,0,0,0,0,1,0,1,1,0,1,1,1,1,1,1,1,0,0,1,0,0,0,1,0,0,0,0,1,1,0,1,1,1,0,0,1,1,0,0,0,1,1,0,0,1,0,1,0,0,1,0,1,0,0,0,1,1,0,1,0,1,1,0,0,0,1,1,0,0],
-];
-
-export default function MyTicket({ event, onBack }: { event: any, onBack: () => void }) {
+export default function MyTicket({ event, ticketMint, onBack }: { event: any, ticketMint: string, onBack: () => void }) {
   const [secs, setSecs] = useState(PERIOD);
-  const [patIdx, setPatIdx] = useState(0);
   const [rotations, setRotations] = useState(0);
   const [flash, setFlash] = useState(false);
   const [copied, setCopied] = useState(false);
+  
+  const umi = useUmi();
+  const [isMutating, setIsMutating] = useState(false);
+
+  const [alertConfig, setAlertConfig] = useState<AlertModalProps>({ 
+    isOpen: false, title: '', message: '', type: 'info', 
+    onClose: () => setAlertConfig(p => ({...p, isOpen: false})) 
+  });
+
+  const showAlert = (title: string, message: string, type: AlertModalProps['type'], actionText?: string, onAction?: () => void) => {
+    setAlertConfig(prev => ({ 
+      ...prev, isOpen: true, title, message, type, 
+      actionText, 
+      onAction: onAction ? () => { setAlertConfig(p => ({...p, isOpen: false})); onAction(); } : undefined 
+    }));
+  };
+  
+  // Validamos si este boleto ya fue pasado por el escáner del Staff
+  const isCheckedIn = (() => {
+    try {
+      const checks = JSON.parse(localStorage.getItem('mintpass_demo_checkins') || '[]');
+      return checks.includes(ticketMint);
+    } catch { return false; }
+  })();
+
+  const [poapClaimed, setPoapClaimed] = useState(() => {
+    try {
+      const poaps = JSON.parse(localStorage.getItem('mintpass_demo_poaps') || '[]');
+      return poaps.includes(ticketMint);
+    } catch { return false; }
+  });
+
+  const handleClaimPoap = () => {
+    showAlert(
+      "Confirmar Evolución a POAP",
+      "Evolucionar tu ticket a un POAP coleccionable requiere una tarifa de red de Solana (Gas Fee de 0.002 SOL aprox).\n\n¿Deseas firmar la transacción y continuar?",
+      "info",
+      "Firmar y Evolucionar",
+      async () => {
+        setIsMutating(true);
+        try {
+          await mutateToPoap(umi, {
+            mintAddress: ticketMint,
+            collectionMint: event.collectionMint,
+            eventData: {
+              name: event.name,
+              date: event.date,
+              venue: event.venue,
+              ticketNumber: event.sold,
+              totalAttendees: event.sold,
+            },
+            poapImageUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&auto=format&fit=crop"
+          });
+          
+          const claimed = JSON.parse(localStorage.getItem('mintpass_demo_poaps') || '[]');
+          claimed.push(ticketMint);
+          localStorage.setItem('mintpass_demo_poaps', JSON.stringify(claimed));
+          setPoapClaimed(true);
+
+          setTimeout(() => {
+            showAlert("¡POAP Reclamado!", "Tu ticket ha mutado exitosamente en la blockchain y ahora es un coleccionable permanente e inmutable.", "success");
+          }, 300);
+        } catch(e: any) {
+          showAlert("Error Transaccional", "Fallo al reclamar POAP en devnet:\n" + e.message, "error");
+        }
+        setIsMutating(false);
+      }
+    );
+  };
 
   // Hook para controlar el reloj descendente y la rotación del QR dinámico
   useEffect(() => {
@@ -30,8 +96,7 @@ export default function MyTicket({ event, onBack }: { event: any, onBack: () => 
           setFlash(true);
           setTimeout(() => setFlash(false), 200);
           
-          // Cambiamos al siguiente patrón QR circularmente
-          setPatIdx(p => (p + 1) % patterns.length);
+          // Cambiamos al siguiente patrón rotando la semilla (Simulado)
           setRotations(r => r + 1);
           return PERIOD; // Reseteamos el reloj
         }
@@ -55,8 +120,10 @@ export default function MyTicket({ event, onBack }: { event: any, onBack: () => 
   const labelColor = secs <= 5 ? '#E24B4A' : 'var(--color-text-secondary)';
   const labelText = secs <= 5 ? `Renovando QR en ${secs}s…` : 'Muestra este QR en la entrada';
 
-  // Obtenemos el grid del array binario del patrón actual (simulando los píxeles del QR)
-  const currentPattern = patterns[patIdx];
+  const cryptoPayload = JSON.stringify({ 
+    mint: ticketMint, 
+    rot: rotations // Incluimos el nonce de la rotación para evitar capturas de pantalla viejas
+  });
 
   const EventIcon = (Icons as any)[event?.icon || 'Music'] || Icons.HelpCircle;
 
@@ -64,8 +131,8 @@ export default function MyTicket({ event, onBack }: { event: any, onBack: () => 
     <div className="app">
       <PageNav 
         onBack={onBack} 
-        title="Mi ticket" 
-        rightElement={<span className="wallet-chip">7xKf…9pQm</span>} 
+        title="Mi ticket digital" 
+        rightElement={<WalletMultiButton className="wallet-chip" style={{ background: 'transparent', color: '#AFA9EC', border: '1px solid #2a2a4a', padding: '4px 10px', fontSize: '11px', height: 'auto', lineHeight: 1 }} />} 
       />
 
       <div className="main" style={{ maxWidth: '380px' }}>
@@ -87,35 +154,84 @@ export default function MyTicket({ event, onBack }: { event: any, onBack: () => 
           </div>
           
           <div className="qr-section">
-            <div className="qr-label" style={{ color: labelColor }}>{labelText}</div>
-            <div className="qr-outer">
-              <div className="qr-grid">
-                {currentPattern.map((v, i) => (
-                  <div key={i} className="qc" style={{ background: v ? '#111' : '#fff' }}></div>
-                ))}
-              </div>
-              <div className="qr-logo">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1.5" fill="#fff"/><rect x="9" y="2" width="5" height="5" rx="1.5" fill="#fff" opacity=".7"/><rect x="2" y="9" width="5" height="5" rx="1.5" fill="#fff" opacity=".7"/><rect x="9" y="9" width="5" height="5" rx="1.5" fill="#fff" opacity=".4"/></svg>
-              </div>
-              {/* Overlay de destello al recargar el QR */}
-              <div className={`refresh-flash ${flash ? 'show' : ''}`}></div>
+            <div className="qr-label" style={{ color: isCheckedIn ? '#5DCAA5' : labelColor }}>
+              {poapClaimed ? 'Evolución a POAP Completada' : isCheckedIn ? '¡Acceso confirmado por Staff!' : labelText}
             </div>
+            
+            {poapClaimed ? (
+              <div className="qr-outer" style={{ padding: '24px', background: '#0a0a0f', borderRadius: '24px', border: '1px solid #1D9E75', textAlign: 'center', boxShadow: '0 10px 30px rgba(29, 158, 117, 0.2)' }}>
+                <div style={{ width: '120px', height: '120px', margin: '0 auto', background: 'linear-gradient(135deg, #1D9E75, #7C3AED)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 30px rgba(124, 58, 237, 0.6)' }}>
+                  <Icons.Medal size={48} color="#fff" />
+                </div>
+                <div style={{marginTop: '16px', color: '#5DCAA5', fontWeight: 900, fontSize: '16px', textTransform: 'uppercase', letterSpacing: '1px'}}>POAP Coleccionable</div>
+                <div style={{marginTop: '4px', color: '#AFA9EC', fontSize: '12px'}}>Registrado permanentemente off-chain</div>
+              </div>
+            ) : isCheckedIn ? (
+              <div className="qr-outer" style={{ padding: '0', background: 'transparent' }}>
+                 <button 
+                   onClick={handleClaimPoap}
+                   disabled={isMutating}
+                   style={{
+                     width: '100%',
+                     padding: '24px 16px',
+                     background: 'linear-gradient(135deg, #FAC775 0%, #E879A8 100%)',
+                     borderRadius: '24px',
+                     border: 'none',
+                     cursor: isMutating ? 'not-allowed' : 'pointer',
+                     display: 'flex',
+                     flexDirection: 'column',
+                     alignItems: 'center',
+                     gap: '12px',
+                     boxShadow: '0 10px 40px rgba(232, 121, 168, 0.4)'
+                   }}
+                 >
+                   {isMutating ? (
+                     <>
+                        <Icons.Loader size={36} className="animate-spin text-white" />
+                        <span style={{ color: '#fff', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '2px' }}>Mutando a POAP...</span>
+                     </>
+                   ) : (
+                     <>
+                        <Icons.Gift size={36} color="#ffffff" />
+                        <span style={{ color: '#fff', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px', fontSize: '15px' }}>Reclamar POAP Oficial</span>
+                        <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: '11px', textAlign: 'center' }}>Costo de acuñación: ~0.002 SOL</span>
+                     </>
+                   )}
+                 </button>
+              </div>
+            ) : (
+              // Visor Normal de QR Dinámico para ingresar
+              <div className="qr-outer" style={{ padding: '16px', background: '#fff', borderRadius: '16px', position: 'relative' }}>
+                <QRCode 
+                  value={cryptoPayload} 
+                  size={180} 
+                  bgColor="#ffffff"
+                  fgColor="#111111"
+                />
+                <div className="qr-logo" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: '#fff', padding: '4px', borderRadius: '4px' }}>
+                  <Icons.CheckCircle size={24} color="#5DCAA5" />
+                </div>
+                <div className={`refresh-flash ${flash ? 'show' : ''}`}></div>
+              </div>
+            )}
           </div>
           
-          {/* Barra de progreso de seguridad (Se vacía y recarga cada 30 seg) */}
-          <div className="timer-section">
-            <div className="timer-bar-wrap">
-              <div className="timer-bar" style={{ width: `${pct}%`, background: barColor }}></div>
-            </div>
-            <div className="timer-footer">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <div className="timer-dot" style={{ background: dotColor }}></div>
-                <span className="timer-txt">Se renueva en</span>
-                <span className="timer-secs" style={{ color: barColor }}>{secs}s</span>
+          {/* Barra de progreso de seguridad (solo visible si no ha entrado) */}
+          {!isCheckedIn && (
+            <div className="timer-section">
+              <div className="timer-bar-wrap">
+                <div className="timer-bar" style={{ width: `${pct}%`, background: barColor }}></div>
               </div>
-              <span className="rotate-badge">rotado {rotations} {rotations === 1 ? 'vez' : 'veces'}</span>
+              <div className="timer-footer">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div className="timer-dot" style={{ background: dotColor }}></div>
+                  <span className="timer-txt">Se renueva en</span>
+                  <span className="timer-secs" style={{ color: barColor }}>{secs}s</span>
+                </div>
+                <span className="rotate-badge">rotado {rotations} {rotations === 1 ? 'vez' : 'veces'}</span>
+              </div>
             </div>
-          </div>
+          )}
           
           <div className="ticket-divider">
             <div className="ticket-cut ticket-cut-left"></div>
@@ -125,15 +241,23 @@ export default function MyTicket({ event, onBack }: { event: any, onBack: () => 
           
           {/* Metadatos en Blockchain */}
           <div className="ticket-footer">
-            <div className="tf-row"><span className="tf-label">NFT mint</span><span className="tf-value">FiEs7pKm…3xK9</span></div>
-            <div className="tf-row"><span className="tf-label">Colección</span><span className="tf-value tf-value-purple">Jazz CDMX · Metaplex Core</span></div>
+            <div className="tf-row"><span className="tf-label">Ticket ID (Mint)</span><span className="tf-value" style={{ fontSize: '10px' }}>{ticketMint.slice(0, 15)}...</span></div>
+            <div className="tf-row"><span className="tf-label">Colección</span><span className="tf-value tf-value-purple">MINT PASS CORE</span></div>
             <div className="tf-row"><span className="tf-label">Red</span><span className="tf-value">Solana devnet</span></div>
+            <div className="tf-row" style={{ marginTop: '12px', display: 'block' }}>
+              <button 
+                style={{ width: '100%', background: '#1a1a2e', color: '#AFA9EC', fontSize: '10px', padding: '8px', borderRadius: '6px', border: '1px solid #2a2a4a', cursor: 'pointer' }}
+                onClick={() => window.open(`https://explorer.solana.com/address/${ticketMint}?cluster=devnet`, '_blank')}
+              >
+                Ver registro público en Solana Explorer ↗
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Acciones del comprador (Usa el Ticket Digital a la entrada, paga con la Wallet adentro) */}
         <div className="action-row">
-          <button className="act-btn act-btn-primary" onClick={() => alert("Dirigiendo a Mi wallet (vista intra-evento)...")}>
+          <button className="act-btn act-btn-primary" onClick={() => showAlert("Próximamente", "Esta es la vista intra-evento donde podrás recargar saldo y pagar en las barras usando tu wallet.", "info")}>
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="3" width="12" height="8" rx="2" stroke="currentColor" strokeWidth="1.2"/><circle cx="9" cy="7" r="1" fill="currentColor"/></svg>
             Mi wallet
           </button>
@@ -144,7 +268,7 @@ export default function MyTicket({ event, onBack }: { event: any, onBack: () => 
               <><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="11" cy="3" r="1.5" stroke="currentColor" strokeWidth="1.2"/><circle cx="11" cy="11" r="1.5" stroke="currentColor" strokeWidth="1.2"/><circle cx="3" cy="7" r="1.5" stroke="currentColor" strokeWidth="1.2"/><path d="M4.4 6.2l5.1-2.7M4.4 7.8l5.1 2.7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg> Compartir</>
             )}
           </button>
-          <button className="act-btn" onClick={() => alert("Mostrando vista de Verificación on-chain...")}>
+          <button className="act-btn" onClick={() => showAlert("Verificación Integrada", "Vista de auditoría criptográfica. Permite a cualquier persona asegurar que tu boleto es 100% auténtico.", "info")}>
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1l1.5 3h3l-2.5 2 1 3L7 7.5 4 9l1-3L2.5 4h3z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"/></svg>
             Verificar
           </button>
@@ -172,6 +296,8 @@ export default function MyTicket({ event, onBack }: { event: any, onBack: () => 
           <div className="nfc-text">Pulsera NFC activa — acerca al lector en la entrada para ingresar sin mostrar el QR</div>
         </div>
       </div>
+
+      <AlertModal {...alertConfig} />
     </div>
   );
 }

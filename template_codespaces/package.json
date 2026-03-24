@@ -27,13 +27,27 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@metaplex-foundation/mpl-core": "^1.8.0",
+    "@metaplex-foundation/umi": "^1.5.1",
+    "@metaplex-foundation/umi-bundle-defaults": "^1.5.1",
+    "@metaplex-foundation/umi-signer-wallet-adapters": "^1.5.1",
+    "@metaplex-foundation/umi-web3js-adapters": "^1.5.1",
+    "@solana/actions": "^1.6.6",
     "@solana/client": "^1.2.0",
     "@solana/kit": "^5.1.0",
     "@solana/react-hooks": "^1.1.5",
+    "@solana/wallet-adapter-base": "^0.9.27",
+    "@solana/wallet-adapter-react": "^0.15.39",
+    "@solana/wallet-adapter-react-ui": "^0.9.39",
+    "@solana/wallet-adapter-wallets": "^0.19.37",
     "@tailwindcss/vite": "^4",
+    "@vercel/node": "^5.6.18",
+    "html5-qrcode": "^2.3.8",
+    "jose": "^5.2.0",
     "lucide-react": "^0.577.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-qr-code": "^2.0.18",
     "tailwindcss": "^4"
   },
   "devDependencies": {
@@ -52,6 +66,7 @@
     "prettier": "^3.6.2",
     "typescript": "^5",
     "typescript-eslint": "^8.44.0",
-    "vite": "^7.1.6"
+    "vite": "^7.1.6",
+    "vite-plugin-node-polyfills": "^0.25.0"
   }
 }

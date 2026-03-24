@@ -1,8 +1,34 @@
 import { useState } from 'react';
 import * as Icons from "lucide-react";
 import PageNav from "../components/PageNav";
+import { useUmi } from "../providers";
+import { createEventCollection } from "../lib/metaplex";
+import { saveEventOnChain } from "../lib/event-pda";
+import { useWallet, useConnection } from "@solana/wallet-adapter-react";
+import AlertModal, { AlertModalProps } from "../components/AlertModal";
 
-export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void, onSuccess: () => void }) {
+// Interfaz compartida para los eventos creados on-chain
+export interface CreatedEvent {
+  id: number;
+  collectionMint: string;
+  name: string;
+  description: string;
+  date: string;
+  time: string;
+  venue: string;
+  category: string;
+  aforo: number;
+  priceType: 'free' | 'sol' | 'usdc';
+  price: number;
+  limitPerWallet?: number;
+  organizerWallet?: string;
+  createdAt: number; // timestamp
+}
+
+export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void, onSuccess: (event: CreatedEvent) => void }) {
+  const umi = useUmi();
+  const wallet = useWallet();
+  const { connection } = useConnection();
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
   const [date, setDate] = useState('');
@@ -22,19 +48,86 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
   const [isCreating, setIsCreating] = useState(false);
   const [creationStep, setCreationStep] = useState(0);
 
+  const [alertConfig, setAlertConfig] = useState<AlertModalProps>({ 
+    isOpen: false, title: '', message: '', type: 'info', 
+    onClose: () => setAlertConfig(p => ({...p, isOpen: false})) 
+  });
+
+  const showAlert = (title: string, message: string, type: AlertModalProps['type']) => {
+    setAlertConfig(prev => ({ ...prev, isOpen: true, title, message, type }));
+  };
+
   // Validar si el formulario mínimo está lleno
   const isFilled = name && date && venue && aforo;
 
-  // Lógica de click para simular la creación
-  const handleCreate = () => {
+  // Lógica para comunicarse on-chain con el programa de Solana
+  const handleCreate = async () => {
+    if (!wallet.publicKey) {
+      showAlert("Wallet Desconectada", "Conecta tu wallet en la barra principal primero para lanzar el contrato del evento en la blockchain.", "warning");
+      return;
+    }
+
     setIsCreating(true);
     setCreationStep(1);
-    setTimeout(() => {
+
+    try {
+      // Creamos la colección NFT on-chain
+      const collectionAddr = await createEventCollection(umi, {
+        name: name || "Evento Mintpass",
+        description: desc || "Un evento seguro con tickets NFT dinámicos.",
+        imageUrl: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=800&auto=format&fit=crop", // Imagen Unsplash para la Demo
+        organizerWallet: wallet.publicKey.toBase58()
+      });
+
       setCreationStep(2);
+
+      // Después de crear la colección NFT, guardamos los metadatos
+      // del evento en una PDA on-chain (~0.003 SOL de rent-exempt deposit).
+      // Esto permite que los datos persistan en la blockchain y se lean desde cualquier cliente.
+      const eventDataOnChain = {
+        name: name || "Evento Mintpass",
+        description: desc || "Un evento seguro con tickets NFT dinámicos.",
+        date: date,
+        time: time,
+        venue: venue,
+        category: category,
+        aforo: parseInt(aforo) || 0,
+        priceType: priceType as 'free' | 'sol' | 'usdc',
+        price: priceType === 'free' ? 0 : parseFloat(price) || 0,
+        limitPerWallet: limit ? parseInt(limit) : undefined,
+        collectionMint: collectionAddr,
+        createdAt: Date.now()
+      };
+
+      try {
+        // Segunda transacción - guardar metadata en PDA on-chain
+        await saveEventOnChain(connection, wallet, eventDataOnChain);
+        console.log("Evento guardado exitosamente on-chain.");
+      } catch (pdaError: any) {
+        // Si falla el guardado en PDA, no bloqueamos el flujo
+        // ya que la colección NFT ya fue creada exitosamente.
+        console.warn("Advertencia: No se pudo guardar metadata en PDA on-chain:", pdaError.message);
+      }
+
       setTimeout(() => {
-        onSuccess();
+        // Regresamos el evento completo con todos sus datos al App.tsx
+        onSuccess({
+          id: Date.now(),
+          organizerWallet: wallet.publicKey?.toBase58(),
+          ...eventDataOnChain
+        });
       }, 900);
-    }, 1400);
+    } catch (e: any) {
+      console.error(e);
+      const errorMsg = e.message || String(e);
+      if (errorMsg.toLowerCase().includes("blockhash") || errorMsg.toLowerCase().includes("fund")) {
+        showAlert("Fondos Insuficientes", "Error de transacción: Es muy probable que no tengas suficientes fondos (SOL de prueba) en tu wallet para pagar la cuota de la red. Por favor, solicita SOL en un Faucet e intenta de nuevo.", "error");
+      } else {
+        showAlert("Error de Transacción", "Fallo al ejecutar instrucción en devnet:\n" + errorMsg, "error");
+      }
+      setIsCreating(false);
+      setCreationStep(0);
+    }
   };
 
   // Preparar datos para la Preview de la tarjeta lateral
@@ -118,18 +211,6 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
                 <label>Lugar / Venue *</label>
                 <input type="text" placeholder="Ej. Foro Indie, Roma Norte, CDMX" value={venue} onChange={e => setVenue(e.target.value)} />
               </div>
-            </div>
-
-            <div className="form-section">
-              <div className="section-label">Imagen del evento</div>
-              <div className="upload-zone" onClick={() => alert("Integración de subida de imagen de Next.js/IPFS pendiente.")}>
-                <div className="upload-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
-                  <Icons.UploadCloud size={20} color="#534AB7" />
-                </div>
-                <div className="upload-text">Arrastra tu imagen aquí o haz click</div>
-                <div className="upload-sub">PNG, JPG — máx. 5 MB · Recomendado 1200×630 px</div>
-              </div>
-              <div className="hint">La imagen se guarda en IPFS como parte del metadata del NFT.</div>
             </div>
 
             <div className="form-section">
@@ -235,7 +316,6 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
             </div>
             <div className="preview-footer">
               <div className="preview-price">{displayPrice}</div>
-              <button className="preview-btn">Comprar</button>
             </div>
           </div>
 
@@ -261,10 +341,14 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
               {creationStep === 0 ? 'Crear evento y generar Blink' : (creationStep === 1 ? 'Creando colección NFT...' : 'Evento creado — generando Blink...')}
             </button>
             <button className="btn-outline" onClick={onBack}>Cancelar</button>
+            <div className="hint" style={{ marginTop: '12px', textAlign: 'center', lineHeight: '1.4' }}>
+              * Al crear el evento pagarás una pequeña tarifa de red (gas) en SOL para alojar los datos de manera permanente en la blockchain.
+            </div>
           </div>
         </div>
 
       </div>
+      <AlertModal {...alertConfig} />
     </div>
   );
 }

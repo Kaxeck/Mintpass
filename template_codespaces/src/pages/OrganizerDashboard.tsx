@@ -1,64 +1,151 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import * as Icons from "lucide-react";
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import { useWallet, useConnection } from "@solana/wallet-adapter-react";
+import { getOrganizerReputation } from "../lib/metaplex";
+import { readAllEventsFromChain, OnChainEventData } from "../lib/event-pda";
+import { CreatedEvent } from "./CreateEvent";
 
 import "../index.css";
 
-export default function OrganizerDashboard({ onBack, onCreate, onEventClick }: { onBack: () => void, onCreate: () => void, onEventClick: (id: number) => void }) {
+// Ahora el dashboard recibe los eventos reales creados on-chain y ventas
+export default function OrganizerDashboard({ createdEvents, eventStats = {}, onBack, onCreate, onEventClick }: { createdEvents: CreatedEvent[], eventStats?: Record<number, { sold: number, checked: number }>, onBack: () => void, onCreate: () => void, onEventClick: (id: number) => void }) {
+  const wallet = useWallet();
+  const { connection } = useConnection();
   const [activeTab, setActiveTab] = useState('activos');
-  const [walletOn, setWalletOn] = useState(false);
-  const events = [
-    {
-      id: 1, cat: 'activos', name: 'Noche de Jazz — CDMX', meta: 'Hoy · 21:00 h · Foro Indie, Roma Norte',
-      coverText: 'Music', coverClass: 'cover-purple', progress: 78, progressColor: '#534AB7', progressLabel: '156 / 200 entradas vendidas',
-      statusClass: 's-active', statusText: 'En curso', price: '0.05 SOL', actions: ['Panel staff', 'Ver QR Blink', 'Compartir'], primaryAction: 0
-    },
-    {
-      id: 2, cat: 'proximos', name: 'Expo Diseño Independiente', meta: 'Sáb 29 Mar · 12:00 h · La Ciudadela',
-      coverText: 'Palette', coverClass: 'cover-teal', progress: 34, progressColor: '#1D9E75', progressLabel: '102 / 300 entradas vendidas',
-      statusClass: 's-soon', statusText: 'Próximo', price: 'Gratis', actions: ['Ver QR Blink', 'Editar', 'Compartir']
-    },
-    {
-      id: 3, cat: 'proximos', name: 'Torneo Fut 7 — León', meta: 'Dom 30 Mar · 09:00 h · Unidad Deportiva',
-      coverText: 'Activity', coverClass: 'cover-coral', progress: 55, progressColor: '#D85A30', progressLabel: '22 / 40 equipos registrados',
-      statusClass: 's-soon', statusText: 'Próximo', price: '0.02 SOL', actions: ['Ver QR Blink', 'Editar', 'Compartir']
-    },
-    {
-      id: 4, cat: 'pasados', name: 'Open Mic — Guadalajara', meta: '15 Mar · 127 asistentes',
-      coverText: 'MicVocal', coverClass: '', coverStyle: { background: 'var(--color-background-tertiary)' }, progress: 100, progressColor: '#555555', progressLabel: '127 / 127 — sold out',
-      statusClass: 's-past', statusText: 'Terminado', price: '0.03 SOL', priceStyle: { color: 'var(--color-text-tertiary)' }, actions: ['Ver POAPs', 'Estadísticas']
+
+  // Estado para almacenar el puntaje de reputación leído de la blockchain
+  const [reputationScore, setReputationScore] = useState<number | null>(null);
+  const [loadingRep, setLoadingRep] = useState(false);
+
+  // Eventos leídos directamente desde las PDAs on-chain
+  const [onChainEvents, setOnChainEvents] = useState<OnChainEventData[]>([]);
+  const [loadingEvents, setLoadingEvents] = useState(false);
+
+  // Al conectar la wallet, consultamos la PDA de reputación del organizador on-chain
+  useEffect(() => {
+    async function fetchReputation() {
+      if (!wallet.publicKey) {
+        setReputationScore(null);
+        return;
+      }
+      setLoadingRep(true);
+      try {
+        const score = await getOrganizerReputation(connection, wallet.publicKey.toBase58());
+        setReputationScore(score);
+      } catch (e) {
+        console.error("Error al consultar la reputación on-chain:", e);
+        setReputationScore(0);
+      } finally {
+        setLoadingRep(false);
+      }
     }
-  ];
+    fetchReputation();
+  }, [wallet.publicKey, connection]);
+
+  // Al conectar la wallet, también leemos los eventos guardados en las PDAs on-chain
+  useEffect(() => {
+    async function fetchOnChainEvents() {
+      if (!wallet.publicKey) {
+        setOnChainEvents([]);
+        return;
+      }
+      // Obtenemos los collectionMints conocidos de los eventos creados en la sesión
+      const knownMints = createdEvents.map(ev => ev.collectionMint);
+      if (knownMints.length === 0) return;
+
+      setLoadingEvents(true);
+      try {
+        const chainEvents = await readAllEventsFromChain(connection, wallet.publicKey, knownMints);
+        setOnChainEvents(chainEvents);
+        console.log(`Leídos ${chainEvents.length} eventos desde blockchain.`);
+      } catch (e) {
+        console.error("Error al leer eventos desde la blockchain:", e);
+      } finally {
+        setLoadingEvents(false);
+      }
+    }
+    fetchOnChainEvents();
+  }, [wallet.publicKey, connection, createdEvents]);
+  // Mapeamos los eventos guardados en la wallet/sesión al formato visual del dashboard
+  const categoryIcons: Record<string, string> = {
+    'Música / Concierto': 'Music', 'Arte y cultura': 'Palette', 'Deporte': 'Activity',
+    'Feria y mercado': 'ShoppingBag', 'Teatro y danza': 'Drama', 'Otro': 'Sparkles'
+  };
+  const categoryColors: Record<string, string> = {
+    'Música / Concierto': 'cover-purple', 'Arte y cultura': 'cover-teal', 'Deporte': 'cover-coral',
+    'Feria y mercado': 'cover-purple', 'Teatro y danza': 'cover-teal', 'Otro': 'cover-coral'
+  };
+  const categoryProgressColors: Record<string, string> = {
+    'Música / Concierto': '#534AB7', 'Arte y cultura': '#1D9E75', 'Deporte': '#D85A30',
+    'Feria y mercado': '#EF9F27', 'Teatro y danza': '#E879A8', 'Otro': '#534AB7'
+  };
+
+  // Transformamos CreatedEvent[] a la estructura visual que usa el listado
+  const events = createdEvents.map(ev => {
+    const eventDate = ev.date ? new Date(ev.date + 'T12:00') : null;
+    const isToday = eventDate && eventDate.toDateString() === new Date().toDateString();
+    const isPast = eventDate && eventDate < new Date();
+    const cat = isToday ? 'activos' : isPast ? 'pasados' : 'proximos';
+    const dateStr = eventDate ? eventDate.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
+    const metaStr = `${dateStr}${ev.time ? ' · ' + ev.time + ' h' : ''} · ${ev.venue}`;
+    const priceStr = ev.priceType === 'free' ? 'Gratis' : `${ev.price} ${ev.priceType.toUpperCase()}`;
+
+    const sold = eventStats[ev.id]?.sold || 0;
+    const progress = Math.round((sold / (ev.aforo || 1)) * 100);
+
+    return {
+      id: ev.id, cat, name: ev.name, meta: metaStr,
+      coverText: categoryIcons[ev.category] || 'Sparkles',
+      coverClass: categoryColors[ev.category] || 'cover-purple',
+      progress: progress,
+      progressColor: categoryProgressColors[ev.category] || '#534AB7',
+      progressLabel: `${sold} / ${ev.aforo} entradas vendidas`,
+      statusClass: isToday ? 's-active' : isPast ? 's-past' : 's-soon',
+      statusText: isToday ? 'En curso' : isPast ? 'Terminado' : 'Próximo',
+      price: priceStr,
+      actions: ['Panel staff', 'Ver QR Blink', 'Compartir'],
+      primaryAction: 0,
+      collectionMint: ev.collectionMint
+    };
+  });
 
   const filteredEvents = events.filter(e => e.cat === activeTab);
 
-  const handleWalletClick = () => {
-    setWalletOn(!walletOn);
+  // Función helper para mostrar el nivel de reputación
+  const getReputationLevel = (score: number) => {
+    if (score >= 50) return { label: 'Excelente', color: '#5DCAA5', icon: '⭐' };
+    if (score >= 20) return { label: 'Buena', color: '#EF9F27', icon: '👍' };
+    if (score > 0)  return { label: 'Nueva', color: '#AFA9EC', icon: '🆕' };
+    return { label: 'Sin historial', color: '#666', icon: '—' };
   };
 
   return (
     <div className="app">
       <div className="navbar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', zIndex: 1 }}>
           <div className="nav-back" onClick={onBack}>
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </div>
-          <div className="nav-brand">
-            <div className="nav-logo">
-              <svg viewBox="0 0 16 16" fill="none">
-                <rect x="2" y="2" width="5" height="5" rx="1.5" fill="#fff" />
-                <rect x="9" y="2" width="5" height="5" rx="1.5" fill="#fff" opacity=".6" />
-                <rect x="2" y="9" width="5" height="5" rx="1.5" fill="#fff" opacity=".6" />
-                <rect x="9" y="9" width="5" height="5" rx="1.5" fill="#fff" opacity=".3" />
-              </svg>
+          <div className="nav-brand" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
+              <img src="/icon.png" alt="Logo" style={{ height: '100%', width: 'auto', objectFit: 'contain' }} />
             </div>
-            <span className="nav-name">Mintpass Organizador</span>
+            <div style={{ fontSize: '22px', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', letterSpacing: '-0.5px' }}>
+              <span style={{ color: '#4AA844', fontWeight: 800 }}>Mint</span>
+              <span style={{ color: '#ffffff', fontWeight: 600 }}>pass</span>
+            </div>
           </div>
+        </div>
+
+        {/* Etiqueta Central */}
+        <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', fontWeight: 600, fontSize: '14px', color: '#AFA9EC', letterSpacing: '1px', textTransform: 'uppercase', background: 'rgba(83,74,183,0.15)', padding: '4px 12px', border: '1px solid rgba(83,74,183,0.3)', borderRadius: '20px' }}>
+          Organizador
         </div>
         
         <div className="nav-right">
-          <div className="wallet-chip" onClick={handleWalletClick} style={{ cursor: 'pointer', borderColor: walletOn ? '#534AB7' : '', color: walletOn ? '#AFA9EC' : '' }}>
-            {walletOn ? '7xKf…9pQm' : "Conectar Wallet"}
-          </div>
+          {/* Reemplazamos el botón falso por WalletMultiButton real */}
+          <WalletMultiButton className="wallet-chip" style={{ background: '#1a1a2e', color: '#AFA9EC', border: '1px solid #2a2a4a', padding: '6px 14px', fontSize: '12px', height: 'auto', lineHeight: 1, fontFamily: 'inherit' }} />
           <div className="avatar">KR</div>
         </div>
       </div>
@@ -79,19 +166,35 @@ export default function OrganizerDashboard({ onBack, onCreate, onEventClick }: {
 
         <div className="stats-grid">
           <div className="stat-card">
-            <div className="stat-label">Eventos activos</div>
-            <div className="stat-value">3</div>
-            <div className="stat-sub">Este mes</div>
+            <div className="stat-label">Eventos creados</div>
+            <div className="stat-value">{createdEvents.length}</div>
+            <div className="stat-sub">En esta sesión</div>
           </div>
           <div className="stat-card">
             <div className="stat-label">Tickets vendidos</div>
-            <div className="stat-value">284</div>
-            <div className="stat-sub">+42 esta semana</div>
+            <div className="stat-value">{Object.values(eventStats).reduce((acc, curr) => acc + curr.sold, 0)}</div>
+            <div className="stat-sub">Acumulado local</div>
           </div>
           <div className="stat-card">
             <div className="stat-label">Asistentes hoy</div>
-            <div className="stat-value">97</div>
-            <div className="stat-sub">En curso ahora</div>
+            <div className="stat-value">{Object.values(eventStats).reduce((acc, curr) => acc + curr.checked, 0)}</div>
+            <div className="stat-sub">Total validados</div>
+          </div>
+          {/* Tarjeta de Reputación On-Chain del Organizador */}
+          <div className="stat-card" style={{ borderColor: wallet.publicKey ? '#534AB7' : '#2a2a4a' }}>
+            <div className="stat-label">Reputación on-chain</div>
+            <div className="stat-value" style={{ color: reputationScore !== null ? getReputationLevel(reputationScore).color : '#666' }}>
+              {loadingRep ? '...' : reputationScore !== null ? `${getReputationLevel(reputationScore).icon} ${reputationScore}` : '—'}
+            </div>
+            <div className="stat-sub">
+              {!wallet.publicKey 
+                ? 'Conecta wallet para ver' 
+                : loadingRep 
+                  ? 'Consultando blockchain...' 
+                  : reputationScore !== null 
+                    ? getReputationLevel(reputationScore).label
+                    : 'Sin datos'}
+            </div>
           </div>
         </div>
 
@@ -108,25 +211,53 @@ export default function OrganizerDashboard({ onBack, onCreate, onEventClick }: {
         </div>
 
         <div className="event-list" id="event-list">
-          {filteredEvents.length === 0 ? (
+          {/* Indicador de carga mientras se consultan las PDAs en blockchain */}
+          {loadingEvents && (
+            <div style={{ textAlign: 'center', padding: '12px', fontSize: '12px', color: '#AFA9EC' }}>
+              ⛓️ Consultando eventos en la blockchain de Solana...
+            </div>
+          )}
+
+          {createdEvents.length === 0 ? (
+            <div className="empty-state" style={{ textAlign: 'center', padding: '40px 20px' }}>
+              <Icons.PlusCircle size={40} color="#534AB7" style={{ marginBottom: '12px' }} />
+              <div style={{ fontSize: '14px', marginBottom: '4px' }}>Aún no has creado ningún evento</div>
+              <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>Presiona "Crear evento" para lanzar tu primera colección NFT en Solana</div>
+            </div>
+          ) : filteredEvents.length === 0 ? (
             <div className="empty-state">No hay eventos en esta categoría.</div>
           ) : (
             filteredEvents.map(ev => {
               const EventIcon = (Icons as any)[ev.coverText] || Icons.HelpCircle;
+              {/* Verificamos si este evento fue leído exitosamente desde la PDA on-chain */}
+              const isVerifiedOnChain = onChainEvents.some(oc => oc.collectionMint === ev.collectionMint);
               return (
               <div className="event-card" key={ev.id} onClick={() => onEventClick(ev.id)}>
-                <div className={`event-cover ${ev.coverClass}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', ...(ev.coverStyle || {}) }}>
+                <div className={`event-cover ${ev.coverClass}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <EventIcon size={24} color="#fff" />
                 </div>
                 
                 <div className="event-info">
-                  <div className="event-name">{ev.name}</div>
+                  <div className="event-name" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {ev.name}
+                    {/* Badge de verificación on-chain */}
+                    {isVerifiedOnChain && (
+                      <span title="Evento verificado en blockchain" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '9px', background: 'rgba(93,202,165,0.15)', color: '#5DCAA5', padding: '2px 6px', borderRadius: '8px', fontWeight: 600 }}>
+                        <Icons.ShieldCheck size={10} /> On-chain
+                      </span>
+                    )}
+                  </div>
                   <div className="event-meta">{ev.meta}</div>
                   
                   <div className="event-bar-wrap">
                     <div className="event-bar" style={{ width: `${ev.progress}%`, background: ev.progressColor }}></div>
                   </div>
                   <div className="event-bar-label">{ev.progressLabel}</div>
+                  
+                  {/* Mostramos el collectionMint truncado como referencia on-chain */}
+                  <div style={{ fontSize: '10px', color: '#666', marginTop: '4px', fontFamily: 'monospace' }}>
+                    🔗 {ev.collectionMint.slice(0, 8)}...{ev.collectionMint.slice(-4)}
+                  </div>
                   
                   <div className="event-actions">
                     {ev.actions.map((action, idx) => (
@@ -143,7 +274,7 @@ export default function OrganizerDashboard({ onBack, onCreate, onEventClick }: {
                 
                 <div className="event-right">
                   <span className={`status-pill ${ev.statusClass}`}>{ev.statusText}</span>
-                  <span className="event-price" style={ev.priceStyle || {}}>{ev.price}</span>
+                  <span className="event-price">{ev.price}</span>
                 </div>
               </div>
             );

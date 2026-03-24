@@ -1,21 +1,72 @@
 import { useState } from "react";
 import * as Icons from "lucide-react";
 import PageNav from "../components/PageNav";
-import { useLiveStats } from "../hooks/useLiveStats";
+import { CreatedEvent } from "./CreateEvent";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { releaseEscrow } from "../lib/escrow";
+import AlertModal, { AlertModalProps } from "../components/AlertModal";
 
-export default function EventDetails({ onBack, onGoToStaff }: { onBack: () => void, onGoToStaff: () => void }) {
-  const { sold, checked } = useLiveStats(156, 97, 200);
-  // Estado para controlar el mensaje de link copiado
+export default function EventDetails({ event, stats, ownedTickets = [], onBack, onGoToStaff }: { event: CreatedEvent, stats?: {sold: number, checked: number}, ownedTickets?: Array<{ mint: string, purchaseDate: number, eventId: number }>, onBack: () => void, onGoToStaff: () => void }) {
+  const sold = stats?.sold || 0;
+  const checked = stats?.checked || 0;
   const [copied, setCopied] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<AlertModalProps>({ 
+    isOpen: false, title: '', message: '', type: 'info', 
+    onClose: () => setAlertConfig(p => ({...p, isOpen: false})) 
+  });
 
-  // Función para simular el copiado del enlace Blink
+  const showAlert = (title: string, message: string, type: AlertModalProps['type'], signature?: string) => {
+    setAlertConfig(prev => ({ ...prev, isOpen: true, title, message, type, signature }));
+  };
+
   const handleCopy = () => {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Cálculo del porcentaje de aforo completado
-  const pct = Math.round((sold / 200) * 100);
+  const { connection } = useConnection();
+  const wallet = useWallet();
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
+  const [withdrawn, setWithdrawn] = useState(() => {
+    return localStorage.getItem(`mintpass_withdrawn_${event.id}`) === 'true';
+  });
+
+  const handleWithdraw = async () => {
+    if (checked < 2) {
+      showAlert("Retiro Bloqueado", "Transacción Rechazada por el Contrato Inteligente:\n\nSe requieren al menos 2 validaciones de asistentes escaneados en puerta (check-ins reales on-chain) para liberar los fondos de la bóveda.", "warning");
+      return;
+    }
+
+    if (event.priceType !== 'sol') {
+      showAlert("No Soportado", "Simulación: Pagos en USDC requieren inicializar Cuentas Token (ATA). Se omitirá para evitar colisiones en la demo de SOL.", "info");
+      return;
+    }
+
+    if (!wallet.publicKey) {
+      showAlert("Wallet Desconectada", "Conecta tu wallet principal para autorizar la recepción de los fondos desde el contrato inteligente.", "warning");
+      return;
+    }
+
+    if (event.organizerWallet && wallet.publicKey.toBase58() !== event.organizerWallet) {
+      showAlert("Acceso Denegado", "Solo la wallet que creó legítimamente el evento tiene la autoridad criptográfica para extraer los fondos de la bóveda.", "error");
+      return;
+    }
+
+    try {
+      setIsWithdrawing(true);
+      const totalSol = sold * event.price;
+      const sig = await releaseEscrow(connection, wallet as any, totalSol);
+      localStorage.setItem(`mintpass_withdrawn_${event.id}`, 'true');
+      setWithdrawn(true);
+      showAlert("¡Retiro Exitoso!", `Los fondos han sido liberados desde el contrato a tu wallet privada.\n\nSe transfirieron ${totalSol} SOL de las ganancias.`, "success", sig);
+    } catch (e: any) {
+      showAlert("Error de Validación Blockchain", e.message, "error");
+    } finally {
+      setIsWithdrawing(false);
+    }
+  };
+
+  const pct = Math.round((sold / (event.aforo || 1)) * 100);
 
   // Matriz de ejemplo para renderizar un QR falso usando celdas de grid
   const qrPattern = [
@@ -33,7 +84,7 @@ export default function EventDetails({ onBack, onGoToStaff }: { onBack: () => vo
       {/* ======= NAVBAR SECUNDARIO ======= */}
       <PageNav 
         onBack={onBack} 
-        title="Noche de Jazz — CDMX" 
+        title={event.name} 
         rightElement={<span className="status-pill s-active"><span className="live-dot"></span>En curso</span>} 
       />
 
@@ -56,16 +107,16 @@ export default function EventDetails({ onBack, onGoToStaff }: { onBack: () => vo
 
             {/* Metadatos principales del evento */}
             <div className="card-section">
-              <div className="event-title">Noche de Jazz — CDMX</div>
+              <div className="event-title">{event.name}</div>
               <div className="event-meta-row">
-                <span>Hoy · 21:00 h</span>
+                <span>{event.date} · {event.time} h</span>
                 <span className="meta-dot"></span>
-                <span>Foro Indie, Roma Norte</span>
+                <span>{event.venue}</span>
               </div>
               <div className="event-meta-row">
-                <span>Música / Concierto</span>
+                <span>{event.category || 'Categoría general'}</span>
                 <span className="meta-dot"></span>
-                <span>0.05 SOL por entrada</span>
+                <span>{event.priceType === 'free' ? 'Gratis' : `${event.price} ${event.priceType.toUpperCase()} por entrada`}</span>
               </div>
             </div>
 
@@ -82,7 +133,7 @@ export default function EventDetails({ onBack, onGoToStaff }: { onBack: () => vo
                   <div className="stat-lbl">Escaneados</div>
                 </div>
                 <div className="stat">
-                  <div className="stat-val">{200 - sold}</div>
+                  <div className="stat-val">{event.aforo - sold}</div>
                   <div className="stat-lbl">Disponibles</div>
                 </div>
               </div>
@@ -140,30 +191,27 @@ export default function EventDetails({ onBack, onGoToStaff }: { onBack: () => vo
                 <span style={{fontSize: '11px', color: 'var(--color-text-tertiary)', cursor: 'pointer'}}>Ver todas</span>
               </div>
               <div className="attendee-list">
-                <div className="attendee-row">
-                  <div className="av av-p">AK</div>
-                  <div className="attendee-addr">7xKf…9pQm</div>
-                  <div className="attendee-time">hace 3 min</div>
-                  <span className="checked-badge">Ingresó</span>
-                </div>
-                <div className="attendee-row">
-                  <div className="av av-t">RL</div>
-                  <div className="attendee-addr">3mTv…2nLs</div>
-                  <div className="attendee-time">hace 11 min</div>
-                  <span className="checked-badge">Ingresó</span>
-                </div>
-                <div className="attendee-row">
-                  <div className="av av-c">MP</div>
-                  <div className="attendee-addr">9bWx…4kRd</div>
-                  <div className="attendee-time">hace 18 min</div>
-                  <span className="pending-badge">No llegó</span>
-                </div>
-                <div className="attendee-row">
-                  <div className="av av-p">SG</div>
-                  <div className="attendee-addr">1nPq…7cYe</div>
-                  <div className="attendee-time">hace 24 min</div>
-                  <span className="checked-badge">Ingresó</span>
-                </div>
+                {ownedTickets.length === 0 ? (
+                  <div style={{color: '#666', fontSize: '13px', textAlign: 'center', padding: '16px'}}>0 registros recibidos on-chain</div>
+                ) : (
+                  ownedTickets.slice().reverse().map((t, idx) => {
+                    const diffMins = Math.floor((Date.now() - t.purchaseDate) / 60000);
+                    const timeStr = diffMins === 0 ? 'Hace un instante' : diffMins < 60 ? `Hace ${diffMins} min` : `Hace ${Math.floor(diffMins/60)} h`;
+                    return (
+                      <div className="attendee-row" key={t.mint}>
+                        <div className="av av-p">T{(ownedTickets.length - idx).toString().padStart(2, '0')}</div>
+                        <div className="attendee-addr" style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                          {t.mint.substring(0,6)}...{t.mint.substring(t.mint.length-4)}
+                          <a href={`https://explorer.solana.com/address/${t.mint}?cluster=devnet`} target="_blank" rel="noreferrer" style={{color: '#AFA9EC', opacity: 0.8, display: 'flex'}}>
+                            <Icons.ExternalLink size={12} />
+                          </a>
+                        </div>
+                        <div className="attendee-time">{timeStr}</div>
+                        <span className="checked-badge">Comprador</span>
+                      </div>
+                    )
+                  })
+                )}
               </div>
             </div>
 
@@ -199,13 +247,13 @@ export default function EventDetails({ onBack, onGoToStaff }: { onBack: () => vo
               <Icons.ChevronRight size={14} color="var(--color-text-tertiary)" />
             </button>
             
-            <button className="action-btn" onClick={() => alert("Mostrando vista Generar POAPs...")}>
+            <button className="action-btn" onClick={() => alert("Mostrando panel de distribución masiva de POAPs para los asistentes verificados.")}>
               <div className="action-icon ai-amber" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                 <Icons.Medal size={16} color="#854F0B" />
               </div>
               <div className="action-label">
                 <div style={{fontSize: '13px'}}>Generar POAPs</div>
-                <div className="action-sub">Mutar tickets al terminar</div>
+                <div className="action-sub">Mutar tickets masivamente</div>
               </div>
               <Icons.ChevronRight size={14} color="var(--color-text-tertiary)" />
             </button>
@@ -236,22 +284,64 @@ export default function EventDetails({ onBack, onGoToStaff }: { onBack: () => vo
           <div className="card" style={{margin: 0}}>
             <div className="card-section">
               <div className="sec-label">Recaudación estimada</div>
-              <div style={{fontSize: '22px', fontWeight: 500, color: 'var(--color-text-primary)'}}>{(sold * 0.05).toFixed(2)} SOL</div>
-              <div style={{fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '2px'}}>{sold} tickets × 0.05 SOL</div>
+              <div style={{fontSize: '22px', fontWeight: 500, color: 'var(--color-text-primary)'}}>
+                {event.priceType === 'free' ? '0' : (sold * event.price).toFixed(2)} {event.priceType.toUpperCase()}
+              </div>
+              <div style={{fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '2px'}}>
+                {sold} tickets × {event.priceType === 'free' ? '0' : event.price} {event.priceType.toUpperCase()}
+              </div>
               <div style={{fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: '4px'}}>Sin comisiones de plataforma</div>
+
+              {/* Botón de Retiro Nativo */}
+              <button 
+                className={`btn-sm ${checked >= 2 && !withdrawn && !isWithdrawing ? 'btn-teal' : ''}`}
+                onClick={handleWithdraw}
+                disabled={isWithdrawing || withdrawn}
+                style={{
+                  width: '100%',
+                  marginTop: '16px',
+                  padding: '10px 0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  opacity: (isWithdrawing || withdrawn) ? 0.6 : 1,
+                  cursor: (isWithdrawing || withdrawn) ? 'not-allowed' : 'pointer',
+                  fontSize: '13px'
+                }}
+              >
+                {isWithdrawing ? (
+                  <>
+                    <Icons.Loader size={14} className="animate-spin" />
+                    Autorizando...
+                  </>
+                ) : withdrawn ? (
+                  <>
+                    <Icons.CheckCircle size={14} />
+                    Fondos extraídos
+                  </>
+                ) : (
+                  <>
+                    {checked >= 2 ? <Icons.ArrowDownToLine size={14} /> : <Icons.Lock size={14} />}
+                    Retirar ganancias ({checked}/2 checks)
+                  </>
+                )}
+              </button>
+              <div style={{fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: '8px', textAlign: 'center'}}>Bóveda auto-custodiable on-chain</div>
             </div>
             <div className="card-section">
-              <div className="sec-label">Contrato NFT</div>
+              <div className="sec-label">Contrato NFT (On-Chain)</div>
               <div style={{fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--color-text-secondary)', wordBreak: 'break-all', lineHeight: 1.6}}>
-                FiEs…7pKm<br/>
+                {event.collectionMint}<br/>
                 <span style={{color: 'var(--color-text-tertiary)'}}>Metaplex Core · devnet</span>
               </div>
-              <button className="btn-sm" style={{marginTop: '8px', fontSize: '11px'}}>Ver en Solana Explorer ↗</button>
+              <button className="btn-sm" style={{marginTop: '8px', fontSize: '11px'}} onClick={() => window.open(`https://explorer.solana.com/address/${event.collectionMint}?cluster=devnet`, '_blank')}>Ver en Solana Explorer ↗</button>
             </div>
           </div>
           
         </div>
       </div>
+      <AlertModal {...alertConfig} />
     </div>
   );
 }

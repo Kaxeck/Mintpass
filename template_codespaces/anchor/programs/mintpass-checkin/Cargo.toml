@@ -1,12 +1,12 @@
 [package]
-name = "vault"
+name = "mintpass-checkin"
 version = "0.1.0"
-description = "A simple SOL vault program"
+description = "Programa anti-duplicados de Check-In para Mintpass — registra asistencia on-chain con PDAs"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "vault"
+name = "mintpass_checkin"
 
 [features]
 default = []

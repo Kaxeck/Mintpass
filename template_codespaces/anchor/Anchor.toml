@@ -5,7 +5,11 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-vault = "BJcj2Sc2mUTY7TgstZGVwkCuW3JdpeJYoDXccwHiB4uf"
+mintpass_escrow = "8NRJJTedLMqMVsZyFTzf3zKeHwgaSywmcTYsjVjB4kQz"
+mintpass_checkin = "Dm5EGnhPWU1MGJNYRwfetzPTojSM9g1yJEAdd9bPdqTf"
+mintpass_reputation = "79i2AbYFRQUj5gSStpvoJ51QSYcSwcN3dp6Jyrv13g6j"
+# Developer Comment: Program ID real desplegado en Devnet
+mintpass_event_registry = "9inMKT4XXyRApVDDFGPQr9kcdWnuCk5YKJiDT8pTbtNj"
 
 [registry]
 url = "https://api.apr.dev"

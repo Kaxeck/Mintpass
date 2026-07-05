@@ -1,38 +1,62 @@
 'use client';
 import { useState, useEffect } from "react";
 import * as Icons from "lucide-react";
-import WalletMultiButton from "../components/WalletButton";
-import { useWallet, useConnection } from "@solana/wallet-adapter-react";
+import WalletButton from "../components/WalletButton";
+import { useWalletSession, useSolanaClient } from "@solana/react-hooks";
+import { type Address } from "@solana/kit";
 import { getOrganizerReputation } from "../lib/metaplex";
-import { readAllEventsFromChain, OnChainEventData } from "../lib/event-pda";
+import { readAllEventsFromChain, type OnChainEventData } from "../lib/event-pda";
 import { CreatedEvent } from "./CreateEvent";
 
-
-
-// Ahora el dashboard recibe los eventos reales creados on-chain y ventas
-export default function OrganizerDashboard({ createdEvents, eventStats = {}, onBack, onCreate, onEventClick }: { createdEvents: CreatedEvent[], eventStats?: Record<number, { sold: number, checked: number }>, onBack: () => void, onCreate: () => void, onEventClick: (id: number) => void }) {
-  const wallet = useWallet();
-  const { connection } = useConnection();
+export default function OrganizerDashboard({
+  createdEvents,
+  eventStats = {},
+  onBack,
+  onCreate,
+  onEventClick,
+}: {
+  createdEvents: CreatedEvent[];
+  eventStats?: Record<number, { sold: number; checked: number }>;
+  onBack: () => void;
+  onCreate: () => void;
+  onEventClick: (id: number) => void;
+}) {
+  const session = useWalletSession();
+  const client = useSolanaClient();
+  const rpcRaw = client?.runtime?.rpc;
   const [activeTab, setActiveTab] = useState('activos');
 
-  // Estado para almacenar el puntaje de reputación leído de la blockchain
+  // Wrapper que adapta la API RPC de @solana/kit (PendingRpcRequest) 
+  // a la interfaz simple esperada por nuestras funciones lib.
+  const rpc = rpcRaw ? {
+    async getAccountInfo(address: Address) {
+      const result = await (rpcRaw.getAccountInfo as any)(address, { encoding: 'base64' }).send();
+      if (!result.value) return null;
+      const decoded = Buffer.from(result.value.data[0], 'base64');
+      return { data: new Uint8Array(decoded) };
+    }
+  } : null;
+
   const [reputationScore, setReputationScore] = useState<number | null>(null);
   const [loadingRep, setLoadingRep] = useState(false);
 
-  // Eventos leídos directamente desde las PDAs on-chain
   const [onChainEvents, setOnChainEvents] = useState<OnChainEventData[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
 
-  // Al conectar la wallet, consultamos la PDA de reputación del organizador on-chain
+  const walletAddress: Address | null = session?.account?.address ?? null;
+  const walletAddressStr = walletAddress?.toString() ?? "";
+
+  // Consultar reputación on-chain
   useEffect(() => {
     async function fetchReputation() {
-      if (!wallet.publicKey) {
+      if (!walletAddress) {
         setReputationScore(null);
         return;
       }
+      if (!rpc) return;
       setLoadingRep(true);
       try {
-        const score = await getOrganizerReputation(connection, wallet.publicKey.toBase58());
+        const score = await getOrganizerReputation(rpc, walletAddress);
         setReputationScore(score);
       } catch (e) {
         console.error("Error al consultar la reputación on-chain:", e);
@@ -42,22 +66,22 @@ export default function OrganizerDashboard({ createdEvents, eventStats = {}, onB
       }
     }
     fetchReputation();
-  }, [wallet.publicKey, connection]);
+  }, [walletAddress, client]);
 
-  // Al conectar la wallet, también leemos los eventos guardados en las PDAs on-chain
+  // Leer eventos desde las PDAs on-chain
   useEffect(() => {
     async function fetchOnChainEvents() {
-      if (!wallet.publicKey) {
+      if (!walletAddress) {
         setOnChainEvents([]);
         return;
       }
-      // Obtenemos los collectionMints conocidos de los eventos creados en la sesión
       const knownMints = createdEvents.map(ev => ev.collectionMint);
       if (knownMints.length === 0) return;
 
+      if (!rpc) return;
       setLoadingEvents(true);
       try {
-        const chainEvents = await readAllEventsFromChain(connection, wallet.publicKey, knownMints);
+        const chainEvents = await readAllEventsFromChain(rpc, walletAddress, knownMints);
         setOnChainEvents(chainEvents);
         console.log(`Leídos ${chainEvents.length} eventos desde blockchain.`);
       } catch (e) {
@@ -67,8 +91,8 @@ export default function OrganizerDashboard({ createdEvents, eventStats = {}, onB
       }
     }
     fetchOnChainEvents();
-  }, [wallet.publicKey, connection, createdEvents]);
-  // Mapeamos los eventos guardados en la wallet/sesión al formato visual del dashboard
+  }, [walletAddress, client, createdEvents]);
+
   const categoryIcons: Record<string, string> = {
     'Música / Concierto': 'Music', 'Arte y cultura': 'Palette', 'Deporte': 'Activity',
     'Feria y mercado': 'ShoppingBag', 'Teatro y danza': 'Drama', 'Otro': 'Sparkles'
@@ -82,7 +106,6 @@ export default function OrganizerDashboard({ createdEvents, eventStats = {}, onB
     'Feria y mercado': '#EF9F27', 'Teatro y danza': '#E879A8', 'Otro': '#534AB7'
   };
 
-  // Transformamos CreatedEvent[] a la estructura visual que usa el listado
   const events = createdEvents.map(ev => {
     const eventDate = ev.date ? new Date(ev.date + 'T12:00') : null;
     const isToday = eventDate && eventDate.toDateString() === new Date().toDateString();
@@ -99,7 +122,7 @@ export default function OrganizerDashboard({ createdEvents, eventStats = {}, onB
       id: ev.id, cat, name: ev.name, meta: metaStr,
       coverText: categoryIcons[ev.category] || 'Sparkles',
       coverClass: categoryColors[ev.category] || 'cover-purple',
-      progress: progress,
+      progress,
       progressColor: categoryProgressColors[ev.category] || '#534AB7',
       progressLabel: `${sold} / ${ev.aforo} entradas vendidas`,
       statusClass: isToday ? 's-active' : isPast ? 's-past' : 's-soon',
@@ -113,7 +136,6 @@ export default function OrganizerDashboard({ createdEvents, eventStats = {}, onB
 
   const filteredEvents = events.filter(e => e.cat === activeTab);
 
-  // Función helper para mostrar el nivel de reputación
   const getReputationLevel = (score: number) => {
     if (score >= 50) return { label: 'Excelente', color: '#5DCAA5', icon: '⭐' };
     if (score >= 20) return { label: 'Buena', color: '#EF9F27', icon: '👍' };
@@ -139,14 +161,12 @@ export default function OrganizerDashboard({ createdEvents, eventStats = {}, onB
           </div>
         </div>
 
-        {/* Etiqueta Central */}
         <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', fontWeight: 600, fontSize: '14px', color: '#AFA9EC', letterSpacing: '1px', textTransform: 'uppercase', background: 'rgba(83,74,183,0.15)', padding: '4px 12px', border: '1px solid rgba(83,74,183,0.3)', borderRadius: '20px' }}>
           Organizador
         </div>
         
         <div className="nav-right">
-          {/* Reemplazamos el botón falso por WalletMultiButton real */}
-          <WalletMultiButton className="wallet-chip" style={{ background: '#1a1a2e', color: '#AFA9EC', border: '1px solid #2a2a4a', padding: '6px 14px', fontSize: '12px', height: 'auto', lineHeight: 1, fontFamily: 'inherit' }} />
+          <WalletButton className="wallet-chip" style={{ background: '#1a1a2e', color: '#AFA9EC', border: '1px solid #2a2a4a', padding: '6px 14px', fontSize: '12px', height: 'auto', lineHeight: 1, fontFamily: 'inherit' }} />
           <div className="avatar">KR</div>
         </div>
       </div>
@@ -181,14 +201,13 @@ export default function OrganizerDashboard({ createdEvents, eventStats = {}, onB
             <div className="stat-value">{Object.values(eventStats).reduce((acc, curr) => acc + curr.checked, 0)}</div>
             <div className="stat-sub">Total validados</div>
           </div>
-          {/* Tarjeta de Reputación On-Chain del Organizador */}
-          <div className="stat-card" style={{ borderColor: wallet.publicKey ? '#534AB7' : '#2a2a4a' }}>
+          <div className="stat-card" style={{ borderColor: walletAddress ? '#534AB7' : '#2a2a4a' }}>
             <div className="stat-label">Reputación on-chain</div>
             <div className="stat-value" style={{ color: reputationScore !== null ? getReputationLevel(reputationScore).color : '#666' }}>
               {loadingRep ? '...' : reputationScore !== null ? `${getReputationLevel(reputationScore).icon} ${reputationScore}` : '—'}
             </div>
             <div className="stat-sub">
-              {!wallet.publicKey 
+              {!walletAddress 
                 ? 'Conecta wallet para ver' 
                 : loadingRep 
                   ? 'Consultando blockchain...' 
@@ -212,7 +231,6 @@ export default function OrganizerDashboard({ createdEvents, eventStats = {}, onB
         </div>
 
         <div className="event-list" id="event-list">
-          {/* Indicador de carga mientras se consultan las PDAs en blockchain */}
           {loadingEvents && (
             <div style={{ textAlign: 'center', padding: '12px', fontSize: '12px', color: '#AFA9EC' }}>
               ⛓️ Consultando eventos en la blockchain de Solana...
@@ -229,8 +247,7 @@ export default function OrganizerDashboard({ createdEvents, eventStats = {}, onB
             <div className="empty-state">No hay eventos en esta categoría.</div>
           ) : (
             filteredEvents.map(ev => {
-              const EventIcon = (Icons as any)[ev.coverText] || Icons.HelpCircle;
-              {/* Verificamos si este evento fue leído exitosamente desde la PDA on-chain */}
+              const EventIcon = (Icons as Record<string, unknown>)[ev.coverText] as typeof Icons.HelpCircle || Icons.HelpCircle;
               const isVerifiedOnChain = onChainEvents.some(oc => oc.collectionMint === ev.collectionMint);
               return (
               <div className="event-card" key={ev.id} onClick={() => onEventClick(ev.id)}>
@@ -241,7 +258,6 @@ export default function OrganizerDashboard({ createdEvents, eventStats = {}, onB
                 <div className="event-info">
                   <div className="event-name" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     {ev.name}
-                    {/* Badge de verificación on-chain */}
                     {isVerifiedOnChain && (
                       <span title="Evento verificado en blockchain" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '9px', background: 'rgba(93,202,165,0.15)', color: '#5DCAA5', padding: '2px 6px', borderRadius: '8px', fontWeight: 600 }}>
                         <Icons.ShieldCheck size={10} /> On-chain
@@ -255,7 +271,6 @@ export default function OrganizerDashboard({ createdEvents, eventStats = {}, onB
                   </div>
                   <div className="event-bar-label">{ev.progressLabel}</div>
                   
-                  {/* Mostramos el collectionMint truncado como referencia on-chain */}
                   <div style={{ fontSize: '10px', color: '#666', marginTop: '4px', fontFamily: 'monospace' }}>
                     🔗 {ev.collectionMint.slice(0, 8)}...{ev.collectionMint.slice(-4)}
                   </div>
@@ -286,4 +301,3 @@ export default function OrganizerDashboard({ createdEvents, eventStats = {}, onB
     </div>
   );
 }
-

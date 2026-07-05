@@ -5,7 +5,7 @@ const BuyerPurchase = dynamic(() => import("@/views/BuyerPurchase"), { ssr: fals
 import { useMintpassStore } from "@/store";
 import { EVENTS } from "@/data/events";
 import { EventModel } from "@/types";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useWalletSession } from "@solana/react-hooks";
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -13,7 +13,7 @@ export default function BuyerPurchasePage() {
   const { createdEvents, eventStats, collectionMint, updateStats, ownedTickets, setOwnedTickets, isHydrated } = useMintpassStore();
   const router = useRouter();
   const params = useParams();
-  const wallet = useWallet();
+  const session = useWalletSession();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -22,7 +22,7 @@ export default function BuyerPurchasePage() {
 
   if (!mounted || !isHydrated) return null;
 
-  const currentWalletPk = wallet?.publicKey?.toBase58() || "unconnected";
+  const currentWalletPk = session?.account?.address?.toString() || "unconnected";
   const selectedEventId = Number(params?.id);
 
   const evCreated = createdEvents.find(e => e.id === selectedEventId);

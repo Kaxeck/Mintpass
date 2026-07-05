@@ -1,7 +1,7 @@
 'use client';
 import * as Icons from "lucide-react";
-import { useWallet } from "@solana/wallet-adapter-react";
 import WalletMultiButton from "../components/WalletButton";
+import { useWalletSession } from "@solana/react-hooks";
 import "../Home.css";
 
 export interface OwnedTicket {
@@ -21,7 +21,8 @@ export default function TicketsList({
   onBack: () => void, 
   onTicketClick: (mint: string) => void 
 }) {
-  const wallet = useWallet();
+  const session = useWalletSession();
+  const walletConnected = !!session?.account?.address;
 
   return (
     <div className="app-home" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -44,7 +45,7 @@ export default function TicketsList({
           <span className="sec-title" style={{ fontSize: '32px' }}>Mis tickets (NFTs)</span>
         </div>
 
-        {!wallet.publicKey ? (
+        {!walletConnected ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(83,74,183,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
               <Icons.Wallet size={36} color="#7F77DD" />

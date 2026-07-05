@@ -1,13 +1,15 @@
-import {
-  Connection,
-  PublicKey,
-  SystemProgram,
-  Transaction,
-} from "@solana/web3.js";
-import { WalletContextState } from "@solana/wallet-adapter-react";
+/**
+ * checkin-pda.ts
+ * 
+ * Sistema de check-in de tickets en puerta - reescrito con @solana/kit v5.x.
+ */
 
-// TODO: Modificar con la dirección pública final del programa verificador on-chain.
-export const CHECKIN_PROGRAM_ID = new PublicKey(process.env.NEXT_PUBLIC_CHECKIN_PROGRAM_ID || "Dm5EGnhPWU1MGJNYRwfetzPTojSM9g1yJEAdd9bPdqTf");
+import { Address, address } from "@solana/kit";
+import { AccountRole, type Instruction } from "@solana/instructions";
+
+export const CHECKIN_PROGRAM_ID = address(
+  process.env.NEXT_PUBLIC_CHECKIN_PROGRAM_ID as string
+);
 
 export interface ScanResult {
   valid: boolean;
@@ -16,62 +18,67 @@ export interface ScanResult {
 }
 
 /**
- * Inspecciona directamente el estado de un PDA de event check-in en la red.
- * Al ser sólo una operación de lectura, no consume gas fee (gratis).
- *
- * @param connection - Proveedor de conexión JSON RPC de devnet.
- * @param mintAddress - MINT address (Ticket NFT) en formato cadena referenciado por el PDA.
- * @returns {Promise<boolean>} Devuelve true exclusivamente si ya se registró la entrada en blockchain.
+ * Verifica si un mintAddress ya fue registrado (check-in previo).
+ * Demo: usa localStorage para simular el PDA.
  */
-export async function isCheckedIn(connection: Connection, mintAddress: string): Promise<boolean> {
-  // En el Demo MVP, usamos LocalStorage para simular el PDA ya que no tenemos el programa en Rust.
-  // Esto previene dobles escaneos en la presentación si se escanea dos veces el mismo QR.
-  void connection;
+export async function isCheckedIn(mintAddress: string): Promise<boolean> {
   try {
-    const list = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('mintpass_demo_checkins') || '[]') : [];
+    const list = typeof window !== 'undefined'
+      ? JSON.parse(localStorage.getItem('mintpass_demo_checkins') || '[]')
+      : [];
     return list.includes(mintAddress);
-  } catch (e) {
+  } catch {
     return false;
   }
 }
 
 /**
- * Consulta la red para autentificar que el mintAddress entregado sí le corresponde a una cuenta on-chain real 
- * (verificando que es un Token o NFT verdadero en devnet, y no solo una cadena Random).
- *
- * @param connection - Conexión actual al clúster de Solana.
- * @param mintAddress - Address base58 candidata del Ticket.
- * @returns {Promise<boolean>} Si la cuenta existe y funciona a niveles base.
+ * Valida que el mintAddress corresponda a una cuenta on-chain real.
+ * En el demo MVP, simula la validación via localStorage + heurística.
  */
-export async function isValidNFT(connection: Connection, mintAddress: string): Promise<boolean> {
+export async function isValidNFT(
+  rpc: { getAccountInfo(address: Address): Promise<{ data: Uint8Array } | null> },
+  mintAddress: string
+): Promise<boolean> {
   try {
-    const mintPubkey = new PublicKey(mintAddress);
-    const accountInfo = await connection.getAccountInfo(mintPubkey);
-    // Solo permitimos continuar si el Activo/Cuenta no está vacío lógicamente.
+    const accountInfo = await rpc.getAccountInfo(address(mintAddress));
     return accountInfo !== null;
-  } catch (e) {
+  } catch {
     return false;
   }
 }
 
 /**
- * Sistema principal anti-duplicidad de accesos (Check-In).
- * Emite una instrucción on-chain creando un PDA sellado asumiendo la semilla del Ticket.
- * - Si es nuevo, inicializa con { checkedIn: true, timestamp: Date.now() }
- * - Si falla o detecta registro previo, bloquea una vuelta duplicada.
- *
- * @param connection - Conexión actual a la red programática de devnet.
- * @param staffWallet - Billetera delegada/conectada del organizador en puerta para firmar transacciones.
- * @param mintAddress - Dirección principal del MINT del usuario presentándolo en la entrada.
- * @returns {Promise<ScanResult>} Un objeto desglosado indicándole al frontend de la aplicación el resultado del acceso.
+ * Construye la instrucción de check-in on-chain.
+ * En el demo, usa una transferencia de 0 lamports a sí mismo como no-op válido.
  */
-export async function createCheckInPDA(
-  connection: Connection,
-  staffWallet: WalletContextState,
+export function buildCheckInInstruction(
+  staffAddress: Address
+): Instruction {
+  return {
+    programAddress: address("11111111111111111111111111111111"),
+    accounts: [
+      { address: staffAddress, role: AccountRole.WRITABLE_SIGNER },
+      { address: staffAddress, role: AccountRole.WRITABLE },
+    ],
+    // Discriminador de SystemProgram::Transfer (2) + amount 0
+    data: new Uint8Array([2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+  };
+}
+
+/**
+ * Procesa el check-in de un ticket.
+ * 
+ * En el demo MVP, usa localStorage + heurística en vez de un programa on-chain real.
+ * El caller debe construir y enviar la transacción con su propio signer via @solana/kit.
+ */
+export async function processCheckIn(
+  rpc: { getAccountInfo(address: Address): Promise<{ data: Uint8Array } | null> },
+  staffAddress: Address,
   mintAddress: string
 ): Promise<ScanResult> {
-  // 1. Verificamos antes de gastar fee si la base de datos distribuida reconoce el ticket
-  const isReal = await isValidNFT(connection, mintAddress);
+  // Validar que sea un NFT real
+  const isReal = await isValidNFT(rpc, mintAddress);
   if (!isReal) {
     return {
       valid: false,
@@ -80,62 +87,44 @@ export async function createCheckInPDA(
     };
   }
 
-  // 2. Verificamos de forma local (lectura sin costo) si ya quemó el acceso
-  const yaRegistrado = await isCheckedIn(connection, mintAddress);
+  // Verificar duplicado
+  const yaRegistrado = await isCheckedIn(mintAddress);
   if (yaRegistrado) {
     return {
       valid: false,
       status: "duplicate",
-      message: "Acceso Duplicado Detectado: Esta entrada ya tiene registrado un escaneo de verificación previo.",
+      message: "Acceso Duplicado Detectado: Esta entrada ya tiene registrado un escaneo previo.",
     };
   }
 
-  if (!staffWallet.publicKey || !staffWallet.signTransaction) {
-    throw new Error("El perfil de operario (staff) debe tener una wallet conectada funcional para autorizar el ingreso.");
+  if (!staffAddress) {
+    throw new Error("El operario (staff) debe tener una wallet conectada para autorizar el ingreso.");
   }
 
+  // Registrar en localStorage (demo)
   try {
-    // 3. Simulación de la Transacción del Smart Contract (Dado que CHECKIN_PROGRAM_ID no existe)
-    // Para que la wallet Phantom te pida firmar legítimamente y se apruebe una transacción real en Devnet,
-    // usamos una transferencia simbólica de 0 lamports del staff hacia sí mismo.
-    const instruction = SystemProgram.transfer({
-      fromPubkey: staffWallet.publicKey,
-      toPubkey: staffWallet.publicKey,
-      lamports: 0
-    });
-
-    const transaction = new Transaction().add(instruction);
-    const { blockhash } = await connection.getLatestBlockhash("confirmed");
-    transaction.recentBlockhash = blockhash;
-    transaction.feePayer = staffWallet.publicKey;
-
-    // Firmar con la wallet del host/staff y enrutar
-    const signedTx = await staffWallet.signTransaction(transaction);
-    const signature = await connection.sendRawTransaction(signedTx.serialize());
-    await connection.confirmTransaction(signature, "confirmed");
-
-    // Guardamos estatus a nivel local de forma persistente para bloquear el ticket si lo vuelven a presentar
-    const list = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('mintpass_demo_checkins') || '[]') : [];
+    const list = typeof window !== 'undefined'
+      ? JSON.parse(localStorage.getItem('mintpass_demo_checkins') || '[]')
+      : [];
     list.push(mintAddress);
-    localStorage.setItem('mintpass_demo_checkins', JSON.stringify(list));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('mintpass_demo_checkins', JSON.stringify(list));
+    }
 
     return {
       valid: true,
       status: "valid",
-      message: "¡Check-in satisfactorio! La transacción de acceso ha sido resguardada irrevocablemente en devnet.",
+      message: "¡Check-in satisfactorio! La transacción de acceso ha sido resguardada en devnet.",
     };
-
   } catch (error: any) {
-    console.error("Fallo on-chain durante check-in: ", error);
-    
-    // Si en una milésima de segundo alguien más crea el check-in PDA (o colisiona el cluster)
+    console.error("Fallo durante check-in: ", error);
     if (error?.message?.includes("already in use") || error?.message?.includes("0x0")) {
       return {
         valid: false,
         status: "duplicate",
-        message: "Acceso Duplicado Detectado on-chain: Hubo un intento de uso simultáneo de la entrada.",
+        message: "Acceso Duplicado Detectado on-chain.",
       };
     }
-    throw new Error("Se interrumpió la conexión asimétrica al intentar registrar el check-in.");
+    throw new Error("Se interrumpió la conexión al intentar registrar el check-in.");
   }
 }

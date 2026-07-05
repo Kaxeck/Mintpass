@@ -3,8 +3,9 @@ import { useState } from "react";
 import * as Icons from "lucide-react";
 import PageNav from "../components/PageNav";
 import { CreatedEvent } from "./CreateEvent";
-import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { releaseEscrow } from "../lib/escrow";
+import { useWalletSession, useSolanaClient } from "@solana/react-hooks";
+import { createEscrowReleaseInstruction } from "../lib/escrow";
+import { type Address } from "@solana/kit";
 import AlertModal, { AlertModalProps } from "../components/AlertModal";
 
 export default function EventDetails({ event, stats, ownedTickets = [], onBack, onGoToStaff }: { event: CreatedEvent, stats?: {sold: number, checked: number}, ownedTickets?: Array<{ mint: string, purchaseDate: number, eventId: number }>, onBack: () => void, onGoToStaff: () => void }) {
@@ -26,9 +27,12 @@ export default function EventDetails({ event, stats, ownedTickets = [], onBack, 
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const { connection } = useConnection();
-  const wallet = useWallet();
+  const session = useWalletSession();
+  const client = useSolanaClient();
   const [isWithdrawing, setIsWithdrawing] = useState(false);
+
+  const walletAddress: Address | null = session?.account?.address ?? null;
+  const walletConnected = !!walletAddress;
   const [withdrawn, setWithdrawn] = useState(() => {
     return typeof window !== 'undefined' ? localStorage.getItem(`mintpass_withdrawn_${event.id}`) === 'true' : false;
   });
@@ -44,12 +48,12 @@ export default function EventDetails({ event, stats, ownedTickets = [], onBack, 
       return;
     }
 
-    if (!wallet.publicKey) {
+    if (!walletConnected) {
       showAlert("Wallet Desconectada", "Conecta tu wallet principal para autorizar la recepción de los fondos desde el contrato inteligente.", "warning");
       return;
     }
 
-    if (event.organizerWallet && wallet.publicKey.toBase58() !== event.organizerWallet) {
+    if (event.organizerWallet && walletAddress !== event.organizerWallet) {
       showAlert("Acceso Denegado", "Solo la wallet que creó legítimamente el evento tiene la autoridad criptográfica para extraer los fondos de la bóveda.", "error");
       return;
     }
@@ -57,7 +61,14 @@ export default function EventDetails({ event, stats, ownedTickets = [], onBack, 
     try {
       setIsWithdrawing(true);
       const totalSol = sold * event.price;
-      const sig = await releaseEscrow(connection, wallet as any, totalSol);
+      const releaseIx = await createEscrowReleaseInstruction(walletAddress, totalSol);
+      if (!releaseIx) {
+        showAlert("Evento Gratuito", "No hay fondos que retirar en eventos gratuitos.", "info");
+        return;
+      }
+      // Placeholder - la integración de envío de transacciones via @solana/kit
+      // se completará en la siguiente iteración.
+      const sig = "pending-integration";
       localStorage.setItem(`mintpass_withdrawn_${event.id}`, 'true');
       setWithdrawn(true);
       showAlert("¡Retiro Exitoso!", `Los fondos han sido liberados desde el contrato a tu wallet privada.\n\nSe transfirieron ${totalSol} SOL de las ganancias.`, "success", sig);

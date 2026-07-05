@@ -3,8 +3,9 @@ import { useState, useEffect } from "react";
 import * as Icons from "lucide-react";
 import PageNav from "../components/PageNav";
 import WalletMultiButton from "../components/WalletButton";
-import { useWallet, useConnection } from "@solana/wallet-adapter-react";
-import { createCheckInPDA } from "../lib/checkin-pda";
+import { useWalletSession, useSolanaClient } from "@solana/react-hooks";
+import { type Address, address } from "@solana/kit";
+import { processCheckIn } from "../lib/checkin-pda";
 import { CreatedEvent } from "./CreateEvent";
 import { Html5Qrcode } from "html5-qrcode";
 
@@ -164,9 +165,21 @@ export default function StaffPanel({ event, stats, onCheckIn, onBack }: { event?
     }, 2200);
   };
 
-  // Solana Wallet & Connection
-  const wallet = useWallet();
-  const { connection } = useConnection();
+  // Solana Wallet via @solana/react-hooks
+  const session = useWalletSession();
+  const client = useSolanaClient();
+  const walletAddress: Address | null = session?.account?.address ?? null;
+  const walletConnected = !!walletAddress;
+  const rpcRaw = client?.runtime?.rpc;
+
+  const rpc = rpcRaw ? {
+    async getAccountInfo(addr: Address) {
+      const result = await (rpcRaw.getAccountInfo as any)(addr, { encoding: 'base64' }).send();
+      if (!result.value) return null;
+      const decoded = Buffer.from(result.value.data[0], 'base64');
+      return { data: new Uint8Array(decoded) };
+    }
+  } : null;
   // Eliminado manualMint, ahora 100% lectura por cámara real
 
   // Interceptar la salida para dar tiempo a la liberación de cámara
@@ -178,7 +191,7 @@ export default function StaffPanel({ event, stats, onCheckIn, onBack }: { event?
   const verifyTicket = async (mintToVerify: string) => {
     setScanning(false); // Detener cámara inmediatamente para evitar lecturas dobles
     
-    if (!wallet.publicKey) {
+    if (!walletConnected) {
       alert("⚠️ El staff debe conectar su wallet superior para firmar los accesos en la blockchain.");
       setTimeout(() => setScanning(true), 1500); // Reactivar cámara poco después
       return;
@@ -193,7 +206,11 @@ export default function StaffPanel({ event, stats, onCheckIn, onBack }: { event?
     
     try {
       // 1. Conexión real enviando la transacción PDA de registro
-      const res = await createCheckInPDA(connection, wallet as any, targetMint);
+      if (!rpc || !walletAddress) {
+        alert("⚠️ No se pudo conectar con la blockchain.");
+        return;
+      }
+      const res = await processCheckIn(rpc, walletAddress, targetMint);
       
       // 2. Mostrar la respuesta UI injectando el ID real detectado
       if (res.status === 'valid') simulate('valid', targetMint);

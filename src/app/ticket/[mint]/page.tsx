@@ -28,7 +28,7 @@ export default function MyTicketPage() {
   return (
     <MyTicket 
       event={ev} 
-      ticketMint={ticketMint || process.env.NEXT_PUBLIC_EVENT_COLLECTION_MINT || "11111111111111111111111111111111"}
+      ticketMint={ticketMint || (process.env.NEXT_PUBLIC_EVENT_COLLECTION_MINT as string)}
       onBack={() => router.push('/tickets')} 
     />
   );

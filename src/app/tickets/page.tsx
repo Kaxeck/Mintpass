@@ -4,14 +4,14 @@ import dynamic from 'next/dynamic';
 const TicketsList = dynamic(() => import("@/views/TicketsList"), { ssr: false });
 import { useMintpassStore } from "@/store";
 import { EVENTS } from "@/data/events";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useWalletSession } from "@solana/react-hooks";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export default function TicketsListPage() {
   const { createdEvents, ownedTickets, isHydrated } = useMintpassStore();
   const router = useRouter();
-  const wallet = useWallet();
+  const session = useWalletSession();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -20,7 +20,7 @@ export default function TicketsListPage() {
 
   if (!mounted || !isHydrated) return null;
 
-  const currentWalletPk = wallet?.publicKey?.toBase58() || "unconnected";
+  const currentWalletPk = session?.account?.address?.toString() || "unconnected";
   const allEvents = [...EVENTS, ...createdEvents];
   const myTickets = ownedTickets.filter(t => t.owner === currentWalletPk);
 

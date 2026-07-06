@@ -46,7 +46,7 @@ export async function getMasterAddress(): Promise<Address> {
 
 // ─── Reputation PDA Program ID ──────────────────────────────────────
 const REPUTATION_PROGRAM_ID = address(
-  process.env.NEXT_PUBLIC_REPUTATION_PROGRAM_ID as string
+  process.env.NEXT_PUBLIC_REPUTATION_PROGRAM_ID || "11111111111111111111111111111111"
 );
 
 /**

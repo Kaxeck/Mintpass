@@ -8,6 +8,14 @@ export interface NFTMetadata {
 export async function uploadEventImage(file: File): Promise<string> {
   const url = "https://api.pinata.cloud/pinning/pinFileToIPFS";
   
+  const apiKey = process.env.PINATA_API_KEY;
+  const secretKey = process.env.PINATA_SECRET_KEY;
+
+  if (!apiKey || !secretKey) {
+    console.warn("⚠️ API Keys de Pinata ausentes: Usando imagen predefinida de prueba.");
+    return "https://raw.githubusercontent.com/solana-developers/professional-education/main/assets/sample-nft.png"; // or similar placeholder
+  }
+
   const formData = new FormData();
   formData.append("file", file);
 
@@ -15,8 +23,8 @@ export async function uploadEventImage(file: File): Promise<string> {
     const response = await fetch(url, {
       method: "POST",
       headers: {
-        pinata_api_key: process.env.NEXT_PUBLIC_PINATA_API_KEY ?? "",
-        pinata_secret_api_key: process.env.NEXT_PUBLIC_PINATA_SECRET_KEY ?? "",
+        pinata_api_key: apiKey,
+        pinata_secret_api_key: secretKey,
       },
       body: formData,
     });
@@ -40,8 +48,8 @@ export async function uploadEventImage(file: File): Promise<string> {
   }
 }
 export async function uploadMetadata(metadata: NFTMetadata): Promise<string> {
-  const apiKey = process.env.NEXT_PUBLIC_PINATA_API_KEY;
-  const secretKey = process.env.NEXT_PUBLIC_PINATA_SECRET_KEY;
+  const apiKey = process.env.PINATA_API_KEY;
+  const secretKey = process.env.PINATA_SECRET_KEY;
 
   // Si no hay API Keys en el .env, no bloqueamos la experiencia y devolvemos un JSON de prueba real
   if (!apiKey || !secretKey) {

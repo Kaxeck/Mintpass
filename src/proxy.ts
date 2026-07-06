@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // Simple check for Privy Auth token in cookies
   const privyToken = request.cookies.get('privy-token')?.value;
 

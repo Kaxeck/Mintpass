@@ -21,8 +21,8 @@ export async function createPurchaseIntent(params: PurchaseParams) {
 
     if (token) {
       try {
-        const verifiedClaims = await privy.verifyAuthToken(token);
-        userId = verifiedClaims.userId;
+        const verifiedClaims = await privy.utils().auth().verifyAuthToken(token);
+        userId = verifiedClaims.user_id;
       } catch (error) {
         console.warn("Invalid privy token, falling back to anonymous for testing");
       }

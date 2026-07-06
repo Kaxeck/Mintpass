@@ -83,11 +83,12 @@ export function Providers({ children }: PropsWithChildren) {
         loginMethods: ['email', 'wallet'],
         appearance: {
           theme: 'dark',
-          accentColor: '#676FFF',
-          logo: 'https://your-logo-url',
+          accentColor: '#4BAA46',
         },
         embeddedWallets: {
-          createOnLogin: 'users-without-wallets',
+          solana: {
+            createOnLogin: 'users-without-wallets',
+          },
         },
       }}
     >

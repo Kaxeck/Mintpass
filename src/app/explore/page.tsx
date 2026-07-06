@@ -9,6 +9,9 @@ export default function ExplorePage() {
   const router = useRouter();
 
   return (
-    <EventView onBack={() => router.push('/')} />
+    <EventView 
+      onBack={() => router.push('/')} 
+      onGoToMyTickets={() => router.push('/tickets')}
+    />
   );
 }

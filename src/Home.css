@@ -168,23 +168,20 @@
 
 /* ======= LIGHT MODE LANDING PAGE (V3) ======= */
 .lp-container {
-  background: #F1EFE8;
+  background: #FFFFFF;
   min-height: 100vh;
-  padding: 12px;
   box-sizing: border-box;
 }
 .lp-content {
   background: #FFFFFF;
-  border-radius: 16px;
-  border: 0.5px solid #D3D1C7;
-  overflow: hidden;
+  border: none;
   font-family: var(--font-sans);
-  min-height: calc(100vh - 24px);
+  min-height: 100vh;
 }
 
 @media (min-width: 768px) {
-  .lp-container { padding: 20px; }
-  .lp-content { min-height: calc(100vh - 40px); }
+  .lp-container { padding: 0; }
+  .lp-content { min-height: 100vh; }
 }
 
 /* Navbar */
@@ -193,12 +190,18 @@
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px;
-  border-bottom: 0.5px solid #D3D1C7;
+  border-bottom: 0.5px solid #333333;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(30, 30, 30, 0.95);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
 .lp-nav-brand {
   font-size: 16px;
   font-weight: 600;
-  color: #1E1E1E;
+  color: #FFFFFF;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -218,51 +221,77 @@
     display: flex;
     gap: 20px;
     align-items: center;
-    font-size: 13px;
-    color: #5F5E5A;
+    font-size: 14px;
+  }
+  .lp-nav-btn {
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    color: #A1A1AA;
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+  .lp-nav-btn:hover {
+    color: #FFFFFF;
   }
 }
 
 /* Hero */
 .lp-hero {
   text-align: center;
-  padding: 40px 16px 24px;
+  padding: 80px 16px 60px;
+  background-image: url('/hero-bg.png');
+  background-size: cover;
+  background-position: center;
+  border-radius: 20px;
+  margin: 24px auto 40px;
+  max-width: 1100px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.05);
 }
 .lp-hero-tag {
-  margin: 0 0 10px;
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 4px 12px;
+  border-radius: 16px;
+  margin: 0 0 16px;
   font-size: 11px;
-  color: #5F5E5A;
+  color: #1E1E1E;
   letter-spacing: 0.5px;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
 }
 .lp-hero-title {
   margin: 0 0 16px;
-  font-size: 28px;
-  font-weight: 600;
+  font-size: 32px;
+  font-weight: 700;
   color: #1E1E1E;
-  line-height: 1.25;
+  line-height: 1.2;
 }
 .lp-hero-sub {
   margin: 0 auto;
-  max-width: 480px;
-  font-size: 14px;
-  color: #5F5E5A;
-  line-height: 1.5;
+  max-width: 550px;
+  font-size: 15px;
+  color: #4A4A4A;
+  line-height: 1.6;
 }
 @media (min-width: 768px) {
-  .lp-hero { padding: 48px 24px 32px; }
-  .lp-hero-title { font-size: 36px; }
-  .lp-hero-sub { font-size: 15px; }
+  .lp-hero { padding: 100px 24px 80px; margin-top: 32px; }
+  .lp-hero-title { font-size: 46px; }
+  .lp-hero-sub { font-size: 17px; }
 }
 
 /* Features */
 .lp-features {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 0 16px 32px;
-  max-width: 800px;
+  gap: 16px;
+  padding: 0 16px 40px;
+  max-width: 1100px;
   margin: 0 auto;
 }
 .lp-feature {
@@ -281,7 +310,7 @@
 /* Search */
 .lp-search-container {
   padding: 0 16px 32px;
-  max-width: 800px;
+  max-width: 1100px;
   margin: 0 auto;
 }
 .lp-search {
@@ -337,7 +366,7 @@
 /* Categories */
 .lp-cats-container {
   padding: 0 16px 32px;
-  max-width: 800px;
+  max-width: 1100px;
   margin: 0 auto;
 }
 .lp-cats-header {
@@ -376,7 +405,7 @@
 /* Events */
 .lp-events-container {
   padding: 0 16px 40px;
-  max-width: 800px;
+  max-width: 1100px;
   margin: 0 auto;
 }
 .lp-events-header {
@@ -393,11 +422,14 @@
   gap: 16px;
 }
 @media (min-width: 500px) {
-  .lp-events-grid { grid-template-columns: repeat(2, 1fr); }
+  .lp-events-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
 }
 @media (min-width: 768px) {
-  .lp-events-container { padding: 0 24px 40px; }
-  .lp-events-grid { grid-template-columns: repeat(3, 1fr); }
+  .lp-events-container { padding: 0 24px 60px; }
+  .lp-events-grid { grid-template-columns: repeat(3, 1fr); gap: 24px; }
+}
+@media (min-width: 1024px) {
+  .lp-events-grid { grid-template-columns: repeat(4, 1fr); gap: 24px; }
 }
 
 .lp-event-card {
@@ -412,12 +444,13 @@
   box-shadow: 0 10px 30px rgba(0,0,0,0.08);
 }
 .lp-event-cover {
-  height: 120px;
+  height: 160px;
   border-radius: 12px 12px 0 0;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
+  overflow: hidden;
 }
 .lp-event-badge {
   position: absolute;

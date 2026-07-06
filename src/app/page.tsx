@@ -18,9 +18,8 @@ export default function HomePage() {
   if (!mounted || !isHydrated) return null;
 
   return (
-    <Home 
+    <Home
       createdEvents={createdEvents}
-      onGoToOrganizer={() => router.push('/dashboard')} 
       onGoToMyTickets={() => router.push('/tickets')}
       onGoToExplore={() => router.push('/explore')}
       onEventClick={(id: number) => {

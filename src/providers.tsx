@@ -1,6 +1,7 @@
 'use client';
 
 import { SolanaProvider } from "@solana/react-hooks";
+import { PrivyProvider } from '@privy-io/react-auth';
 import { PropsWithChildren, createContext, useContext, useMemo } from "react";
 import { autoDiscover, createClient } from "@solana/client";
 import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
@@ -65,17 +66,36 @@ function UmiProvider({ children }: PropsWithChildren) {
   return <UmiContext.Provider value={umi}>{children}</UmiContext.Provider>;
 }
 
+
 /**
  * Proveedor principal que envuelve la aplicación con:
- * - SolanaProvider (@solana/react-hooks) → manejo de wallets y RPC
+ * - PrivyProvider → autenticación y wallets embebidas
+ * - SolanaProvider (@solana/react-hooks) → manejo de wallets externas y RPC
  * - UmiProvider → instancia de UMI para MPL Core
  */
 export function Providers({ children }: PropsWithChildren) {
+  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID || '';
+
   return (
-    <SolanaProvider client={client}>
-      <UmiProvider>
-        {children}
-      </UmiProvider>
-    </SolanaProvider>
+    <PrivyProvider
+      appId={appId}
+      config={{
+        loginMethods: ['email', 'wallet'],
+        appearance: {
+          theme: 'dark',
+          accentColor: '#676FFF',
+          logo: 'https://your-logo-url',
+        },
+        embeddedWallets: {
+          createOnLogin: 'users-without-wallets',
+        },
+      }}
+    >
+      <SolanaProvider client={client}>
+        <UmiProvider>
+          {children}
+        </UmiProvider>
+      </SolanaProvider>
+    </PrivyProvider>
   );
 }

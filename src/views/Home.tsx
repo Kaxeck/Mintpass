@@ -25,8 +25,8 @@ export default function Home({
   onEventClick 
 }: { 
   createdEvents?: CreatedEvent[]; 
-  onGoToOrganizer: () => void;
-  onGoToMyTickets: () => void;
+  onGoToOrganizer?: () => void;
+  onGoToMyTickets?: () => void;
   onGoToExplore?: () => void;
   onEventClick: (id: number) => void;
 }) {

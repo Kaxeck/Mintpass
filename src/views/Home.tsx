@@ -1,10 +1,11 @@
 'use client';
 import { useState } from "react";
 import * as Icons from "lucide-react";
-import WalletMultiButton from "../components/WalletButton";
 import "../Home.css";
 import { EVENTS } from "../data/events";
 import { CreatedEvent } from "./CreateEvent";
+import { LandingNavBar } from "../components/LandingNavBar";
+import { LandingFooter } from "../components/LandingFooter";
 
 // Mapeo de categorías del formulario a iconos y colores del catálogo
 const catMap: Record<string, { icon: string; color: string; bg: string; cat: string }> = {
@@ -30,6 +31,9 @@ export default function Home({
   onEventClick: (id: number) => void;
 }) {
   const [catFilter, setCatFilter] = useState('Todos');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
+  const [locationFilter, setLocationFilter] = useState('');
 
   // Convertimos los eventos creados on-chain al mismo formato que los eventos demo
   const onChainAsEvents = createdEvents.map(ev => {
@@ -58,32 +62,55 @@ export default function Home({
 
   // Mezclamos los eventos demo con los creados on-chain
   const allEvents = [...EVENTS, ...onChainAsEvents];
-  const filteredEvents = catFilter === 'Todos' ? allEvents : allEvents.filter(e => e.cat === catFilter); return (
+  
+  const filteredEvents = allEvents.filter(e => {
+    const matchesCat = catFilter === 'Todos' || e.cat === catFilter;
+    const searchLower = searchQuery.toLowerCase();
+    const matchesSearch = !searchQuery || 
+      e.name.toLowerCase().includes(searchLower) || 
+      e.cat.toLowerCase().includes(searchLower);
+    
+    const matchesLocation = !locationFilter || e.venue.toLowerCase().includes(locationFilter.toLowerCase());
+    
+    let matchesDate = true;
+    if (dateFilter) {
+      const parts = dateFilter.split('-');
+      if (parts.length === 3) {
+        const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        const day = d.getDate();
+        const month = d.toLocaleDateString('es-MX', { month: 'short' }).replace('.', '');
+        const searchDateStr = `${day} ${month}`.toLowerCase();
+        matchesDate = e.date.toLowerCase().includes(searchDateStr) || e.date.toLowerCase().includes('hoy');
+      }
+    }
+    
+    return matchesCat && matchesSearch && matchesLocation && matchesDate;
+  });
+
+  const handleClearFilters = () => {
+    setCatFilter('Todos');
+    setSearchQuery('');
+    setDateFilter('');
+    setLocationFilter('');
+  };
+
+  return (
     <div className="lp-container">
-      <div className="lp-content">
+      <main className="lp-content">
 
-        <div className="lp-nav">
-          <span className="lp-nav-brand">
-            <img src="/icon.png" alt="Logo" />
-            <span>Mint<span style={{ color: '#4BAA46' }}>pass</span></span>
-          </span>
-          <div className="lp-nav-right">
-            <div className="lp-nav-links">
-              <span style={{ cursor: 'pointer' }} onClick={() => onGoToExplore ? onGoToExplore() : document.getElementById('events-section')?.scrollIntoView({ behavior: 'smooth' })}>Explorar</span>
-              <span style={{ cursor: 'pointer' }} onClick={onGoToMyTickets}>Mis tickets</span>
-              <span style={{ cursor: 'pointer' }} onClick={onGoToOrganizer}>Organizadores</span>
-            </div>
-            <WalletMultiButton style={{ border: '0.5px solid #D3D1C7', borderRadius: '8px', padding: '6px 14px', color: '#1E1E1E', background: 'transparent', fontSize: '13px', fontFamily: 'inherit', height: 'auto', lineHeight: 1 }} />
-          </div>
-        </div>
+        <LandingNavBar 
+          onGoToExplore={onGoToExplore} 
+          onGoToMyTickets={onGoToMyTickets} 
+          onGoToOrganizer={onGoToOrganizer} 
+        />
 
-        <div className="lp-hero">
+        <section className="lp-hero">
           <p className="lp-hero-tag">POWERED BY SOLANA</p>
           <p className="lp-hero-title">Boletos que no se pueden<br />falsificar ni revender de más</p>
           <p className="lp-hero-sub">Compra fácil, sin entender blockchain. Cada boleto es verificable y tuyo.</p>
-        </div>
+        </section>
 
-        <div className="lp-features">
+        <section className="lp-features">
           <div className="lp-feature">
             <p className="lp-feature-title">QR que cambia cada 30s</p>
             <p className="lp-feature-desc">Imposible de duplicar</p>
@@ -96,56 +123,105 @@ export default function Home({
             <p className="lp-feature-title">Reventa con tope</p>
             <p className="lp-feature-desc">Nunca precio inflado</p>
           </div>
-        </div>
+        </section>
 
-        <div className="lp-search-container">
+        <section className="lp-search-container">
           <div className="lp-search">
-            <div className="lp-search-input">Busca tu evento, artista o venue...</div>
-            <div className="lp-search-filter"><span style={{ marginRight: '6px' }}>📅</span>Fecha</div>
-            <div className="lp-search-filter"><span style={{ marginRight: '6px' }}>📍</span>León, Gto</div>
-            <div className="lp-search-btn">Buscar</div>
+            <input 
+              type="text"
+              className="lp-search-input" 
+              placeholder="Busca tu evento, artista o venue..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ border: 'none', outline: 'none', background: 'transparent' }}
+            />
+            <div className="lp-search-filter" style={{ display: 'flex', alignItems: 'center' }}>
+              <span style={{ marginRight: '8px', display: 'flex', alignItems: 'center' }}><Icons.Calendar size={18} color="#A1A1AA" /></span>
+              <input 
+                type="date" 
+                value={dateFilter}
+                min={new Date().toISOString().split('T')[0]}
+                onChange={e => setDateFilter(e.target.value)}
+                onClick={(e) => {
+                  if (e.currentTarget.showPicker) {
+                    try { e.currentTarget.showPicker(); } catch (err) {}
+                  }
+                }}
+                style={{ border: 'none', outline: 'none', background: 'transparent', width: '100%', fontSize: '13px', color: '#5F5E5A', cursor: 'pointer', colorScheme: 'light' }}
+              />
+            </div>
+            <div className="lp-search-filter" style={{ display: 'flex', alignItems: 'center' }}>
+              <span style={{ marginRight: '8px', display: 'flex', alignItems: 'center' }}><Icons.MapPin size={18} color="#4BAA46" /></span>
+              <select 
+                value={locationFilter}
+                onChange={e => setLocationFilter(e.target.value)}
+                style={{ border: 'none', outline: 'none', background: 'transparent', width: '100%', fontSize: '13px', color: '#5F5E5A', cursor: 'pointer' }}
+              >
+                <option value="">Todo México</option>
+                <option value="CDMX">CDMX</option>
+                <option value="León">León, Gto</option>
+                <option value="Guadalajara">Guadalajara</option>
+                <option value="Monterrey">Monterrey</option>
+              </select>
+            </div>
+            <button type="button" className="lp-search-btn" onClick={() => document.getElementById('events-section')?.scrollIntoView({ behavior: 'smooth' })} style={{ border: 'none' }}>Buscar</button>
           </div>
-        </div>
+        </section>
 
-        <div className="lp-cats-container">
+        <section className="lp-cats-container">
           <div className="lp-cats-header">
-            <p className="lp-cats-title">Explora por categoría</p>
-            {catFilter !== 'Todos' && <span className="lp-cats-clear" onClick={() => setCatFilter('Todos')}>Limpiar filtro</span>}
+            <h2 className="lp-cats-title">Explora por categoría</h2>
+            {(catFilter !== 'Todos' || searchQuery || dateFilter || locationFilter) && (
+              <button type="button" className="lp-cats-clear" onClick={handleClearFilters} style={{ background: 'transparent', border: 'none', padding: 0 }}>
+                Limpiar filtro
+              </button>
+            )}
           </div>
           <div className="lp-cats-scroll">
-            <div className="lp-cat" style={{ background: catFilter === 'Música' ? '#D6E8C3' : '#EAF3DE', color: '#173404' }} onClick={() => setCatFilter('Música')}>
+            <div className="lp-cat" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1540039155733-d76e6e48e61f?auto=format&fit=crop&w=400&q=80")', backgroundSize: 'cover', backgroundPosition: 'center', color: '#FFF', border: catFilter === 'Música' ? '2px solid #14F195' : 'none' }} onClick={() => setCatFilter('Música')}>
               <p className="lp-cat-title">Conciertos</p>
             </div>
-            <div className="lp-cat" style={{ background: catFilter === 'Arte' ? '#DBD9FA' : '#EEEDFE', color: '#26215C' }} onClick={() => setCatFilter('Arte')}>
+            <div className="lp-cat" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=400&q=80")', backgroundSize: 'cover', backgroundPosition: 'center', color: '#FFF', border: catFilter === 'Arte' ? '2px solid #14F195' : 'none' }} onClick={() => setCatFilter('Arte')}>
               <p className="lp-cat-title">Bares y venues</p>
             </div>
-            <div className="lp-cat" style={{ background: catFilter === 'Feria' ? '#F2D7CD' : '#FAECE7', color: '#4A1B0C' }} onClick={() => setCatFilter('Feria')}>
+            <div className="lp-cat" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1533900298318-6b8da08a523e?auto=format&fit=crop&w=400&q=80")', backgroundSize: 'cover', backgroundPosition: 'center', color: '#FFF', border: catFilter === 'Feria' ? '2px solid #14F195' : 'none' }} onClick={() => setCatFilter('Feria')}>
               <p className="lp-cat-title">Cultura y ferias</p>
             </div>
-            <div className="lp-cat" style={{ background: catFilter === 'Teatro' ? '#C2EAE0' : '#E1F5EE', color: '#04342C' }} onClick={() => setCatFilter('Teatro')}>
+            <div className="lp-cat" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1507676184212-d0330a15233c?auto=format&fit=crop&w=400&q=80")', backgroundSize: 'cover', backgroundPosition: 'center', color: '#FFF', border: catFilter === 'Teatro' ? '2px solid #14F195' : 'none' }} onClick={() => setCatFilter('Teatro')}>
               <p className="lp-cat-title">Escuelas</p>
             </div>
-            <div className="lp-cat" style={{ background: catFilter === 'Deporte' ? '#F4D4DF' : '#FBEAF0', color: '#4B1528' }} onClick={() => setCatFilter('Deporte')}>
+            <div className="lp-cat" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1511886929837-354d827aae26?auto=format&fit=crop&w=400&q=80")', backgroundSize: 'cover', backgroundPosition: 'center', color: '#FFF', border: catFilter === 'Deporte' ? '2px solid #14F195' : 'none' }} onClick={() => setCatFilter('Deporte')}>
               <p className="lp-cat-title">Comunidades</p>
             </div>
           </div>
-        </div>
+        </section>
 
-        <div className="lp-events-container" id="events-section">
+        <section className="lp-events-container" id="events-section">
           <div className="lp-events-header">
-            <p className="lp-events-title">Eventos destacados esta semana</p>
-            <span className="lp-events-more" onClick={() => setCatFilter('Todos')}>Ver todos →</span>
+            <h2 className="lp-events-title">Eventos destacados esta semana</h2>
+            <button type="button" className="lp-events-more" onClick={handleClearFilters} style={{ background: 'transparent', border: 'none', padding: 0 }}>
+              Ver todos →
+            </button>
           </div>
           <div className="lp-events-grid">
             {filteredEvents.map((e, i) => {
-              const bgColors = ['#EAF3DE', '#EEEDFE', '#FAECE7', '#E1F5EE', '#FBEAF0'];
-              const bgColor = e.bg || bgColors[i % bgColors.length];
-              const EventIcon = (Icons as any)[e.icon] || Icons.HelpCircle;
+              // Asignar imágenes de Unsplash según la categoría
+              const catImages: Record<string, string> = {
+                'Música': 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=600&q=80',
+                'Arte': 'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=600&q=80',
+                'Feria': 'https://images.unsplash.com/photo-1533900298318-6b8da08a523e?auto=format&fit=crop&w=600&q=80',
+                'Teatro': 'https://images.unsplash.com/photo-1507676184212-d0330a15233c?auto=format&fit=crop&w=600&q=80',
+                'Deporte': 'https://images.unsplash.com/photo-1511886929837-354d827aae26?auto=format&fit=crop&w=600&q=80',
+                'Otro': 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=600&q=80'
+              };
+              
+              const coverImage = catImages[e.cat] || catImages['Otro'];
+              // Modificamos ligeramente la URL con el ID para evitar que se repitan exactamente si son de la misma categoría
+              const uniqueImage = `${coverImage}&sig=${e.id}`;
 
               return (
                 <div key={e.id} className="lp-event-card" onClick={() => onEventClick(e.id)}>
-                  <div className="lp-event-cover" style={{ background: bgColor }}>
-                    <EventIcon size={42} color={e.color || '#1E1E1E'} />
+                  <div className="lp-event-cover" style={{ backgroundImage: `url("${uniqueImage}")`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
                     {e.badge && (
                       <span className="lp-event-badge">{e.bLabel}</span>
                     )}
@@ -166,9 +242,10 @@ export default function Home({
               );
             })}
           </div>
-        </div>
+        </section>
 
-      </div>
+      </main>
+      <LandingFooter />
     </div>
   );
 }

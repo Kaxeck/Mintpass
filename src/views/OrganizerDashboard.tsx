@@ -7,6 +7,12 @@ import { type Address } from "@solana/kit";
 import { getOrganizerReputation } from "../lib/metaplex";
 import { readAllEventsFromChain, type OnChainEventData } from "../lib/event-pda";
 import { CreatedEvent } from "./CreateEvent";
+import { LandingNavBar } from "../components/LandingNavBar";
+import { LandingFooter } from "../components/LandingFooter";
+import '../Home.css';
+
+import { usePrivy } from "@privy-io/react-auth";
+import { address as getAddress } from "@solana/kit";
 
 export default function OrganizerDashboard({
   createdEvents,
@@ -14,20 +20,24 @@ export default function OrganizerDashboard({
   onBack,
   onCreate,
   onEventClick,
+  onGoToMyTickets,
+  onGoToExplore,
 }: {
   createdEvents: CreatedEvent[];
   eventStats?: Record<number, { sold: number; checked: number }>;
   onBack: () => void;
   onCreate: () => void;
   onEventClick: (id: number) => void;
+  onGoToMyTickets?: () => void;
+  onGoToExplore?: () => void;
 }) {
+  const { authenticated, user, ready } = usePrivy();
   const session = useWalletSession();
   const client = useSolanaClient();
   const rpcRaw = client?.runtime?.rpc;
   const [activeTab, setActiveTab] = useState('activos');
 
-  // Wrapper que adapta la API RPC de @solana/kit (PendingRpcRequest) 
-  // a la interfaz simple esperada por nuestras funciones lib.
+  // Wrapper que adapta la API RPC de @solana/kit a la interfaz esperada
   const rpc = rpcRaw ? {
     async getAccountInfo(address: Address) {
       const result = await (rpcRaw.getAccountInfo as any)(address, { encoding: 'base64' }).send();
@@ -43,8 +53,10 @@ export default function OrganizerDashboard({
   const [onChainEvents, setOnChainEvents] = useState<OnChainEventData[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
 
-  const walletAddress: Address | null = session?.account?.address ?? null;
-  const walletAddressStr = walletAddress?.toString() ?? "";
+  // Determinar la wallet conectada usando Privy o el adaptador de solana
+  const walletAddressStr = user?.wallet?.address || session?.account?.address?.toString() || null;
+  const walletAddress: Address | null = walletAddressStr ? getAddress(walletAddressStr) : null;
+  const isConnected = authenticated || !!walletAddressStr;
 
   // Consultar reputación on-chain
   useEffect(() => {
@@ -139,169 +151,41 @@ export default function OrganizerDashboard({
   const getReputationLevel = (score: number) => {
     if (score >= 50) return { label: 'Excelente', color: '#5DCAA5', icon: '⭐' };
     if (score >= 20) return { label: 'Buena', color: '#EF9F27', icon: '👍' };
-    if (score > 0)  return { label: 'Nueva', color: '#AFA9EC', icon: '🆕' };
+    if (score > 0) return { label: 'Nueva', color: '#AFA9EC', icon: '🆕' };
     return { label: 'Sin historial', color: '#666', icon: '—' };
   };
 
-  if (!walletAddress) {
-    return (
-      <div className="org-container">
-        <div className="org-content">
-          <div className="org-nav">
-            <span className="org-nav-brand">
-              <img src="/icon.png" alt="Logo" />
-              <span>Mint<span style={{ color: '#4BAA46' }}>pass</span></span>
-            </span>
-            <div className="org-nav-right">
-              <div className="org-nav-links">
-                <span style={{ cursor: 'pointer' }} onClick={onBack}>Para asistentes</span>
-                <span style={{ color: '#1E1E1E', fontWeight: 500 }}>Organizadores</span>
-              </div>
-              <WalletButton style={{ border: '0.5px solid #D3D1C7', borderRadius: '8px', padding: '6px 14px', color: '#1E1E1E', background: 'transparent', fontSize: '13px', fontFamily: 'inherit', height: 'auto', lineHeight: 1 }} />
-            </div>
-          </div>
-
-          <div className="org-hero">
-            <div className="org-hero-text">
-              <p className="org-hero-tag">INFRAESTRUCTURA SOBRE SOLANA</p>
-              <p className="org-hero-title">Opera tu evento sin<br/>construir tecnología propia</p>
-              <p className="org-hero-sub">Boletos verificables on-chain, check-in offline, reventa controlada y reputación portable. Tú te enfocas en el evento.</p>
-              <div className="org-hero-btns">
-                <div style={{ background: '#14F195', color: '#1E1E1E', padding: '12px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }} onClick={() => alert("Conecta tu wallet primero")}>Crear mi evento gratis</div>
-                <div style={{ border: '0.5px solid #D3D1C7', color: '#1E1E1E', padding: '12px 20px', borderRadius: '10px', fontSize: '13px', cursor: 'pointer' }}>Ver cómo funciona</div>
-              </div>
-            </div>
-            <div className="org-hero-preview">
-              <p style={{ margin: '0 0 10px', fontSize: '11px', color: '#B4B2A9' }}>Dashboard en vivo</p>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                <div style={{ flex: 1, background: '#2C2C2A', borderRadius: '8px', padding: '8px' }}>
-                  <p style={{ margin: 0, fontSize: '9px', color: '#9FE1CB' }}>Vendidos</p>
-                  <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 500 }}>842</p>
-                </div>
-                <div style={{ flex: 1, background: '#2C2C2A', borderRadius: '8px', padding: '8px' }}>
-                  <p style={{ margin: 0, fontSize: '9px', color: '#9FE1CB' }}>Ingresos</p>
-                  <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 500 }}>$584k</p>
-                </div>
-              </div>
-              <div style={{ background: '#2C2C2A', borderRadius: '8px', padding: '8px' }}>
-                <p style={{ margin: 0, fontSize: '9px', color: '#9FE1CB' }}>Reputación on-chain</p>
-                <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 500 }}>92 / 100</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="org-stats-strip">
-            <div className="org-stat-item">
-              <p className="org-stat-title">4 programas</p>
-              <p className="org-stat-sub">Anchor auditables</p>
-            </div>
-            <div className="org-stat-item">
-              <p className="org-stat-title">Multisig 2-de-3</p>
-              <p className="org-stat-sub">Squads Protocol</p>
-            </div>
-            <div className="org-stat-item">
-              <p className="org-stat-title">$0 setup</p>
-              <p className="org-stat-sub">Free tier para MVP</p>
-            </div>
-            <div className="org-stat-item">
-              <p className="org-stat-title">Offline-first</p>
-              <p className="org-stat-sub">Check-in sin internet</p>
-            </div>
-          </div>
-
-          <div className="org-features">
-            <p className="org-features-title">Todo lo que necesitas para operar tu evento</p>
-            <div className="org-features-grid">
-              <div className="org-feat-card">
-                <p className="org-feat-card-title">Creación de eventos</p>
-                <p className="org-feat-card-desc">Precio, aforo, tipos de boleto</p>
-              </div>
-              <div className="org-feat-card">
-                <p className="org-feat-card-title">Venta multicanal</p>
-                <p className="org-feat-card-desc">Fiat, wallet y Blinks</p>
-              </div>
-              <div className="org-feat-card">
-                <p className="org-feat-card-title">Check-in en puerta</p>
-                <p className="org-feat-card-desc">PWA offline-first</p>
-              </div>
-              <div className="org-feat-card">
-                <p className="org-feat-card-title">Antifraude por capas</p>
-                <p className="org-feat-card-desc">QR dinámico, blacklist</p>
-              </div>
-              <div className="org-feat-card">
-                <p className="org-feat-card-title">Reventa oficial</p>
-                <p className="org-feat-card-desc">Tope de precio on-chain</p>
-              </div>
-              <div className="org-feat-card">
-                <p className="org-feat-card-title">Reputación y datos</p>
-                <p className="org-feat-card-desc">Historial verificable</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="org-plans">
-            <p className="org-plans-title">Planes</p>
-            <div className="org-plans-grid">
-              <div className="org-plan-card">
-                <p className="org-plan-name">Free</p>
-                <p className="org-plan-price">Comisión por boleto</p>
-                <p className="org-plan-desc">1 evento activo · reportes básicos</p>
-              </div>
-              <div className="org-plan-card highlight">
-                <span className="org-plan-badge">Más elegido</span>
-                <p className="org-plan-name">Pro</p>
-                <p className="org-plan-price">Comisión + mensualidad</p>
-                <p className="org-plan-desc">Eventos ilimitados · analytics · rewards</p>
-              </div>
-              <div className="org-plan-card">
-                <p className="org-plan-name">Enterprise</p>
-                <p className="org-plan-price">Cotización</p>
-                <p className="org-plan-desc">Custom branding · soporte dedicado</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="org-cta">
-            <p className="org-cta-title">¿Listo para operar tu próximo evento?</p>
-            <div style={{ display: 'inline-block', background: '#14F195', color: '#1E1E1E', padding: '12px 24px', borderRadius: '10px', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }} onClick={() => alert("Conecta tu wallet primero")}>
-              Crear mi evento gratis
-            </div>
-          </div>
-
-        </div>
-      </div>
-    );
-  }
+  // Remove the unauthenticated landing page block since the router now handles it
 
   return (
-    <div className="app">
-      <div className="navbar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', zIndex: 1 }}>
-          <div className="nav-back" onClick={onBack}>
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+    <div className="lp-container" style={{ background: '#F7F8F7', minHeight: '100vh' }}>
+      <header className="lp-nav" style={{ padding: '14px 16px', background: '#1E1E1E', borderBottom: '0.5px solid #333', position: 'sticky', top: 0, zIndex: 50 }}>
+        <div className="lp-nav-inner" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', maxWidth: '1100px', margin: '0 auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <button onClick={onBack} style={{ background: 'transparent', border: '1px solid #333', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#FFF' }}>
+              <Icons.ArrowLeft size={18} />
+            </button>
+            <span className="lp-nav-brand" style={{ color: '#FFF', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <img src="/icon.png" alt="Logo" style={{ height: '24px' }} />
+              <span>Mint<span style={{ color: '#4BAA46' }}>pass</span></span>
+            </span>
+            <span style={{ background: 'rgba(75, 170, 70, 0.15)', color: '#4BAA46', padding: '4px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', marginLeft: '8px' }}>
+              Organizador
+            </span>
           </div>
-          <div className="nav-brand" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
-              <img src="/icon.png" alt="Logo" style={{ height: '100%', width: 'auto', objectFit: 'contain' }} />
-            </div>
-            <div style={{ fontSize: '22px', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', letterSpacing: '-0.5px' }}>
-              <span style={{ color: '#4AA844', fontWeight: 800 }}>Mint</span>
-              <span style={{ color: '#ffffff', fontWeight: 600 }}>pass</span>
-            </div>
+          <div className="lp-nav-right" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <nav className="lp-nav-links" style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+              <button type="button" className="lp-nav-btn" onClick={onGoToExplore}>Explorar</button>
+              <button type="button" className="lp-nav-btn" onClick={onGoToMyTickets}>Mis tickets</button>
+              <button type="button" className="lp-nav-btn" onClick={() => {}}>Organizadores</button>
+            </nav>
+            <WalletButton style={{ border: '0.5px solid #333', borderRadius: '8px', padding: '6px 14px', color: '#FFF', background: 'transparent', fontSize: '13px', fontFamily: 'inherit', height: 'auto', lineHeight: 1 }} />
+            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#4BAA46', color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 600 }}>KR</div>
           </div>
         </div>
+      </header>
 
-        <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', fontWeight: 600, fontSize: '14px', color: '#AFA9EC', letterSpacing: '1px', textTransform: 'uppercase', background: 'rgba(83,74,183,0.15)', padding: '4px 12px', border: '1px solid rgba(83,74,183,0.3)', borderRadius: '20px' }}>
-          Organizador
-        </div>
-        
-        <div className="nav-right">
-          <WalletButton className="wallet-chip" style={{ background: '#1a1a2e', color: '#AFA9EC', border: '1px solid #2a2a4a', padding: '6px 14px', fontSize: '12px', height: 'auto', lineHeight: 1, fontFamily: 'inherit' }} />
-          <div className="avatar">KR</div>
-        </div>
-      </div>
-
-      <div className="main">
+      <main className="lp-content" style={{ maxWidth: '1100px', margin: '0 auto', padding: '40px 16px', width: '100%' }}>
         <div className="page-header">
           <div>
             <div className="page-title">Mis eventos</div>
@@ -337,11 +221,11 @@ export default function OrganizerDashboard({
               {loadingRep ? '...' : reputationScore !== null ? `${getReputationLevel(reputationScore).icon} ${reputationScore}` : '—'}
             </div>
             <div className="stat-sub">
-              {!walletAddress 
-                ? 'Conecta wallet para ver' 
-                : loadingRep 
-                  ? 'Consultando blockchain...' 
-                  : reputationScore !== null 
+              {!walletAddress
+                ? 'Conecta wallet para ver'
+                : loadingRep
+                  ? 'Consultando blockchain...'
+                  : reputationScore !== null
                     ? getReputationLevel(reputationScore).label
                     : 'Sin datos'}
             </div>
@@ -380,54 +264,55 @@ export default function OrganizerDashboard({
               const EventIcon = (Icons as Record<string, unknown>)[ev.coverText] as typeof Icons.HelpCircle || Icons.HelpCircle;
               const isVerifiedOnChain = onChainEvents.some(oc => oc.collectionMint === ev.collectionMint);
               return (
-              <div className="event-card" key={ev.id} onClick={() => onEventClick(ev.id)}>
-                <div className={`event-cover ${ev.coverClass}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <EventIcon size={24} color="#fff" />
+                <div className="event-card" key={ev.id} onClick={() => onEventClick(ev.id)}>
+                  <div className={`event-cover ${ev.coverClass}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <EventIcon size={24} color="#fff" />
+                  </div>
+
+                  <div className="event-info">
+                    <div className="event-name" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {ev.name}
+                      {isVerifiedOnChain && (
+                        <span title="Evento verificado en blockchain" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '9px', background: 'rgba(93,202,165,0.15)', color: '#5DCAA5', padding: '2px 6px', borderRadius: '8px', fontWeight: 600 }}>
+                          <Icons.ShieldCheck size={10} /> On-chain
+                        </span>
+                      )}
+                    </div>
+                    <div className="event-meta">{ev.meta}</div>
+
+                    <div className="event-bar-wrap">
+                      <div className="event-bar" style={{ width: `${ev.progress}%`, background: ev.progressColor }}></div>
+                    </div>
+                    <div className="event-bar-label">{ev.progressLabel}</div>
+
+                    <div style={{ fontSize: '10px', color: '#666', marginTop: '4px', fontFamily: 'monospace' }}>
+                      🔗 {ev.collectionMint.slice(0, 8)}...{ev.collectionMint.slice(-4)}
+                    </div>
+
+                    <div className="event-actions">
+                      {ev.actions.map((action, idx) => (
+                        <button
+                          key={idx}
+                          className={`btn-sm ${idx === ev.primaryAction ? 'btn-sm-purple' : ''}`}
+                          onClick={(e) => { e.stopPropagation(); alert(`Acción: ${action}`); }}
+                        >
+                          {action}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="event-right">
+                    <span className={`status-pill ${ev.statusClass}`}>{ev.statusText}</span>
+                    <span className="event-price">{ev.price}</span>
+                  </div>
                 </div>
-                
-                <div className="event-info">
-                  <div className="event-name" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {ev.name}
-                    {isVerifiedOnChain && (
-                      <span title="Evento verificado en blockchain" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '9px', background: 'rgba(93,202,165,0.15)', color: '#5DCAA5', padding: '2px 6px', borderRadius: '8px', fontWeight: 600 }}>
-                        <Icons.ShieldCheck size={10} /> On-chain
-                      </span>
-                    )}
-                  </div>
-                  <div className="event-meta">{ev.meta}</div>
-                  
-                  <div className="event-bar-wrap">
-                    <div className="event-bar" style={{ width: `${ev.progress}%`, background: ev.progressColor }}></div>
-                  </div>
-                  <div className="event-bar-label">{ev.progressLabel}</div>
-                  
-                  <div style={{ fontSize: '10px', color: '#666', marginTop: '4px', fontFamily: 'monospace' }}>
-                    🔗 {ev.collectionMint.slice(0, 8)}...{ev.collectionMint.slice(-4)}
-                  </div>
-                  
-                  <div className="event-actions">
-                    {ev.actions.map((action, idx) => (
-                      <button
-                        key={idx}
-                        className={`btn-sm ${idx === ev.primaryAction ? 'btn-sm-purple' : ''}`}
-                        onClick={(e) => { e.stopPropagation(); alert(`Acción: ${action}`); }}
-                      >
-                        {action}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                
-                <div className="event-right">
-                  <span className={`status-pill ${ev.statusClass}`}>{ev.statusText}</span>
-                  <span className="event-price">{ev.price}</span>
-                </div>
-              </div>
-            );
-          })
+              );
+            })
           )}
         </div>
-      </div>
+      </main>
+      <LandingFooter />
     </div>
   );
 }

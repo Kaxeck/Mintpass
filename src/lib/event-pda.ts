@@ -11,7 +11,7 @@ import { AccountRole, type Instruction } from "@solana/instructions";
 
 // Program ID del contrato mintpass-event-registry desplegado en Devnet
 const EVENT_REGISTRY_PROGRAM_ID = address(
-  process.env.NEXT_PUBLIC_EVENT_REGISTRY_PROGRAM_ID as string
+  process.env.NEXT_PUBLIC_EVENT_REGISTRY_PROGRAM_ID || "11111111111111111111111111111111"
 );
 
 /**

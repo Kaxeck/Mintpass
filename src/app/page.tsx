@@ -22,6 +22,7 @@ export default function HomePage() {
       createdEvents={createdEvents}
       onGoToOrganizer={() => router.push('/dashboard')} 
       onGoToMyTickets={() => router.push('/tickets')}
+      onGoToExplore={() => router.push('/explore')}
       onEventClick={(id: number) => {
         router.push(`/purchase/${id}`);
       }}

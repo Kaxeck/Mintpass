@@ -8,6 +8,9 @@ import { useWalletSession, useSolanaClient } from "@solana/react-hooks";
 import { type Address } from "@solana/kit";
 import WalletButton from "../components/WalletButton";
 import AlertModal, { AlertModalProps } from "../components/AlertModal";
+import { LandingNavBar } from "../components/LandingNavBar";
+import { LandingFooter } from "../components/LandingFooter";
+import "../Home.css";
 
 export default function BuyerPurchase({
   event,
@@ -29,7 +32,8 @@ export default function BuyerPurchase({
   const client = useSolanaClient();
   const rpcRaw = client?.runtime?.rpc;
 
-  const [screen, setScreen] = useState<'buy' | 'processing' | 'success'>('buy');
+  const [screen, setScreen] = useState<'buy' | 'checkout' | 'wallet-checkout' | 'processing' | 'success'>('buy');
+  const [paymentMethod, setPaymentMethod] = useState<'tarjeta' | 'oxxo' | 'wallet'>('wallet');
   const [qty, setQty] = useState(1);
   const [progressStep, setProgressStep] = useState(0);
   const [orgReputation, setOrgReputation] = useState<number | null>(null);
@@ -151,213 +155,297 @@ export default function BuyerPurchase({
   };
 
   return (
-    <div className="min-h-screen flex flex-col font-sans selection:bg-[#534AB7] selection:text-white bg-[#000000]">
-
-      {/* NAVBAR */}
-      <div className="fixed top-0 w-full z-50 bg-[#000000]/80 backdrop-blur-xl border-b border-[#222] px-6 h-[60px] flex items-center justify-between">
-        <button onClick={onBack} className="w-[36px] h-[36px] rounded-full bg-[#111] border border-[#333] text-[#dddddd] flex items-center justify-center hover:bg-[#222] hover:text-white transition-colors cursor-pointer shadow-md z-20 relative">
-          <Icons.ChevronLeft size={18} />
-        </button>
-        <div className="text-[12px] md:text-[13px] font-bold tracking-[0.2em] text-white/90 uppercase text-center w-full absolute left-0 pointer-events-none z-10">
-          Asegura tu entrada
-        </div>
-        <div className="w-[36px] z-20 relative"></div>
-      </div>
-
-      {/* BUY SCREEN */}
-      {screen === 'buy' && (
-        <div className="flex-1 mt-[60px] w-full grid grid-cols-1 lg:grid-cols-2 relative z-10 overflow-hidden" style={{ minHeight: 'calc(100vh - 60px)' }}>
-
-          {/* LEFT */}
-          <div className="bg-[#000000] w-full py-10 lg:py-16 px-5 sm:px-8 md:px-12 flex flex-col items-center lg:justify-center border-b lg:border-b-0 lg:border-r border-[#222]">
-            <div className="w-full max-w-[440px] flex flex-col gap-5">
-              <div className="relative rounded-[24px] overflow-hidden shadow-[0_0_40px_rgba(0,0,0,0.6)] border border-[#222] aspect-[16/10] bg-[#111] flex flex-col justify-end group">
-                <div className="absolute inset-0 saturate-150 opacity-50 transition-transform duration-1000 group-hover:scale-105" style={{ background: event.bg }}></div>
-                <div className="absolute inset-0 flex items-center justify-center opacity-30 mix-blend-overlay">
-                  <EventIcon size={100} color="#ffffff" className="drop-shadow-xl" />
-                </div>
-                <div className="absolute inset-0 bg-gradient-to-t from-[#000000] via-[#000000]/40 to-transparent"></div>
-              </div>
-
-              <div className="flex flex-col gap-3">
-                <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-[6px] bg-[#ffffff]/10 text-white text-[9px] font-black uppercase tracking-[0.2em] w-fit border border-[#333]">
-                  <Icons.Star size={10} className={event.icon === 'Music' ? 'text-[#e24b4a]' : 'text-[#AFA9EC]'} /> {event.cat}
-                </div>
-                <h1 className="text-[28px] sm:text-[32px] md:text-[38px] font-black text-white leading-[1.05] tracking-tight">{event.name}</h1>
-
-                <div className="flex flex-wrap items-center gap-2 mt-1 px-3 py-1.5 rounded-xl bg-[#111] border border-[#222] text-[11px] w-fit">
-                  <Icons.ShieldCheck size={12} className={orgReputation !== null && orgReputation >= 20 ? 'text-[#5DCAA5]' : 'text-[#666]'} />
-                  <span className="text-white/60">Organizador:</span>
-                  {reputationLabel()}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="flex min-w-0 items-center gap-3 p-3.5 rounded-2xl bg-[#0a0a0a] border border-[#1a1a1a]">
-                  <div className="w-9 h-9 rounded-full bg-[#111] flex items-center justify-center border border-[#222] shrink-0 text-[#AFA9EC]">
-                    <Icons.CalendarDays size={16} />
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[9px] text-[#666] font-bold uppercase tracking-[0.2em] mb-0.5">Día y Hora</span>
-                    <span className="text-[13px] font-semibold text-white/90 leading-tight truncate">{event.date}</span>
-                  </div>
-                </div>
-                <div className="flex min-w-0 items-center gap-3 p-3.5 rounded-2xl bg-[#0a0a0a] border border-[#1a1a1a]">
-                  <div className="w-9 h-9 rounded-full bg-[#111] flex items-center justify-center border border-[#222] shrink-0 text-[#AFA9EC]">
-                    <Icons.MapPin size={16} />
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[9px] text-[#666] font-bold uppercase tracking-[0.2em] mb-0.5">Ubicación</span>
-                    <span className="text-[13px] font-semibold text-white/90 leading-tight truncate">{event.venue}</span>
-                  </div>
-                </div>
-              </div>
+    <div className="lp-container relative">
+      {(screen === 'buy' || screen === 'checkout' || screen === 'wallet-checkout') && (
+        <main className="lp-content">
+          <LandingNavBar onGoToExplore={onBack} onGoToMyTickets={onGoToMyTicket} />
+          
+          <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '32px 16px 80px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', fontSize: '12px', color: '#5F5E5A' }}>
+              <span onClick={onBack} style={{ cursor: 'pointer', color: '#5F5E5A', textDecoration: 'underline' }}>Explorar</span> &nbsp;/&nbsp; <span style={{ color: '#1E1E1E' }}>{event.name}</span>
             </div>
-          </div>
+            <p style={{ margin: '0 0 4px', fontSize: '24px', fontWeight: 600, color: '#1E1E1E' }}>{event.name}</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px', flexWrap: 'wrap' }}>
+              <span style={{ background: '#EAF3DE', color: '#27500A', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Icons.ShieldCheck size={12} /> Verificado en Solana
+              </span>
+              <span style={{ fontSize: '13px', color: '#5F5E5A', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Icons.CalendarDays size={14} /> {event.date} &nbsp;·&nbsp; {event.venue}
+              </span>
+            </div>
 
-          {/* RIGHT */}
-          <div className="w-full py-10 lg:py-16 px-5 sm:px-8 md:px-12 flex flex-col items-center lg:justify-center relative z-20" style={{ background: 'linear-gradient(160deg, #080810 0%, #0a0a20 40%, #10082a 100%)' }}>
-            <div className="w-full max-w-[400px] flex flex-col gap-5 relative z-30">
+            <div style={{ display: 'flex', gap: '32px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
               
-              <div className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em] text-center mb-[-4px]">Panel de Compra</div>
-
-              <div className="p-5 rounded-2xl border border-[#1D9E75]/30 relative overflow-hidden flex flex-col gap-4 shadow-xl" style={{ background: 'linear-gradient(135deg, #0a1a2e 0%, #0d2233 50%, #0a1a20 100%)' }}>
-                <div className="absolute -top-[20px] -right-[20px] w-[60px] h-[60px] bg-[#1D9E75]/15 rounded-full blur-[30px] pointer-events-none z-0"></div>
-                {pctSold > 85 && <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-[#E24B4A]/0 via-[#E24B4A] to-[#E24B4A]/0 animate-pulse"></div>}
-
-                <div className="relative z-10 flex items-center justify-between gap-3 mx-1">
-                  <div className="flex flex-col gap-1.5 min-w-0 flex-1">
-                    <div className="text-[9px] text-[#5DCAA5] font-black uppercase tracking-[0.15em]">Disponibilidad</div>
-                    {pctSold > 85 ? (
-                      <div className="text-[9px] text-[#E24B4A] font-bold bg-[#E24B4A]/15 px-2 py-0.5 rounded-md inline-flex items-center gap-1 w-fit border border-[#E24B4A]/20">
-                        <Icons.Flame size={10} /> ¡Últimos!
-                      </div>
-                    ) : (
-                      <div className="text-[9px] text-[#5DCAA5] font-bold bg-[#5DCAA5]/10 px-2 py-0.5 rounded-md inline-flex items-center gap-1 w-fit border border-[#5DCAA5]/20">
-                        <Icons.Zap size={10} /> Alta demanda
-                      </div>
-                    )}
+              {/* LEFT COLUMN */}
+              <div style={{ flex: '1 1 500px' }}>
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '24px' }}>
+                  <div style={{ flex: 2, height: '280px', background: event.bg, borderRadius: '16px 0 0 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+                    <div style={{ position: 'absolute', inset: 0, backgroundImage: 'url("https://images.unsplash.com/photo-1541532713592-79a0317b6b77?q=80&w=800&auto=format&fit=crop")', backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.8, mixBlendMode: 'overlay' }}></div>
+                    <EventIcon size={64} color="#ffffff" style={{ position: 'relative', zIndex: 10, opacity: 0.9 }} />
                   </div>
-                  <div className="flex flex-col items-end shrink-0">
-                    <div className="text-[22px] sm:text-[24px] font-black text-white leading-[1]">{available}</div>
-                    <div className="text-[8px] text-[#5DCAA5]/70 mt-1 font-bold tracking-[0.1em] uppercase">Restantes</div>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ flex: 1, background: '#2C2C2A', borderRadius: '0 16px 0 0', backgroundImage: 'url("https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?q=80&w=400&auto=format&fit=crop")', backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.9 }}></div>
+                    <div style={{ flex: 1, background: '#3A3A38', borderRadius: '0 0 16px 0', backgroundImage: 'url("https://images.unsplash.com/photo-1470229722913-7c092bce42f1?q=80&w=400&auto=format&fit=crop")', backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.9 }}></div>
                   </div>
                 </div>
 
-                <div className="relative z-10 w-full mx-1" style={{ width: 'calc(100% - 8px)' }}>
-                  <div className="flex justify-between text-[8px] text-[#5DCAA5]/60 font-black mb-1.5 uppercase tracking-[0.05em]">
-                    <span>Ocupado al {pctSold}%</span>
-                    <span>{event.total} total</span>
+                <p style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: 600, color: '#1E1E1E' }}>Sobre el evento</p>
+                <p style={{ margin: '0 0 24px', fontSize: '14px', color: '#5F5E5A', lineHeight: 1.6, maxWidth: '520px' }}>
+                  Asegura tu entrada oficial. Este evento utiliza la infraestructura de Mintpass sobre Solana para garantizar boletos verificables, previniendo la reventa no autorizada y ofreciendo una experiencia rápida y segura.
+                </p>
+
+                <p style={{ margin: '0 0 12px', fontSize: '16px', fontWeight: 600, color: '#1E1E1E' }}>Ubicación</p>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '32px' }}>
+                  <div style={{ width: '80px', height: '80px', background: '#F7F8F7', borderRadius: '12px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Icons.MapPin size={24} color="#D3D1C7" />
                   </div>
-                  <div className="w-full h-[5px] bg-[#080810] rounded-full overflow-hidden border border-[#1a1a2e]">
-                    <div className={`${progressBarColor}`} style={{ height: '100%', borderRadius: '999px', width: `${pctSold}%`, transition: 'width 1s ease' }}></div>
+                  <div>
+                    <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#1E1E1E' }}>{event.venue}</p>
+                    <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#5F5E5A' }}>📍 Dirección del venue no especificada.</p>
+                  </div>
+                </div>
+
+                <div style={{ background: '#F7F8F7', borderRadius: '12px', padding: '16px', display: 'flex', alignItems: 'center', gap: '12px', maxWidth: '400px' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#D3D1C7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Icons.User size={20} color="#FFFFFF" />
+                  </div>
+                  <div>
+                    <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#1E1E1E' }}>Organizador</p>
+                    <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#5F5E5A' }}>
+                      {reputationLabel()}
+                    </p>
                   </div>
                 </div>
               </div>
 
-              {/* Ticket */}
-              <div className="relative transform transition-transform duration-300">
-                <div className="rounded-3xl overflow-hidden border border-[#3a3a8a]/40 relative shadow-xl" style={{ background: 'linear-gradient(145deg, #12122a 0%, #17173e 100%)' }}>
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[60%] h-[1px] bg-gradient-to-r from-transparent via-[#7F77DD]/60 to-transparent"></div>
-
-                  <div className="p-6 border-b-[2px] border-dashed border-[#2a2a4a]/80 relative text-center">
-                    <div className="absolute bottom-[-14px] -left-[14px] w-[28px] h-[28px] bg-[#0a0a1a] rounded-full border-r-[2px] border-dashed border-[#2a2a4a] z-10 shadow-inner"></div>
-                    <div className="absolute bottom-[-14px] -right-[14px] w-[28px] h-[28px] bg-[#0a0a1a] rounded-full border-l-[2px] border-dashed border-[#2a2a4a] z-10 shadow-inner"></div>
+              {/* RIGHT COLUMN (Sticky Purchase Card) */}
+              <div style={{ flex: '1 1 340px', position: 'sticky', top: '100px' }}>
+                {screen === 'buy' ? (
+                  <div style={{ border: '1px solid #D3D1C7', borderRadius: '16px', padding: '24px', boxShadow: '0 10px 40px rgba(0,0,0,0.06)', background: '#FFFFFF' }}>
+                    <p style={{ margin: '0 0 16px', fontSize: '18px', fontWeight: 600, color: '#1E1E1E' }}>Elige tus boletos</p>
                     
-                    <div className="text-[9px] text-[#AFA9EC] font-bold tracking-[0.15em] uppercase mb-2">Precio por Entrada</div>
-                    <div className="text-[32px] font-black leading-none drop-shadow-md" style={{ background: 'linear-gradient(135deg, #ffffff 0%, #d0c8ff 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                      {event.price === 0 ? 'Gratis' : `${event.price} SOL`}
-                    </div>
-                  </div>
+                    <div style={{ background: '#2C2C2A', color: '#B4B2A9', textAlign: 'center', fontSize: '10px', padding: '6px', borderRadius: '6px', marginBottom: '12px', fontWeight: 600, letterSpacing: '0.05em' }}>ESCENARIO</div>
 
-                  <div className="p-6 flex flex-col items-center">
-                    <div className="text-[9px] text-[#AFA9EC]/70 mb-3 font-bold uppercase tracking-[0.15em] text-center">Cantidad de Boletos</div>
-                    <div className="flex items-center gap-4 bg-[#080810]/80 border border-[#3a3a8a]/40 rounded-[16px] p-2 shadow-inner w-full justify-center">
-                      <button onClick={() => changeQty(-1)} className="w-[36px] h-[36px] rounded-xl flex items-center justify-center hover:bg-[#534AB7]/20 text-[#888] hover:text-[#AFA9EC] transition-colors cursor-pointer"><Icons.Minus size={18} /></button>
-                      <div className="text-[24px] font-black text-white min-w-[32px] text-center">{qty}</div>
-                      <button onClick={() => changeQty(1)} className="w-[36px] h-[36px] rounded-xl flex items-center justify-center hover:bg-[#534AB7]/20 text-[#888] hover:text-[#AFA9EC] transition-colors cursor-pointer"><Icons.Plus size={18} /></button>
+                    {/* Mock Zone VIP */}
+                    <div style={{ border: '1px solid #D3D1C7', borderRadius: '12px', padding: '14px 16px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.5 }}>
+                      <div>
+                        <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#1E1E1E' }}>VIP</p>
+                        <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#E24B4A' }}>Agotado</p>
+                      </div>
+                      <p style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#1E1E1E' }}>$1,200</p>
                     </div>
 
-                    {event.price > 0 && (
-                      <div className="mt-4 w-full flex items-center justify-between bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-5 py-3">
-                        <span className="text-[10px] font-bold text-[#5DCAA5]/80 uppercase tracking-[0.05em]">Subtotal</span>
-                        <span className="text-[16px] font-black text-[#5DCAA5]">{(qty * event.price).toFixed(3)} SOL</span>
+                    {/* Mock Zone Preferente */}
+                    <div style={{ border: '1px solid #D3D1C7', borderRadius: '12px', padding: '14px 16px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.5 }}>
+                      <div>
+                        <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#1E1E1E' }}>Preferente</p>
+                        <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#E24B4A' }}>Agotado</p>
+                      </div>
+                      <p style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#1E1E1E' }}>$850</p>
+                    </div>
+
+                    {/* Real Zone General */}
+                    <div style={{ border: '2px solid #14F195', background: '#F7F8F7', borderRadius: '12px', padding: '14px 16px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#1E1E1E' }}>Acceso General</p>
+                        <p style={{ margin: '4px 0 0', fontSize: '12px', color: available > 0 ? '#27500A' : '#E24B4A' }}>
+                          {available > 0 ? `${available} disponibles` : 'Agotado'}
+                        </p>
+                      </div>
+                      <p style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#1E1E1E' }}>
+                        {event.price === 0 ? 'Gratis' : `${event.price} SOL`}
+                      </p>
+                    </div>
+
+                    {available > 0 && (
+                      <div style={{ background: '#FFFFFF', border: '1px solid #D3D1C7', borderRadius: '12px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                        <div>
+                          <p style={{ margin: 0, fontSize: '12px', color: '#5F5E5A' }}>Cantidad</p>
+                          <p style={{ margin: '4px 0 0', fontSize: '13px', fontWeight: 600, color: '#1E1E1E' }}>Max. {maxAllowed} por wallet</p>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <button onClick={() => changeQty(-1)} style={{ width: '32px', height: '32px', border: '1px solid #D3D1C7', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', color: '#1E1E1E', cursor: 'pointer', background: '#FFFFFF' }}>−</button>
+                          <span style={{ fontSize: '15px', fontWeight: 600, color: '#1E1E1E', minWidth: '16px', textAlign: 'center' }}>{qty}</span>
+                          <button onClick={() => changeQty(1)} style={{ width: '32px', height: '32px', background: '#1E1E1E', color: '#FFFFFF', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', cursor: 'pointer', border: 'none' }}>+</button>
+                        </div>
                       </div>
                     )}
-                  </div>
-                  
-                </div>
-              </div>
 
-              {/* Buttons */}
-              <div className="flex flex-col items-center gap-3">
-                {!walletConnected ? (
-                  <div className="w-full flex flex-col items-center gap-2.5">
-                    <div className="text-[9px] font-bold text-[#AFA9EC]/60 uppercase tracking-[0.15em] text-center">Paso 1: Conecta tu Wallet</div>
-                    <WalletButton style={{ width: '100%', justifyContent: 'center', height: '48px', borderRadius: '16px', fontSize: '13px', fontWeight: 'bold' }} />
+                    {event.price > 0 && available > 0 && (
+                      <div style={{ borderTop: '0.5px solid #D3D1C7', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                        <span style={{ fontSize: '14px', color: '#5F5E5A', fontWeight: 500 }}>Total ({qty} {qty === 1 ? 'boleto' : 'boletos'})</span>
+                        <span style={{ fontSize: '18px', fontWeight: 600, color: '#1E1E1E' }}>{(qty * event.price).toFixed(3)} SOL</span>
+                      </div>
+                    )}
+
+                    <button 
+                      onClick={() => setScreen('checkout')} 
+                      disabled={available <= 0 || maxAllowed <= 0}
+                      style={{ 
+                        width: '100%', 
+                        background: (available <= 0 || maxAllowed <= 0) ? '#D3D1C7' : '#14F195', 
+                        color: '#1E1E1E', 
+                        textAlign: 'center', 
+                        padding: '14px', 
+                        borderRadius: '12px', 
+                        fontSize: '14px', 
+                        fontWeight: 600, 
+                        border: 'none', 
+                        cursor: (available <= 0 || maxAllowed <= 0) ? 'not-allowed' : 'pointer',
+                        transition: 'transform 0.2s',
+                        boxShadow: (available > 0 && maxAllowed > 0) ? '0 4px 12px rgba(20, 241, 149, 0.2)' : 'none'
+                      }}
+                    >
+                      {maxAllowed <= 0 ? 'LÍMITE ALCANZADO' : available <= 0 ? 'AGOTADO' : 'Continuar'}
+                    </button>
+                  </div>
+                ) : screen === 'checkout' ? (
+                  <div style={{ border: '1px solid #D3D1C7', borderRadius: '16px', overflow: 'hidden', fontFamily: 'var(--font-sans)', boxShadow: '0 10px 40px rgba(0,0,0,0.08)', background: '#FFFFFF' }}>
+                    <div style={{ padding: '14px 18px', borderBottom: '0.5px solid #D3D1C7', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span onClick={() => setScreen('buy')} style={{ fontSize: '13px', color: '#5F5E5A', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                        <Icons.ArrowLeft size={16} style={{ marginRight: '6px' }} /> Confirmar boleto
+                      </span>
+                      <span style={{ fontSize: '11px', color: '#5F5E5A', fontWeight: 500 }}>Paso único</span>
+                    </div>
+                    
+                    <div style={{ padding: '16px 18px 0' }}>
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <div style={{ width: '48px', height: '48px', borderRadius: '10px', background: event.bg, position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <EventIcon size={24} color="#FFFFFF" style={{ position: 'relative', zIndex: 10 }} />
+                        </div>
+                        <div>
+                          <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#1E1E1E' }}>{event.name}</p>
+                          <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#5F5E5A' }}>{event.date} · {event.venue}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ margin: '16px 18px', background: '#F7F8F7', borderRadius: '12px', padding: '14px 16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#1E1E1E', marginBottom: '6px', fontWeight: 500 }}>
+                        <span>{qty} boleto{qty > 1 ? 's' : ''} general</span><span>{(qty * event.price).toFixed(3)} SOL</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#5F5E5A', marginBottom: '6px' }}>
+                        <span>Servicio (visible, sin sorpresas)</span><span>0.00 SOL</span>
+                      </div>
+                      <div style={{ borderTop: '0.5px solid #D3D1C7', marginTop: '10px', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', fontSize: '15px', fontWeight: 600, color: '#1E1E1E' }}>
+                        <span>Total</span><span>{(qty * event.price).toFixed(3)} SOL</span>
+                      </div>
+                    </div>
+
+                    <div style={{ margin: '0 18px 12px', fontSize: '12px', color: '#5F5E5A', fontWeight: 500 }}>Método de pago</div>
+                    <div style={{ margin: '0 18px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <div onClick={() => setPaymentMethod('tarjeta')} style={{ flex: 1, minWidth: '90px', border: paymentMethod === 'tarjeta' ? '1px solid #1E1E1E' : '1px solid #D3D1C7', borderRadius: '10px', padding: '10px', textAlign: 'center', fontSize: '12px', color: paymentMethod === 'tarjeta' ? '#1E1E1E' : '#5F5E5A', fontWeight: paymentMethod === 'tarjeta' ? 600 : 500, cursor: 'pointer', background: paymentMethod === 'tarjeta' ? '#F7F8F7' : '#FFFFFF', transition: 'all 0.2s' }}>MercadoPago</div>
+                      <div onClick={() => setPaymentMethod('oxxo')} style={{ flex: 1, minWidth: '90px', border: paymentMethod === 'oxxo' ? '1px solid #1E1E1E' : '1px solid #D3D1C7', borderRadius: '10px', padding: '10px', textAlign: 'center', fontSize: '12px', color: paymentMethod === 'oxxo' ? '#1E1E1E' : '#5F5E5A', fontWeight: paymentMethod === 'oxxo' ? 600 : 500, cursor: 'pointer', background: paymentMethod === 'oxxo' ? '#F7F8F7' : '#FFFFFF', transition: 'all 0.2s' }}>Blink</div>
+                      <div onClick={() => setPaymentMethod('wallet')} style={{ flex: 1, minWidth: '90px', border: paymentMethod === 'wallet' ? '1px solid #4BAA46' : '1px solid #D3D1C7', borderRadius: '10px', padding: '10px', textAlign: 'center', fontSize: '12px', color: paymentMethod === 'wallet' ? '#27500A' : '#5F5E5A', fontWeight: paymentMethod === 'wallet' ? 600 : 500, cursor: 'pointer', background: paymentMethod === 'wallet' ? '#EAF3DE' : '#FFFFFF', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                        <Icons.Wallet size={14} /> Wallet
+                      </div>
+                    </div>
+
+                    <div style={{ margin: '20px 18px 6px' }}>
+                      <button 
+                        onClick={() => {
+                          if (paymentMethod !== 'wallet') {
+                            showAlert("Método de pago no disponible", "En esta versión demo on-chain, todas las compras de entradas se realizan mediante Wallet con SOL.", "info");
+                          } else {
+                            setScreen('wallet-checkout');
+                          }
+                        }}
+                        style={{ width: '100%', background: '#14F195', color: '#1E1E1E', textAlign: 'center', padding: '14px', borderRadius: '12px', fontSize: '15px', fontWeight: 600, border: 'none', cursor: 'pointer', boxShadow: '0 4px 12px rgba(20,241,149,0.2)' }}
+                      >
+                        Confirmar y comprar
+                      </button>
+                    </div>
+
+                    <div style={{ margin: '12px 18px 24px', textAlign: 'center', fontSize: '11px', color: '#5F5E5A', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                      <Icons.ShieldCheck size={14} /> Boleto verificable en Solana
+                    </div>
                   </div>
                 ) : (
-                  <button 
-                    onClick={startPurchase} 
-                    disabled={available <= 0 || maxAllowed <= 0}
-                    className="w-full relative group overflow-hidden rounded-[16px] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-shadow duration-300"
-                    style={{ boxShadow: (available > 0 && maxAllowed > 0) ? '0 8px 25px rgba(83,74,183,0.3)' : 'none' }}
-                  >
-                    <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, #3B82F6 0%, #534AB7 35%, #7C3AED 65%, #E879A8 100%)' }}></div>
-                    <div className="absolute inset-y-0 -left-[100%] w-1/2 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12 group-hover:left-[200%] transition-all duration-1000 ease-in-out"></div>
-                    
-                    <div className="relative h-[56px] flex items-center justify-center gap-2 px-6">
-                      <span className="text-[14px] font-black text-white tracking-wide drop-shadow-md">
-                        {maxAllowed <= 0 ? 'LÍMITE ALCANZADO' : available <= 0 ? 'AGOTADO' : event.price === 0 ? 'DESBLOQUEAR TICKET' : 'PROCESAR COMPRA'}
+                  <div style={{ border: '1px solid #D3D1C7', borderRadius: '16px', overflow: 'hidden', fontFamily: 'var(--font-sans)', boxShadow: '0 10px 40px rgba(0,0,0,0.08)', background: '#FFFFFF' }}>
+                    <div style={{ padding: '14px 18px', borderBottom: '0.5px solid #D3D1C7', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span onClick={() => setScreen('checkout')} style={{ fontSize: '13px', color: '#5F5E5A', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                        <Icons.ArrowLeft size={16} style={{ marginRight: '6px' }} /> Pagar con wallet
                       </span>
-                      {(available > 0 && maxAllowed > 0) && <Icons.ArrowRight size={18} className="text-white/80 group-hover:translate-x-1 transition-transform" />}
+                      <span style={{ fontSize: '11px', color: '#5F5E5A' }}>Sin pasarela fiat</span>
                     </div>
-                  </button>
-                )}
-                <div className="text-center flex items-center justify-center gap-1.5 text-[8px] text-[#5DCAA5]/60 font-bold tracking-[0.15em] uppercase mt-1">
-                  <Icons.ShieldCheck size={10} /> Solicitud Segura Real
-                </div>
-              </div>
 
-              {/* Benefits */}
-              <div className="mt-1">
-                <div className="text-[9px] font-bold text-[#AFA9EC]/70 uppercase tracking-[0.15em] mb-3 text-center">¿Qué incluye tu acceso?</div>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { icon: Icons.QrCode,     label: 'QR NFT',     sub: 'Token Verificado',    border: '#3B82F6', text: '#60A5FA' },
-                    { icon: Icons.Wallet,      label: 'On-chain',  sub: 'Propiedad Real',  border: '#1D9E75', text: '#5DCAA5' },
-                    { icon: Icons.Nfc,         label: 'NFC Ready',       sub: 'Acceso Rápido', border: '#FAC775', text: '#FAC775' },
-                    { icon: Icons.BadgeCheck,  label: 'POAP',      sub: 'Coleccionable',  border: '#E879A8', text: '#E879A8' },
-                  ].map((b, i) => (
-                    <div key={i} className="rounded-2xl p-3 flex flex-col items-center text-center shadow-lg bg-[#080814] border border-[#2a2a4a]/50 hover:border-[#3a3a8a] transition-all duration-300">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center mb-1.5" style={{ background: `${b.border}15`, color: b.text }}>
-                        <b.icon size={14} />
+                    {!walletConnected && (
+                      <div style={{ padding: '16px 18px 0' }}>
+                        <p style={{ margin: '0 0 10px', fontSize: '12px', color: '#5F5E5A' }}>Conecta tu wallet</p>
+                        <WalletButton style={{ width: '100%', justifyContent: 'center', height: '48px', borderRadius: '12px', fontSize: '14px', fontWeight: 600, background: '#1E1E1E', color: '#FFFFFF', border: 'none' }} />
                       </div>
-                      <div className="text-[11px] font-black text-white mb-0.5">{b.label}</div>
-                      <div className="text-[8px] font-medium text-[#888]">{b.sub}</div>
+                    )}
+
+                    {walletConnected && (
+                      <div style={{ margin: '16px 18px 0', background: '#F7F8F7', borderRadius: '6px', padding: '6px 10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#639922', display: 'inline-block' }}></span>
+                        <span style={{ fontSize: '11px', color: '#3B6D11' }}>Conectado · {walletAddress?.slice(0, 4)}...{walletAddress?.slice(-4)}</span>
+                      </div>
+                    )}
+
+                    <div style={{ margin: '16px 18px', background: '#F7F8F7', borderRadius: '12px', padding: '14px 16px' }}>
+                      <p style={{ margin: '0 0 10px', fontSize: '12px', color: '#5F5E5A' }}>Resumen de la transacción</p>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#1E1E1E', marginBottom: '6px' }}>
+                        <span>Precio del boleto</span><span>{(qty * event.price).toFixed(3)} SOL</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#1E1E1E', marginBottom: '6px' }}>
+                        <span>Comisión de red</span><span>0.0001 SOL</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#3C3489', marginBottom: '6px' }}>
+                        <span>Price cap aplicado por el contrato</span><span>✓ dentro del límite</span>
+                      </div>
+                      <div style={{ borderTop: '0.5px solid #D3D1C7', marginTop: '8px', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', fontSize: '15px', fontWeight: 500, color: '#1E1E1E' }}>
+                        <span>Total a firmar</span><span>{(qty * event.price + 0.0001).toFixed(4)} SOL</span>
+                      </div>
                     </div>
-                  ))}
-                </div>
+
+                    <div style={{ margin: '0 18px 12px', background: '#EEEDFE', borderRadius: '12px', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <Icons.Lock style={{ fontSize: '20px', color: '#3C3489' }} />
+                      <p style={{ margin: 0, fontSize: '11px', color: '#3C3489' }}>El NFT llega ya congelado a tu wallet en la misma transacción</p>
+                    </div>
+
+                    <div style={{ margin: '4px 18px 6px' }}>
+                      <button 
+                        onClick={() => {
+                          if (!walletConnected) {
+                            showAlert("Conecta tu wallet", "Por favor conecta tu wallet usando el botón en la barra superior antes de firmar.", "info");
+                          } else {
+                            startPurchase();
+                          }
+                        }}
+                        style={{ width: '100%', background: '#14F195', color: '#1E1E1E', textAlign: 'center', padding: '14px', borderRadius: '12px', fontSize: '15px', fontWeight: 500, border: 'none', cursor: 'pointer' }}
+                      >
+                        Firmar y confirmar
+                      </button>
+                    </div>
+                    <div style={{ margin: '0 18px 20px', textAlign: 'center', fontSize: '11px', color: '#5F5E5A' }}>
+                      Independiente de MercadoPago, Stripe y Crossmint
+                    </div>
+                  </div>
+                )}
               </div>
 
             </div>
           </div>
-        </div>
+          <LandingFooter />
+        </main>
       )}
+
+
 
       {/* PROCESSING SCREEN */}
       {screen === 'processing' && (
-        <div className="min-h-screen flex items-center justify-center px-5 flex-col absolute inset-0 z-50 animate-in fade-in duration-500 bg-[#000]">
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#F1EFE8] animate-in fade-in duration-500 rounded-[12px]">
           <div className="relative w-24 h-24 mb-8">
-            <div className="absolute inset-0 border-[4px] border-[#1a1a2e] rounded-full"></div>
-            <div className="absolute inset-0 border-[4px] border-[#534AB7] border-t-transparent rounded-full animate-spin"></div>
-            <div className="absolute inset-0 flex items-center justify-center bg-[#0d0d1e] rounded-full m-1 border border-[#1a1a2e] shadow-[0_0_30px_rgba(83,74,183,0.4)]">
-              <Icons.Loader size={28} className="text-[#7F77DD] animate-pulse" />
+            <div className="absolute inset-0 border-[4px] border-[#D3D1C7] rounded-full"></div>
+            <div className="absolute inset-0 border-[4px] border-[#1E1E1E] border-t-transparent rounded-full animate-spin"></div>
+            <div className="absolute inset-0 flex items-center justify-center bg-[#FFFFFF] rounded-full m-1 border border-[#D3D1C7] shadow-[0_4px_16px_rgba(0,0,0,0.06)]">
+              <Icons.Loader size={28} className="text-[#1E1E1E] animate-pulse" />
             </div>
           </div>
 
-          <h2 className="text-[24px] font-semibold text-white mb-2 tracking-tight">Autorizando acceso</h2>
-          <p className="text-[14px] text-[#888] mb-12">No cierres esta pantalla. Interactuando con Solana...</p>
+          <h2 className="text-[24px] font-semibold text-[#1E1E1E] mb-2 tracking-tight">Autorizando acceso</h2>
+          <p className="text-[14px] text-[#5F5E5A] mb-12">Interactuando de forma segura con la red Solana...</p>
 
           <div className="w-full max-w-[340px] flex flex-col gap-3">
             {[
@@ -366,15 +454,15 @@ export default function BuyerPurchase({
               { step: 3, label: 'Generando activo digital' },
               { step: 4, label: 'Confirmación On-Chain' }
             ].map((s) => (
-              <div key={s.step} className={`flex items-center gap-4 p-4 rounded-[16px] border transition-all duration-500 ${progressStep === s.step ? 'bg-[#12122a] border-[#534AB7] shadow-[0_0_15px_rgba(83,74,183,0.15)]' : 'bg-[#0d0d1e] border-[#1a1a2e]'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border transition-colors duration-300 ${progressStep > s.step ? 'bg-[#1D9E75]/20 border-[#1D9E75]/30 text-[#5DCAA5]' :
-                    progressStep === s.step ? 'bg-[#534AB7]/20 border-[#534AB7] text-[#AFA9EC]' : 'bg-[#080810] border-[#2a2a4a] text-[#555]'
+              <div key={s.step} className={`flex items-center gap-4 p-4 rounded-[12px] border transition-all duration-500 ${progressStep === s.step ? 'bg-[#FFFFFF] border-[#1E1E1E] shadow-[0_4px_16px_rgba(0,0,0,0.05)]' : 'bg-[#FFFFFF]/50 border-[#D3D1C7]'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border transition-colors duration-300 ${progressStep > s.step ? 'bg-[#14F195]/20 border-[#14F195] text-[#27500A]' :
+                    progressStep === s.step ? 'bg-[#1E1E1E] border-[#1E1E1E] text-[#FFFFFF]' : 'bg-[#F7F8F7] border-[#D3D1C7] text-[#A1A1AA]'
                   }`}>
                   {progressStep > s.step ? <Icons.Check size={14} strokeWidth={3} /> :
-                    progressStep === s.step ? <div className="w-2 h-2 rounded-full bg-[#AFA9EC] animate-pulse"></div> :
+                    progressStep === s.step ? <div className="w-2 h-2 rounded-full bg-[#FFFFFF] animate-pulse"></div> :
                       <span className="text-[12px] font-bold">{s.step}</span>}
                 </div>
-                <div className={`text-[14px] font-medium tracking-wide ${progressStep >= s.step ? (progressStep === s.step ? 'text-white' : 'text-[#AFA9EC]') : 'text-[#666]'}`}>
+                <div className={`text-[14px] font-medium tracking-wide ${progressStep >= s.step ? 'text-[#1E1E1E]' : 'text-[#5F5E5A]'}`}>
                   {s.label}
                 </div>
               </div>
@@ -385,49 +473,49 @@ export default function BuyerPurchase({
 
       {/* SUCCESS SCREEN */}
       {screen === 'success' && (
-        <div className="min-h-[100vh] flex items-center justify-center px-5 flex-col absolute inset-0 z-50 animate-in fade-in zoom-in-95 duration-500 bg-[#000]">
-          <div className="w-[88px] h-[88px] rounded-full bg-[#1D9E75]/10 border border-[#1D9E75]/30 flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(29,158,117,0.2)]">
-            <Icons.Check size={44} className="text-[#5DCAA5]" />
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#F1EFE8] animate-in fade-in zoom-in-95 duration-500 rounded-[12px]">
+          <div className="w-[88px] h-[88px] rounded-full bg-[#14F195]/20 border border-[#14F195] flex items-center justify-center mb-6 shadow-[0_4px_24px_rgba(20,241,149,0.3)]">
+            <Icons.Check size={44} className="text-[#27500A]" />
           </div>
 
-          <h2 className="text-[28px] font-bold text-white mb-2 tracking-tight">Acceso Concedido</h2>
-          <p className="text-[14px] text-[#AFA9EC] mb-10 font-medium tracking-wide">Tu ticket NFT fue minteado exitosamente</p>
+          <h2 className="text-[28px] font-bold text-[#1E1E1E] mb-2 tracking-tight">Acceso Concedido</h2>
+          <p className="text-[14px] text-[#5F5E5A] mb-10 font-medium tracking-wide">Tu ticket NFT fue minteado exitosamente</p>
 
-          <div className="max-w-[340px] w-full bg-[#0d0d1e] border border-[#2a2a4a] rounded-[32px] overflow-hidden mb-8 relative shadow-[0_20px_50px_rgba(0,0,0,0.5)] transform rotate-[-1deg] hover:rotate-0 hover:scale-105 transition-all duration-300 cursor-pointer">
+          <div className="max-w-[340px] w-full bg-[#FFFFFF] border border-[#D3D1C7] rounded-[24px] overflow-hidden mb-8 relative shadow-[0_10px_40px_rgba(0,0,0,0.1)] transform rotate-[-1deg] hover:rotate-0 hover:scale-105 transition-all duration-300 cursor-pointer">
             <div className="h-[140px] flex items-center justify-center relative" style={{ background: event.bg }}>
-              <EventIcon size={56} color={event.color} className="drop-shadow-2xl" />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0d0d1e] via-transparent to-transparent"></div>
+              <div className="absolute inset-0 bg-black/20 mix-blend-overlay"></div>
+              <EventIcon size={56} color="#FFFFFF" className="drop-shadow-lg relative z-10" />
             </div>
 
             <div className="p-6 relative text-center">
-              <div className="absolute -top-[24px] right-6 w-[48px] h-[48px] bg-[#080810] rounded-full flex items-center justify-center border border-[#1a1a2e] shadow-lg z-10">
-                <Icons.QrCode size={20} className="text-[#5DCAA5]" />
+              <div className="absolute -top-[24px] right-6 w-[48px] h-[48px] bg-[#FFFFFF] rounded-full flex items-center justify-center border border-[#D3D1C7] shadow-lg z-10">
+                <Icons.QrCode size={20} className="text-[#1E1E1E]" />
               </div>
 
-              <div className="inline-block px-3 py-1 bg-[#1a1a2e] rounded-md text-[10px] text-[#AFA9EC] font-mono tracking-widest uppercase mb-3 border border-[#2a2a4a]">
+              <div className="inline-block px-3 py-1 bg-[#F1EFE8] rounded-md text-[10px] text-[#5F5E5A] font-mono tracking-widest uppercase mb-3 border border-[#D3D1C7]">
                 MINT PASS · SOLANA
               </div>
 
-              <h3 className="text-[20px] font-bold text-white mb-4 leading-tight">
-                {event.name} <span className="text-[#555] ml-1">#{event.sold + 1}</span>
+              <h3 className="text-[20px] font-bold text-[#1E1E1E] mb-4 leading-tight">
+                {event.name} <span className="text-[#A1A1AA] ml-1">#{event.sold + 1}</span>
               </h3>
 
               <div className="flex flex-wrap justify-center gap-2">
-                <span className="bg-[#12122a] border border-[#1a1a2e] px-3 py-1.5 rounded-[10px] text-[11px] font-medium text-[#ddd]">{event.date}</span>
-                <span className="bg-[#12122a] border border-[#1a1a2e] px-3 py-1.5 rounded-[10px] text-[11px] font-medium text-[#ddd]">{event.venue}</span>
+                <span className="bg-[#F7F8F7] border border-[#D3D1C7] px-3 py-1.5 rounded-[8px] text-[11px] font-medium text-[#1E1E1E]">{event.date}</span>
+                <span className="bg-[#F7F8F7] border border-[#D3D1C7] px-3 py-1.5 rounded-[8px] text-[11px] font-medium text-[#1E1E1E]">{event.venue}</span>
               </div>
             </div>
 
-            <div className="absolute bottom-[70px] -left-[16px] w-[32px] h-[32px] bg-[#080810] rounded-full border-r border-[#2a2a4a]"></div>
-            <div className="absolute bottom-[70px] -right-[16px] w-[32px] h-[32px] bg-[#080810] rounded-full border-l border-[#2a2a4a]"></div>
-            <div className="absolute bottom-[86px] left-8 right-8 h-px border-t-[2px] border-dashed border-[#2a2a4a] opacity-50"></div>
+            <div className="absolute bottom-[70px] -left-[16px] w-[32px] h-[32px] bg-[#F1EFE8] rounded-full border-r border-[#D3D1C7]"></div>
+            <div className="absolute bottom-[70px] -right-[16px] w-[32px] h-[32px] bg-[#F1EFE8] rounded-full border-l border-[#D3D1C7]"></div>
+            <div className="absolute bottom-[86px] left-8 right-8 h-px border-t-[2px] border-dashed border-[#D3D1C7] opacity-50"></div>
           </div>
 
           <div className="flex max-w-[340px] w-full gap-4">
-            <button onClick={onGoToMyTicket} className="flex-[2] bg-[#5DCAA5] hover:bg-[#4eb392] text-[#085041] h-[56px] rounded-[20px] font-bold text-[15px] transition-all cursor-pointer shadow-[0_0_20px_rgba(29,158,117,0.3)]">
+            <button onClick={onGoToMyTicket} className="flex-[2] bg-[#1E1E1E] hover:bg-[#333] text-[#FFFFFF] h-[56px] rounded-[16px] font-bold text-[14px] transition-all cursor-pointer shadow-md">
               Mostrar QR
             </button>
-            <button onClick={onBack} className="flex-1 bg-[#1a1a2e] hover:bg-[#2a2a4a] text-white h-[56px] rounded-[20px] font-semibold text-[14px] transition-colors cursor-pointer border border-[#2a2a4a]">
+            <button onClick={onBack} className="flex-1 bg-[#FFFFFF] hover:bg-[#F7F8F7] text-[#1E1E1E] h-[56px] rounded-[16px] font-semibold text-[14px] transition-colors cursor-pointer border border-[#D3D1C7]">
               Inicio
             </button>
           </div>

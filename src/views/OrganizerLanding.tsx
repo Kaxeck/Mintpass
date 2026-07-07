@@ -36,8 +36,8 @@ export default function OrganizerLanding({
         onGoToExplore={onGoToExplore}
         onGoToMyTickets={onGoToMyTickets}
       />
-      <div className="lp-content" style={{ maxWidth: '1100px', margin: '0 auto', padding: '40px 16px' }}>
-
+      <div className="lp-content">
+        <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '40px 16px' }}>
         <div className="org-hero">
           <div className="org-hero-text">
             <p className="org-hero-tag">INFRAESTRUCTURA SOBRE SOLANA</p>
@@ -158,8 +158,9 @@ export default function OrganizerLanding({
           </div>
         </div>
 
+        </div>
+        <LandingFooter />
       </div>
-      <LandingFooter />
     </div>
   );
 }

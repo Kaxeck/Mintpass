@@ -20,6 +20,7 @@
     "@solana/instructions": "^6.10.0",
     "@solana/kit": "^5.5.1",
     "@solana/react-hooks": "^1.4.1",
+    "country-state-city": "^3.2.1",
     "html5-qrcode": "^2.3.8",
     "jose": "^6.2.3",
     "lucide-react": "^1.22.0",

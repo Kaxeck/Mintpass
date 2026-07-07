@@ -80,7 +80,7 @@ export function Providers({ children }: PropsWithChildren) {
     <PrivyProvider
       appId={appId}
       config={{
-        loginMethods: ['email', 'wallet'],
+        loginMethods: ['email', 'wallet', 'google', 'twitter', 'discord', 'apple'],
         appearance: {
           theme: 'dark',
           accentColor: '#4BAA46',

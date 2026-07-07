@@ -10,8 +10,9 @@ export default function ExplorePage() {
 
   return (
     <EventView 
-      onBack={() => router.push('/')} 
+      onBack={() => router.back()} 
       onGoToMyTickets={() => router.push('/tickets')}
+      onEventClick={(id: number) => router.push(`/purchase/${id}`)}
     />
   );
 }

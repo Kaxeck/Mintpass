@@ -23,7 +23,7 @@ export default function DashboardPage() {
       createdEvents={createdEvents}
       eventStats={eventStats}
       onBack={() => router.push('/')} 
-      onCreate={() => router.push('/create')} 
+      onCreate={() => {}} 
       onEventClick={(id) => router.push(`/event/${id}`)} 
       onGoToMyTickets={() => router.push('/tickets')}
       onGoToExplore={() => router.push('/explore')}

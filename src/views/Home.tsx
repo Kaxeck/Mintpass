@@ -112,16 +112,25 @@ export default function Home({
 
         <section className="lp-features">
           <div className="lp-feature">
-            <p className="lp-feature-title">QR que cambia cada 30s</p>
-            <p className="lp-feature-desc">Imposible de duplicar</p>
+            <Icons.QrCode size={28} color="#14F195" />
+            <div>
+              <p className="lp-feature-title">QR que cambia cada 30s</p>
+              <p className="lp-feature-desc">Imposible de duplicar</p>
+            </div>
           </div>
           <div className="lp-feature">
-            <p className="lp-feature-title">Verificado en Solana</p>
-            <p className="lp-feature-desc">Estado público, no privado</p>
+            <Icons.ShieldCheck size={28} color="#534AB7" />
+            <div>
+              <p className="lp-feature-title">Verificado en Solana</p>
+              <p className="lp-feature-desc">Estado público, no privado</p>
+            </div>
           </div>
           <div className="lp-feature">
-            <p className="lp-feature-title">Reventa con tope</p>
-            <p className="lp-feature-desc">Nunca precio inflado</p>
+            <Icons.TrendingDown size={28} color="#D85A30" />
+            <div>
+              <p className="lp-feature-title">Reventa con tope</p>
+              <p className="lp-feature-desc">Nunca precio inflado</p>
+            </div>
           </div>
         </section>
 
@@ -178,19 +187,19 @@ export default function Home({
             )}
           </div>
           <div className="lp-cats-scroll">
-            <div className="lp-cat" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1540039155733-d76e6e48e61f?auto=format&fit=crop&w=400&q=80")', backgroundSize: 'cover', backgroundPosition: 'center', color: '#FFF', border: catFilter === 'Música' ? '2px solid #14F195' : 'none' }} onClick={() => setCatFilter('Música')}>
+            <div className="lp-cat" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1540039155733-d76e6e48e61f?auto=format&fit=crop&w=400&q=80")', backgroundSize: 'cover', backgroundPosition: 'center', color: '#FFF', border: catFilter === 'Música' ? '2px solid #14F195' : 'none' }} onClick={() => setCatFilter(catFilter === 'Música' ? 'Todos' : 'Música')} onDoubleClick={() => setCatFilter('Todos')}>
               <p className="lp-cat-title">Conciertos</p>
             </div>
-            <div className="lp-cat" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=400&q=80")', backgroundSize: 'cover', backgroundPosition: 'center', color: '#FFF', border: catFilter === 'Arte' ? '2px solid #14F195' : 'none' }} onClick={() => setCatFilter('Arte')}>
+            <div className="lp-cat" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=400&q=80")', backgroundSize: 'cover', backgroundPosition: 'center', color: '#FFF', border: catFilter === 'Arte' ? '2px solid #14F195' : 'none' }} onClick={() => setCatFilter(catFilter === 'Arte' ? 'Todos' : 'Arte')} onDoubleClick={() => setCatFilter('Todos')}>
               <p className="lp-cat-title">Bares y venues</p>
             </div>
-            <div className="lp-cat" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1533900298318-6b8da08a523e?auto=format&fit=crop&w=400&q=80")', backgroundSize: 'cover', backgroundPosition: 'center', color: '#FFF', border: catFilter === 'Feria' ? '2px solid #14F195' : 'none' }} onClick={() => setCatFilter('Feria')}>
+            <div className="lp-cat" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1533900298318-6b8da08a523e?auto=format&fit=crop&w=400&q=80")', backgroundSize: 'cover', backgroundPosition: 'center', color: '#FFF', border: catFilter === 'Feria' ? '2px solid #14F195' : 'none' }} onClick={() => setCatFilter(catFilter === 'Feria' ? 'Todos' : 'Feria')} onDoubleClick={() => setCatFilter('Todos')}>
               <p className="lp-cat-title">Cultura y ferias</p>
             </div>
-            <div className="lp-cat" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1507676184212-d0330a15233c?auto=format&fit=crop&w=400&q=80")', backgroundSize: 'cover', backgroundPosition: 'center', color: '#FFF', border: catFilter === 'Teatro' ? '2px solid #14F195' : 'none' }} onClick={() => setCatFilter('Teatro')}>
+            <div className="lp-cat" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1507676184212-d0330a15233c?auto=format&fit=crop&w=400&q=80")', backgroundSize: 'cover', backgroundPosition: 'center', color: '#FFF', border: catFilter === 'Teatro' ? '2px solid #14F195' : 'none' }} onClick={() => setCatFilter(catFilter === 'Teatro' ? 'Todos' : 'Teatro')} onDoubleClick={() => setCatFilter('Todos')}>
               <p className="lp-cat-title">Escuelas</p>
             </div>
-            <div className="lp-cat" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1511886929837-354d827aae26?auto=format&fit=crop&w=400&q=80")', backgroundSize: 'cover', backgroundPosition: 'center', color: '#FFF', border: catFilter === 'Deporte' ? '2px solid #14F195' : 'none' }} onClick={() => setCatFilter('Deporte')}>
+            <div className="lp-cat" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1511886929837-354d827aae26?auto=format&fit=crop&w=400&q=80")', backgroundSize: 'cover', backgroundPosition: 'center', color: '#FFF', border: catFilter === 'Deporte' ? '2px solid #14F195' : 'none' }} onClick={() => setCatFilter(catFilter === 'Deporte' ? 'Todos' : 'Deporte')} onDoubleClick={() => setCatFilter('Todos')}>
               <p className="lp-cat-title">Comunidades</p>
             </div>
           </div>
@@ -243,9 +252,8 @@ export default function Home({
             })}
           </div>
         </section>
-
+        <LandingFooter />
       </main>
-      <LandingFooter />
     </div>
   );
 }

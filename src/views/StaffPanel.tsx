@@ -328,7 +328,7 @@ export default function StaffPanel({ event, stats, onCheckIn, onBack }: { event?
               <div className="strip-lbl">Duplicados</div>
             </div>
             <div className="strip-stat">
-              <div className="strip-val v-white">{Math.max(0, (event ? event.aforo : 200) - okCount - errCount)}</div>
+              <div className="strip-val v-white">{Math.max(0, (event?.aforo || 200) - okCount - errCount)}</div>
               <div className="strip-lbl">Pendientes</div>
             </div>
           </div>

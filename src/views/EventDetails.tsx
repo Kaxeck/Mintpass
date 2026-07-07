@@ -60,7 +60,7 @@ export default function EventDetails({ event, stats, ownedTickets = [], onBack, 
 
     try {
       setIsWithdrawing(true);
-      const totalSol = sold * event.price;
+      const totalSol = sold * (event.price || 0);
       const releaseIx = await createEscrowReleaseInstruction(walletAddress, totalSol);
       if (!releaseIx) {
         showAlert("Evento Gratuito", "No hay fondos que retirar en eventos gratuitos.", "info");
@@ -129,7 +129,7 @@ export default function EventDetails({ event, stats, ownedTickets = [], onBack, 
               <div className="event-meta-row">
                 <span>{event.category || 'Categoría general'}</span>
                 <span className="meta-dot"></span>
-                <span>{event.priceType === 'free' ? 'Gratis' : `${event.price} ${event.priceType.toUpperCase()} por entrada`}</span>
+                <span>{event.priceType === 'free' ? 'Gratis' : event.priceType ? `${event.price || 0} ${event.priceType.toUpperCase()} por entrada` : (event.price ? `$${event.price} por entrada` : 'Gratis')}</span>
               </div>
             </div>
 
@@ -146,7 +146,7 @@ export default function EventDetails({ event, stats, ownedTickets = [], onBack, 
                   <div className="stat-lbl">Escaneados</div>
                 </div>
                 <div className="stat">
-                  <div className="stat-val">{event.aforo - sold}</div>
+                  <div className="stat-val">{(event.aforo || 0) - sold}</div>
                   <div className="stat-lbl">Disponibles</div>
                 </div>
               </div>
@@ -298,10 +298,10 @@ export default function EventDetails({ event, stats, ownedTickets = [], onBack, 
             <div className="card-section">
               <div className="sec-label">Recaudación estimada</div>
               <div style={{fontSize: '22px', fontWeight: 500, color: 'var(--color-text-primary)'}}>
-                {event.priceType === 'free' ? '0' : (sold * event.price).toFixed(2)} {event.priceType.toUpperCase()}
+                {event.priceType === 'free' ? '0' : (sold * (event.price || 0)).toFixed(2)} {event.priceType ? event.priceType.toUpperCase() : ''}
               </div>
               <div style={{fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '2px'}}>
-                {sold} tickets × {event.priceType === 'free' ? '0' : event.price} {event.priceType.toUpperCase()}
+                {sold} tickets × {event.priceType === 'free' ? '0' : (event.price || 0)} {event.priceType ? event.priceType.toUpperCase() : ''}
               </div>
               <div style={{fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: '4px'}}>Sin comisiones de plataforma</div>
 

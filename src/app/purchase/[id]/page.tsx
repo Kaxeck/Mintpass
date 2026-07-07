@@ -35,9 +35,9 @@ export default function BuyerPurchasePage() {
         date: `${evCreated.date} · ${evCreated.time}`,
         duration: '3h',
         venue: evCreated.venue,
-        price: evCreated.priceType === 'free' ? 0 : evCreated.price,
-        total: evCreated.aforo,
-        limitPerWallet: evCreated.limitPerWallet,
+        price: evCreated.priceType === 'free' ? 0 : evCreated.price || 0,
+        total: evCreated.aforo || 0,
+        limitPerWallet: evCreated.identityLimit || 0,
         sold: eventStats[evCreated.id]?.sold || 0,
         cat: evCreated.category,
         icon: 'Ticket',
@@ -73,7 +73,7 @@ export default function BuyerPurchasePage() {
             router.push('/tickets');
           }
       }}
-      onBack={() => router.push('/')} 
+      onBack={() => router.back()} 
       onGoToMyTicket={() => router.push('/tickets')} 
     />
   );

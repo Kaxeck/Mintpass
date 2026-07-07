@@ -2,7 +2,7 @@ import React from 'react';
 
 export function LandingFooter() {
   return (
-    <footer className="lp-footer" style={{ borderTop: '0.5px solid #333333', padding: '40px 16px', background: '#1E1E1E', color: '#A1A1AA', fontSize: '13px', marginTop: '40px' }}>
+    <footer className="lp-footer" style={{ borderTop: '0.5px solid #333333', padding: '40px 16px', background: '#1E1E1E', color: '#A1A1AA', fontSize: '13px' }}>
       <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '32px' }}>
         <div style={{ flex: '1 1 200px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>

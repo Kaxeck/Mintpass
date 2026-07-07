@@ -53,12 +53,12 @@ const REPUTATION_PROGRAM_ID = address(
  * Deriva la PDA de reputación para un organizador.
  */
 async function deriveReputationPDA(organizerAddress: Address): Promise<readonly [Address, number]> {
-  const { getProgramDerivedAddress } = await import("@solana/addresses");
+  const { getProgramDerivedAddress, getAddressEncoder } = await import("@solana/addresses");
   return getProgramDerivedAddress({
     programAddress: REPUTATION_PROGRAM_ID,
     seeds: [
       Buffer.from("reputation"),
-      organizerAddress,
+      getAddressEncoder().encode(organizerAddress),
     ],
   });
 }

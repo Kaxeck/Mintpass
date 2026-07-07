@@ -24,9 +24,13 @@ export interface OnChainEventData {
   time: string;
   venue: string;
   category: string;
-  aforo: number;
-  priceType: "free" | "sol" | "usdc";
-  price: number;
+  coverImage?: string;
+  lineup?: string[];
+  zones: { name: string; capacity: number; price: number }[];
+  allowResale: boolean;
+  resaleCapLimit?: number;
+  isSoulbound: boolean;
+  identityLimit?: number;
   collectionMint: string;
   createdAt: number;
 }

@@ -33,7 +33,8 @@ export default function TicketsList({
       <LandingNavBar />
 
       {/* Contenido Principal */}
-      <div className="lp-content" style={{ maxWidth: '1100px', margin: '0 auto', padding: '40px 16px', minHeight: 'calc(100vh - 200px)' }}>
+      <div className="lp-content">
+        <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '40px 16px', minHeight: 'calc(100vh - 200px)' }}>
         <div className="sec-hdr" style={{ borderBottom: '1px solid #EAEAEA', paddingBottom: '16px', marginBottom: '32px' }}>
           <span className="sec-title" style={{ fontSize: '32px', color: '#1E1E1E', fontWeight: 600, letterSpacing: '-0.02em' }}>Mis tickets (NFTs)</span>
         </div>
@@ -98,8 +99,9 @@ export default function TicketsList({
             })}
           </div>
         )}
+        </div>
+        <LandingFooter />
       </div>
-      <LandingFooter />
     </div>
   );
 }

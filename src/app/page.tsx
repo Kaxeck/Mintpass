@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-const Home = dynamic(() => import("@/views/Home"), { ssr: false });
+const Home = dynamic(() => import("@/features/public/Home"), { ssr: false });
 import { useMintpassStore } from "@/store";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";

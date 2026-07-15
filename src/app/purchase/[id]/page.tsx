@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-const BuyerPurchase = dynamic(() => import("@/views/BuyerPurchase"), { ssr: false });
+const BuyerPurchase = dynamic(() => import("@/features/buyer/BuyerPurchase"), { ssr: false });
 import { useMintpassStore } from "@/store";
 import { EVENTS } from "@/data/events";
 import { EventModel } from "@/types";

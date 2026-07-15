@@ -2,13 +2,13 @@
 import { useState, Fragment, useMemo } from 'react';
 import { Country, State, City } from 'country-state-city';
 import * as Icons from "lucide-react";
-import PageNav from "../components/PageNav";
-import { useUmi } from "../providers";
-import { createEventCollection } from "../lib/metaplex";
-import { buildSaveEventInstruction } from "../lib/event-pda";
+import PageNav from "../../components/PageNav";
+import { useUmi } from "../../providers";
+import { createEventCollection } from "../../lib/metaplex";
+import { buildSaveEventInstruction } from "../../lib/event-pda";
 import { useWalletSession } from "@solana/react-hooks";
 import { Address } from "@solana/kit";
-import AlertModal, { AlertModalProps } from "../components/AlertModal";
+import AlertModal, { AlertModalProps } from "../../components/AlertModal";
 
 export interface CreatedEvent {
   id: number;
@@ -21,13 +21,17 @@ export interface CreatedEvent {
   category: string;
   coverImage?: string;
   lineup?: string[];
-  zones: { id?: string; name: string; capacity: number; price: number; position?: string }[];
+  zones: { id?: string; name: string; capacity: number; price: number; position?: string; gate?: string; isNumbered?: boolean }[];
   allowResale: boolean;
   resaleCapLimit?: number;
   isSoulbound: boolean;
+  allowRefunds?: boolean;
+  refundTimeLimit?: number;
   identityLimit?: number;
   organizerWallet?: string;
   createdAt: number;
+  ageRestriction?: string;
+  doorTime?: string;
   // Para compatibilidad hacia atrás temporal con vistas de listado
   aforo?: number;
   priceType?: string;
@@ -47,14 +51,19 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
   const [coverImage, setCoverImage] = useState('');
   const [lineup, setLineup] = useState(''); // Comma separated
 
-  const [zones, setZones] = useState<{ id: string; name: string; capacity: number; price: number; position?: string }[]>([
-    { id: '1', name: 'General', capacity: 100, price: 500, position: 'general' }
+  const [zones, setZones] = useState<{ id: string; name: string; capacity: number; price: number; position?: string; gate?: string; isNumbered?: boolean }[]>([
+    { id: '1', name: 'General', capacity: 100, price: 500, position: 'general', isNumbered: false }
   ]);
 
   const [allowResale, setAllowResale] = useState(false);
   const [resaleCapLimit, setResaleCapLimit] = useState('');
   const [isSoulbound, setIsSoulbound] = useState(false);
+  const [allowRefunds, setAllowRefunds] = useState(false);
+  const [refundTimeLimit, setRefundTimeLimit] = useState('');
   const [identityLimit, setIdentityLimit] = useState('');
+
+  const [ageRestriction, setAgeRestriction] = useState('Todas las edades');
+  const [doorTime, setDoorTime] = useState('');
 
   const [countryIso, setCountryIso] = useState('MX');
   const [stateIso, setStateIso] = useState('');
@@ -175,7 +184,11 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
         allowResale,
         resaleCapLimit: resaleCapLimit ? parseInt(resaleCapLimit) : undefined,
         isSoulbound,
+        allowRefunds,
+        refundTimeLimit: refundTimeLimit ? parseInt(refundTimeLimit) : undefined,
         identityLimit: identityLimit ? parseInt(identityLimit) : undefined,
+        ageRestriction,
+        doorTime,
         collectionMint: collectionAddr,
         createdAt: Date.now()
       };
@@ -348,6 +361,21 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
                   </div>
                 </div>
               </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '13px', color: '#1E1E1E', fontWeight: 500, display: 'block', marginBottom: '6px' }}>Apertura de puertas (Opcional)</label>
+                  <input type="time" value={doorTime} onChange={e => setDoorTime(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '14px', borderRadius: '8px', border: '1px solid #D3D1C7', outline: 'none', background: '#FFFFFF', color: '#1E1E1E' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '13px', color: '#1E1E1E', fontWeight: 500, display: 'block', marginBottom: '6px' }}>Clasificación de edad</label>
+                  <select value={ageRestriction} onChange={e => setAgeRestriction(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '14px', borderRadius: '8px', border: '1px solid #D3D1C7', outline: 'none', background: '#FFFFFF', color: '#1E1E1E' }}>
+                    <option value="Todas las edades">Todas las edades</option>
+                    <option value="+14">+14</option>
+                    <option value="+18">+18 (Solo Adultos)</option>
+                  </select>
+                </div>
+              </div>
+
             </div>
           </div>
         )}
@@ -380,6 +408,15 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
                     <option value="atras">Atrás / Medio</option>
                     <option value="general">Área General</option>
                   </select>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: '0 0 4px', fontSize: '10px', color: '#5F5E5A' }}>Puerta (Opcional)</p>
+                  <input type="text" placeholder="Ej. Puerta 4" value={zone.gate || ''} onChange={e => { const z = [...zones]; z[idx] = { ...z[idx], gate: e.target.value }; setZones(z); }} style={{ width: '100%', border: '1px solid #D3D1C7', borderRadius: '6px', padding: '6px 10px', fontSize: '12px', color: '#1E1E1E', background: '#FFFFFF', outline: 'none' }} />
+                </div>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: '16px' }}>
+                  <label style={{ fontSize: '10px', color: '#5F5E5A', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={zone.isNumbered || false} onChange={e => { const z = [...zones]; z[idx] = { ...z[idx], isNumbered: e.target.checked }; setZones(z); }} /> Asientos Num.
+                  </label>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '14px', alignItems: 'center' }}>
                   <div style={{ display: 'flex', gap: '2px' }}>
@@ -481,6 +518,28 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
               </div>
 
               <div style={{ border: '1px solid #D3D1C7', borderRadius: '10px', padding: '20px', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#F7F8F7'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                    <Icons.Undo2 size={20} color="#5F5E5A" style={{ marginTop: '2px' }} />
+                    <div>
+                      <p style={{ margin: 0, fontSize: '14px', color: '#1E1E1E', fontWeight: 600 }}>Permitir devoluciones</p>
+                      <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#5F5E5A' }}>Configura si los usuarios pueden reembolsar su entrada</p>
+                    </div>
+                  </div>
+                  <div className={`toggle ${allowRefunds ? 'on' : ''}`} onClick={() => setAllowRefunds(!allowRefunds)} style={{ width: '40px', height: '24px', borderRadius: '12px', background: allowRefunds ? '#14F195' : '#D3D1C7', position: 'relative', cursor: 'pointer' }}><div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#fff', position: 'absolute', top: '2px', left: allowRefunds ? '18px' : '2px', transition: 'left 0.2s' }}></div></div>
+                </div>
+                {allowRefunds && (
+                  <div style={{ marginTop: '16px', borderTop: '1px solid #E5E5E5', paddingTop: '16px' }}>
+                    <label style={{ fontSize: '13px', color: '#5F5E5A', display: 'block', marginBottom: '6px' }}>Límite de tiempo para devolución (días antes del evento)</label>
+                    <input type="number" placeholder="Ej. 3" value={refundTimeLimit} onChange={e => setRefundTimeLimit(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '13px', borderRadius: '8px', border: '1px solid #D3D1C7', outline: 'none', background: '#FFFFFF', color: '#1E1E1E', marginBottom: '8px' }} />
+                    <div style={{ display: 'flex', gap: '6px', fontSize: '11px', color: '#8A8880', alignItems: 'center' }}>
+                      <Icons.Info size={12} /> Nota: Los costos de servicio de Mintpass no son reembolsables.
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ border: '1px solid #D3D1C7', borderRadius: '10px', padding: '20px', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#F7F8F7'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                   <Icons.Shield size={20} color="#5F5E5A" style={{ marginTop: '2px' }} />
                   <div style={{ flex: 1 }}>
@@ -516,6 +575,18 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: '12px', color: '#5F5E5A' }}>Aforo total</span>
                   <span style={{ fontSize: '12px', color: '#1E1E1E', fontWeight: 500 }}>{totalAforo}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '12px', color: '#5F5E5A' }}>Reventa Oficial</span>
+                  <span style={{ fontSize: '12px', color: '#1E1E1E', fontWeight: 500 }}>{allowResale ? `Sí (Tope: ${resaleCapLimit||'Sin límite'}%)` : 'No'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '12px', color: '#5F5E5A' }}>Devoluciones</span>
+                  <span style={{ fontSize: '12px', color: '#1E1E1E', fontWeight: 500 }}>{allowRefunds ? `Sí (Hasta ${refundTimeLimit||'0'} días antes)` : 'No permitidas'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '12px', color: '#5F5E5A' }}>Comisiones (Fees)</span>
+                  <span style={{ fontSize: '12px', color: '#1E1E1E', fontWeight: 500 }}>{minPrice === 0 ? 'Cubiertas por el Organizador (Boletos Gratis)' : 'El Comprador paga el 5%'}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: '12px', color: '#5F5E5A' }}>Precio base</span>

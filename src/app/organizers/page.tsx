@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useRouter } from "next/navigation";
 
-const OrganizerLanding = dynamic(() => import("@/views/OrganizerLanding"), { ssr: false });
+const OrganizerLanding = dynamic(() => import("@/features/public/OrganizerLanding"), { ssr: false });
 
 export default function OrganizersPage() {
   const router = useRouter();

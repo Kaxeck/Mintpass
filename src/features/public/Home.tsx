@@ -1,11 +1,11 @@
 'use client';
 import { useState } from "react";
 import * as Icons from "lucide-react";
-import "../Home.css";
-import { EVENTS } from "../data/events";
-import { CreatedEvent } from "./CreateEvent";
-import { LandingNavBar } from "../components/LandingNavBar";
-import { LandingFooter } from "../components/LandingFooter";
+import "../../Home.css";
+import { EVENTS } from "../../data/events";
+import { CreatedEvent } from "../organizer/CreateEvent";
+import { LandingNavBar } from "../../components/LandingNavBar";
+import { LandingFooter } from "../../components/LandingFooter";
 
 // Mapeo de categorías del formulario a iconos y colores del catálogo
 const catMap: Record<string, { icon: string; color: string; bg: string; cat: string }> = {

@@ -5,7 +5,7 @@ import { useMintpassStore } from "@/store";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-const OrganizerDashboard = dynamic(() => import("@/views/OrganizerDashboard"), { ssr: false });
+const OrganizerDashboard = dynamic(() => import("@/features/organizer/OrganizerDashboard"), { ssr: false });
 
 export default function DashboardPage() {
   const { createdEvents, eventStats, isHydrated } = useMintpassStore();

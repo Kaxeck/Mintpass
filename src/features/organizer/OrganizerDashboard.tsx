@@ -1,13 +1,15 @@
 'use client';
 import { useState, useEffect } from "react";
 import * as Icons from "lucide-react";
-import WalletButton from "../components/WalletButton";
+import WalletButton from "../../components/WalletButton";
 import { useWalletSession, useSolanaClient } from "@solana/react-hooks";
 import { type Address, address as getAddress } from "@solana/kit";
-import { getOrganizerReputation } from "../lib/metaplex";
-import { readAllEventsFromChain, type OnChainEventData } from "../lib/event-pda";
+import { getOrganizerReputation } from "../../lib/metaplex";
+import { readAllEventsFromChain, type OnChainEventData } from "../../lib/event-pda";
 import CreateEvent, { type CreatedEvent } from "./CreateEvent";
-import '../Home.css';
+import CheckInStaff from "./CheckInStaff";
+import '../../Home.css';
+import '../../styles/OrganizerDashboard.css';
 
 import { usePrivy } from "@privy-io/react-auth";
 
@@ -95,8 +97,11 @@ export default function OrganizerDashboard({
         setOnChainEvents([]);
         return;
       }
-      const knownMints = createdEvents.map(ev => ev.collectionMint);
-      if (knownMints.length === 0) return;
+      const knownMints = createdEvents.map(ev => ev.collectionMint).filter(m => m && m.length >= 32 && m.length <= 44 && !m.startsWith('mock'));
+      if (knownMints.length === 0) {
+        setLoadingEvents(false);
+        return;
+      }
 
       if (!rpc) return;
       setLoadingEvents(true);
@@ -118,8 +123,8 @@ export default function OrganizerDashboard({
     'Feria y mercado': 'ShoppingBag', 'Teatro y danza': 'Drama', 'Otro': 'Sparkles'
   };
   const categoryColors: Record<string, string> = {
-    'Música / Concierto': 'cover-purple', 'Arte y cultura': 'cover-teal', 'Deporte': 'cover-coral',
-    'Feria y mercado': 'cover-purple', 'Teatro y danza': 'cover-teal', 'Otro': 'cover-coral'
+    'Música / Concierto': 'od-thumb-purple', 'Arte y cultura': 'od-thumb-teal', 'Deporte': 'od-thumb-coral',
+    'Feria y mercado': 'od-thumb-purple', 'Teatro y danza': 'od-thumb-teal', 'Otro': 'od-thumb-coral'
   };
   const categoryProgressColors: Record<string, string> = {
     'Música / Concierto': '#534AB7', 'Arte y cultura': '#1D9E75', 'Deporte': '#D85A30',
@@ -127,11 +132,12 @@ export default function OrganizerDashboard({
   };
 
   const events = createdEvents.map(ev => {
-    const eventDate = ev.date ? new Date(ev.date + 'T12:00') : null;
+    const rawDate = ev.date ? new Date(ev.date + 'T12:00') : null;
+    const eventDate = rawDate && !isNaN(rawDate.getTime()) ? rawDate : null;
     const isToday = eventDate && eventDate.toDateString() === new Date().toDateString();
     const isPast = eventDate && eventDate < new Date();
     const cat = isToday ? 'activos' : isPast ? 'pasados' : 'proximos';
-    const dateStr = eventDate ? eventDate.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
+    const dateStr = eventDate ? eventDate.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' }) : (ev.date || '');
     const metaStr = `${dateStr}${ev.time ? ' · ' + ev.time + ' h' : ''} · ${ev.venue}`;
     const priceStr = ev.priceType === 'free' ? 'Gratis' : ev.priceType ? `${ev.price} ${ev.priceType.toUpperCase()}` : (ev.price ? `$${ev.price}` : 'Gratis');
 
@@ -140,12 +146,13 @@ export default function OrganizerDashboard({
 
     return {
       id: ev.id, cat, name: ev.name, meta: metaStr,
+      coverImage: ev.coverImage,
       coverText: categoryIcons[ev.category] || 'Sparkles',
-      coverClass: categoryColors[ev.category] || 'cover-purple',
+      coverClass: categoryColors[ev.category] || 'od-thumb-purple',
       progress,
       progressColor: categoryProgressColors[ev.category] || '#534AB7',
       progressLabel: `${sold} / ${ev.aforo} entradas vendidas`,
-      statusClass: isToday ? 's-active' : isPast ? 's-past' : 's-soon',
+      statusClass: isToday ? 'od-pill-active' : isPast ? 'od-pill-past' : 'od-pill-soon',
       statusText: isToday ? 'En curso' : isPast ? 'Terminado' : 'Próximo',
       price: priceStr,
       actions: ['Panel staff', 'Ver QR Blink', 'Compartir'],
@@ -272,54 +279,57 @@ export default function OrganizerDashboard({
                 </div>
               </div>
               
-              <div className="event-list" id="event-list">
+              <div className="od-event-list" id="event-list">
                 {loadingEvents && (
-                  <div style={{ textAlign: 'center', padding: '12px', fontSize: '12px', color: '#AFA9EC' }}>
+                  <div style={{ textAlign: 'center', padding: '12px', fontSize: '12px', color: '#5F5E5A' }}>
                     ⛓️ Consultando eventos en la blockchain de Solana...
                   </div>
                 )}
 
                 {createdEvents.length === 0 ? (
-                  <div className="empty-state" style={{ textAlign: 'center', padding: '40px 20px', background: '#F7F8F7', borderRadius: '16px', border: 'none' }}>
-                    <Icons.PlusCircle size={40} color="#14F195" style={{ marginBottom: '16px' }} />
-                    <div style={{ fontSize: '16px', marginBottom: '8px', fontWeight: 500, color: '#1E1E1E' }}>Aún no has creado ningún evento</div>
-                    <div style={{ fontSize: '14px', color: '#5F5E5A' }}>Presiona "Crear evento" para lanzar tu primera colección NFT en Solana</div>
+                  <div className="od-empty">
+                    <Icons.PlusCircle size={40} color="#4BAA46" style={{ marginBottom: '16px' }} />
+                    <p className="od-empty-title">Aún no has creado ningún evento</p>
+                    <p className="od-empty-sub">Presiona "Crear evento" para lanzar tu primera colección NFT en Solana</p>
                   </div>
                 ) : filteredEvents.length === 0 ? (
-                  <div className="empty-state" style={{ background: '#F7F8F7', borderRadius: '16px', border: 'none', color: '#5F5E5A' }}>No hay eventos en esta categoría.</div>
+                  <div className="od-empty">
+                    <p className="od-empty-sub">No hay eventos en esta categoría.</p>
+                  </div>
                 ) : (
                   filteredEvents.map(ev => {
                     const EventIcon = (Icons as Record<string, unknown>)[ev.coverText] as typeof Icons.HelpCircle || Icons.HelpCircle;
                     const isVerifiedOnChain = onChainEvents.some(oc => oc.collectionMint === ev.collectionMint);
                     return (
-                      <div className="event-card" key={ev.id} onClick={() => onEventClick(ev.id)} style={{ background: '#F7F8F7', border: 'none' }}>
-                        <div className={`event-cover ${ev.coverClass}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <EventIcon size={24} color="#fff" />
+                      <div className="od-event-card" key={ev.id} onClick={() => onEventClick(ev.id)}>
+                        <div className="od-event-thumb" style={ev.coverImage ? { backgroundImage: `url('${ev.coverImage}')` } : undefined}>
+                          {!ev.coverImage && (
+                            <div className={`od-event-thumb-icon ${ev.coverClass}`}>
+                              <EventIcon size={20} />
+                            </div>
+                          )}
                         </div>
 
-                        <div className="event-info">
-                          <div className="event-name" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#1E1E1E' }}>
+                        <div className="od-event-body">
+                          <p className="od-event-name">
                             {ev.name}
                             {isVerifiedOnChain && (
-                              <span title="Evento verificado en blockchain" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', background: 'rgba(75,170,70,0.15)', color: '#3B6D11', padding: '4px 8px', borderRadius: '12px', fontWeight: 600 }}>
-                                <Icons.ShieldCheck size={12} /> On-chain
+                              <span className="od-onchain">
+                                <Icons.ShieldCheck size={11} /> On-chain
                               </span>
                             )}
+                          </p>
+                          <p className="od-event-meta">{ev.meta}</p>
+                          <div className="od-bar-wrap">
+                            <div className="od-bar" style={{ width: `${ev.progress}%`, background: ev.progressColor }} />
                           </div>
-                          <div className="event-meta" style={{ color: '#5F5E5A' }}>{ev.meta}</div>
-
-                          <div className="event-bar-wrap" style={{ background: '#E5E5E5' }}>
-                            <div className="event-bar" style={{ width: `${ev.progress}%`, background: '#1E1E1E' }}></div>
-                          </div>
-                          <div className="event-bar-label" style={{ color: '#5F5E5A' }}>{ev.progressLabel}</div>
-
-                          <div className="event-actions">
+                          <p className="od-bar-label">{ev.progressLabel}</p>
+                          <div className="od-event-actions">
                             {ev.actions.map((action, idx) => (
                               <button
                                 key={idx}
-                                className="btn-sm"
-                                style={{ background: idx === ev.primaryAction ? '#1E1E1E' : '#FFFFFF', color: idx === ev.primaryAction ? '#FFFFFF' : '#1E1E1E', border: idx === ev.primaryAction ? 'none' : '0.5px solid #D3D1C7' }}
-                                onClick={(e) => { e.stopPropagation(); alert(`Acción: ${action}`); }}
+                                className={`od-btn ${idx === ev.primaryAction ? 'od-btn-primary' : ''}`}
+                                onClick={(e) => { e.stopPropagation(); if (action === 'Panel staff') { setActiveSection('checkin'); } else { alert(`Acción: ${action}`); } }}
                               >
                                 {action}
                               </button>
@@ -327,9 +337,9 @@ export default function OrganizerDashboard({
                           </div>
                         </div>
 
-                        <div className="event-right">
-                          <span className={`status-pill ${ev.statusClass}`}>{ev.statusText}</span>
-                          <span className="event-price">{ev.price}</span>
+                        <div className="od-event-right">
+                          <span className={`od-pill ${ev.statusClass}`}>{ev.statusText}</span>
+                          <span className="od-event-price">{ev.price}</span>
                         </div>
                       </div>
                     );
@@ -364,7 +374,7 @@ export default function OrganizerDashboard({
                   <p style={{ margin: 0, fontSize: '28px', fontWeight: 600, color: '#1E1E1E' }}>Mis eventos</p>
                   <p style={{ margin: '6px 0 0', fontSize: '15px', color: '#5F5E5A' }}>Gestiona y administra todos tus eventos creados</p>
                 </div>
-                <button onClick={() => setActiveSection('crear_evento')} style={{ background: '#1E1E1E', color: '#FFFFFF', fontSize: '14px', fontWeight: 600, padding: '12px 20px', borderRadius: '12px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: 'transform 0.2s', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)' }}>
+                <button onClick={() => setActiveSection('crear_evento')} style={{ background: '#14F195', color: '#1E1E1E', fontSize: '14px', fontWeight: 600, padding: '12px 20px', borderRadius: '12px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: 'transform 0.2s', boxShadow: '0 4px 12px rgba(20, 241, 149, 0.2)' }}>
                   <Icons.Plus size={18} strokeWidth={2.5} /> Crear evento
                 </button>
               </div>
@@ -377,54 +387,57 @@ export default function OrganizerDashboard({
                 </div>
               </div>
               
-              <div className="event-list" id="event-list">
+              <div className="od-event-list" id="event-list">
                 {loadingEvents && (
-                  <div style={{ textAlign: 'center', padding: '12px', fontSize: '12px', color: '#AFA9EC' }}>
+                  <div style={{ textAlign: 'center', padding: '12px', fontSize: '12px', color: '#5F5E5A' }}>
                     ⛓️ Consultando eventos en la blockchain de Solana...
                   </div>
                 )}
 
                 {createdEvents.length === 0 ? (
-                  <div className="empty-state" style={{ textAlign: 'center', padding: '40px 20px', background: '#F7F8F7', borderRadius: '16px', border: 'none' }}>
-                    <Icons.PlusCircle size={40} color="#14F195" style={{ marginBottom: '16px' }} />
-                    <div style={{ fontSize: '16px', marginBottom: '8px', fontWeight: 500, color: '#1E1E1E' }}>Aún no has creado ningún evento</div>
-                    <div style={{ fontSize: '14px', color: '#5F5E5A' }}>Presiona "Crear evento" para lanzar tu primera colección NFT en Solana</div>
+                  <div className="od-empty">
+                    <Icons.PlusCircle size={40} color="#4BAA46" style={{ marginBottom: '16px' }} />
+                    <p className="od-empty-title">Aún no has creado ningún evento</p>
+                    <p className="od-empty-sub">Presiona "Crear evento" para lanzar tu primera colección NFT en Solana</p>
                   </div>
                 ) : filteredEvents.length === 0 ? (
-                  <div className="empty-state" style={{ background: '#F7F8F7', borderRadius: '16px', border: 'none', color: '#5F5E5A' }}>No hay eventos en esta categoría.</div>
+                  <div className="od-empty">
+                    <p className="od-empty-sub">No hay eventos en esta categoría.</p>
+                  </div>
                 ) : (
                   filteredEvents.map(ev => {
                     const EventIcon = (Icons as Record<string, unknown>)[ev.coverText] as typeof Icons.HelpCircle || Icons.HelpCircle;
                     const isVerifiedOnChain = onChainEvents.some(oc => oc.collectionMint === ev.collectionMint);
                     return (
-                      <div className="event-card" key={ev.id} onClick={() => onEventClick(ev.id)} style={{ background: '#F7F8F7', border: 'none' }}>
-                        <div className={`event-cover ${ev.coverClass}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <EventIcon size={24} color="#fff" />
+                      <div className="od-event-card" key={ev.id} onClick={() => onEventClick(ev.id)}>
+                        <div className="od-event-thumb" style={ev.coverImage ? { backgroundImage: `url('${ev.coverImage}')` } : undefined}>
+                          {!ev.coverImage && (
+                            <div className={`od-event-thumb-icon ${ev.coverClass}`}>
+                              <EventIcon size={20} />
+                            </div>
+                          )}
                         </div>
 
-                        <div className="event-info">
-                          <div className="event-name" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#1E1E1E' }}>
+                        <div className="od-event-body">
+                          <p className="od-event-name">
                             {ev.name}
                             {isVerifiedOnChain && (
-                              <span title="Evento verificado en blockchain" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', background: 'rgba(75,170,70,0.15)', color: '#3B6D11', padding: '4px 8px', borderRadius: '12px', fontWeight: 600 }}>
-                                <Icons.ShieldCheck size={12} /> On-chain
+                              <span className="od-onchain">
+                                <Icons.ShieldCheck size={11} /> On-chain
                               </span>
                             )}
+                          </p>
+                          <p className="od-event-meta">{ev.meta}</p>
+                          <div className="od-bar-wrap">
+                            <div className="od-bar" style={{ width: `${ev.progress}%`, background: ev.progressColor }} />
                           </div>
-                          <div className="event-meta" style={{ color: '#5F5E5A' }}>{ev.meta}</div>
-
-                          <div className="event-bar-wrap" style={{ background: '#E5E5E5' }}>
-                            <div className="event-bar" style={{ width: `${ev.progress}%`, background: '#1E1E1E' }}></div>
-                          </div>
-                          <div className="event-bar-label" style={{ color: '#5F5E5A' }}>{ev.progressLabel}</div>
-
-                          <div className="event-actions">
+                          <p className="od-bar-label">{ev.progressLabel}</p>
+                          <div className="od-event-actions">
                             {ev.actions.map((action, idx) => (
                               <button
                                 key={idx}
-                                className="btn-sm"
-                                style={{ background: idx === ev.primaryAction ? '#1E1E1E' : '#FFFFFF', color: idx === ev.primaryAction ? '#FFFFFF' : '#1E1E1E', border: idx === ev.primaryAction ? 'none' : '0.5px solid #D3D1C7' }}
-                                onClick={(e) => { e.stopPropagation(); alert(`Acción: ${action}`); }}
+                                className={`od-btn ${idx === ev.primaryAction ? 'od-btn-primary' : ''}`}
+                                onClick={(e) => { e.stopPropagation(); if (action === 'Panel staff') { setActiveSection('checkin'); } else { alert(`Acción: ${action}`); } }}
                               >
                                 {action}
                               </button>
@@ -432,9 +445,9 @@ export default function OrganizerDashboard({
                           </div>
                         </div>
 
-                        <div className="event-right">
-                          <span className={`status-pill ${ev.statusClass}`}>{ev.statusText}</span>
-                          <span className="event-price">{ev.price}</span>
+                        <div className="od-event-right">
+                          <span className={`od-pill ${ev.statusClass}`}>{ev.statusText}</span>
+                          <span className="od-event-price">{ev.price}</span>
                         </div>
                       </div>
                     );
@@ -445,6 +458,13 @@ export default function OrganizerDashboard({
           ) : activeSection === 'crear_evento' ? (
             <div style={{ margin: '-32px -40px', height: 'calc(100vh - 64px)', overflow: 'auto' }}>
               <CreateEvent onBack={() => setActiveSection('eventos')} onSuccess={(ev) => { setActiveSection('eventos'); window.location.reload(); }} />
+            </div>
+          ) : activeSection === 'checkin' ? (
+            <div style={{ margin: '-32px -40px', height: 'calc(100vh - 64px)', overflow: 'auto', background: '#F7F8F7' }}>
+              <CheckInStaff 
+                events={createdEvents} 
+                onGoToScanner={(token) => window.open(`/staff-scanner/${token}`, '_blank')} 
+              />
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#A1A1AA' }}>

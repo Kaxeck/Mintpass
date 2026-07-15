@@ -1,0 +1,191 @@
+/* ======= ORGANIZER DASHBOARD — LIGHT MODE (DESIGN.md compliant) ======= */
+/* Paleta: --mint-primary #4BAA46, --carbon #1E1E1E, --white #FFFFFF */
+/* 60% blanco/gris claro, 30% verde+carbón, 10% solana-accent+morado */
+
+/* ===== Event List Cards ===== */
+.od-event-list { display: flex; flex-direction: column; gap: 10px; }
+
+.od-event-card {
+  background: #FFFFFF;
+  border: 1px solid #D3D1C7;
+  border-radius: 16px;
+  padding: 0;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.2s;
+  display: flex;
+  overflow: hidden;
+}
+.od-event-card:hover {
+  border-color: #B4B2A9;
+  box-shadow: 0 4px 16px rgba(30, 30, 30, 0.06);
+}
+
+/* Thumbnail — imagen o icono */
+.od-event-thumb {
+  width: 120px;
+  flex-shrink: 0;
+  background-color: #F1EFE8;
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.od-event-thumb-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.od-thumb-purple { background: rgba(83,74,183,0.15); color: #534AB7; }
+.od-thumb-teal   { background: rgba(75,170,70,0.15); color: #4BAA46; }
+.od-thumb-coral  { background: rgba(216,90,48,0.15); color: #D85A30; }
+
+/* Body (center) */
+.od-event-body {
+  flex: 1;
+  padding: 16px 18px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+.od-event-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1E1E1E;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.od-event-meta {
+  font-size: 12px;
+  color: #5F5E5A;
+  margin: 0 0 8px;
+}
+.od-bar-wrap {
+  height: 4px;
+  background: #E8E6E0;
+  border-radius: 2px;
+  margin-bottom: 4px;
+  overflow: hidden;
+}
+.od-bar {
+  height: 4px;
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+.od-bar-label {
+  font-size: 11px;
+  color: #8A887F;
+  margin: 0 0 6px;
+}
+
+/* Actions row */
+.od-event-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.od-btn {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 5px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1px solid #D3D1C7;
+  background: #FFFFFF;
+  color: #1E1E1E;
+}
+.od-btn:hover {
+  background: #F7F8F7;
+  border-color: #B4B2A9;
+}
+.od-btn-primary {
+  background: #14F195;
+  color: #1E1E1E;
+  border: 1px solid #14F195;
+  font-weight: 600;
+}
+.od-btn-primary:hover {
+  background: #0DD882;
+}
+
+/* Right column (status + price) */
+.od-event-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 18px 16px 0;
+  flex-shrink: 0;
+}
+.od-event-price {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1E1E1E;
+}
+
+/* Status pills — light mode per DESIGN.md */
+.od-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.od-pill-active {
+  background: #EAF3DE;
+  color: #27500A;
+}
+.od-pill-soon {
+  background: #EEEDFE;
+  color: #3C3489;
+}
+.od-pill-past {
+  background: #F1EFE8;
+  color: #8A887F;
+}
+
+/* On-chain badge */
+.od-onchain {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  background: #EAF3DE;
+  color: #27500A;
+  padding: 3px 8px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+/* ===== Empty state ===== */
+.od-empty {
+  text-align: center;
+  padding: 48px 20px;
+  background: #F7F8F7;
+  border-radius: 16px;
+}
+.od-empty-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #1E1E1E;
+  margin: 0 0 6px;
+}
+.od-empty-sub {
+  font-size: 14px;
+  color: #5F5E5A;
+  margin: 0;
+}

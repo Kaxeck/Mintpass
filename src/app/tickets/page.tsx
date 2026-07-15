@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-const TicketsList = dynamic(() => import("@/views/TicketsList"), { ssr: false });
+const TicketsList = dynamic(() => import("@/features/buyer/TicketsList"), { ssr: false });
 import { useMintpassStore } from "@/store";
 import { EVENTS } from "@/data/events";
 import { useWalletSession } from "@solana/react-hooks";
@@ -32,6 +32,10 @@ export default function TicketsListPage() {
        allEvents={allEvents} 
        onBack={() => router.push('/')} 
        onTicketClick={(mint) => {
+          if (mint === 'mock1' || mint === 'mock2') {
+            router.push(`/ticket/${mint}`);
+            return;
+          }
           const t = ownedTickets.find(x => x.mint === mint);
           if (t) {
             router.push(`/ticket/${mint}?eventId=${t.eventId}`);

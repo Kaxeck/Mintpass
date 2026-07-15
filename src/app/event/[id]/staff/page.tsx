@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-const StaffPanel = dynamic(() => import("@/views/StaffPanel"), { ssr: false });
+const StaffPanel = dynamic(() => import("@/features/organizer/StaffPanel"), { ssr: false });
 import { useMintpassStore } from "@/store";
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";

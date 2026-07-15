@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-const CreateEvent = dynamic(() => import("@/views/CreateEvent"), { ssr: false });
+const CreateEvent = dynamic(() => import("@/features/organizer/CreateEvent"), { ssr: false });
 import { useMintpassStore } from "@/store";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";

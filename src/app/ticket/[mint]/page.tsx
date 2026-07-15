@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-const MyTicket = dynamic(() => import("@/views/MyTicket"), { ssr: false });
+const MyTicket = dynamic(() => import("@/features/buyer/MyTicket"), { ssr: false });
 import { useMintpassStore } from "@/store";
 import { EVENTS } from "@/data/events";
 import { useRouter, useParams, useSearchParams } from "next/navigation";

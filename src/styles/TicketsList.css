@@ -1,0 +1,37 @@
+/* ======= V3 MIS BOLETOS ======= */
+.mb-header { border-bottom: 1px solid #EAEAEA; padding-bottom: 16px; margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+.mb-title { font-size: 32px; color: #1E1E1E; font-weight: 600; letter-spacing: -0.02em; }
+
+.mb-tabs { display: flex; gap: 6px; }
+.mb-tab { font-size: 12px; padding: 7px 16px; border-radius: 20px; cursor: pointer; font-weight: 500; transition: all 0.2s; background: #FFFFFF; color: #5F5E5A; border: 0.5px solid #D3D1C7; }
+.mb-tab.active { background: #1E1E1E; color: #FFFFFF; border: 1px solid #1E1E1E; }
+
+.mb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+
+.mb-card { border: 0.5px solid #D3D1C7; border-radius: 14px; overflow: hidden; cursor: pointer; transition: transform 0.2s; background-color: #FFFFFF; }
+.mb-card:hover { transform: translateY(-2px); }
+.mb-card.resale { border: 1px solid #9945FF; }
+.mb-card.past { opacity: 0.6; }
+
+.mb-cover { height: 100px; background-size: cover; background-position: center; position: relative; }
+.mb-cover::before { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); }
+.mb-cover.past { filter: grayscale(100%); }
+
+.mb-badge { position: absolute; top: 10px; right: 10px; font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 10px; }
+.mb-badge.active { background: #14F195; color: #1E1E1E; }
+.mb-badge.resale { background: #EEEDFE; color: #3C3489; }
+.mb-badge.past { background: #F7F8F7; color: #5F5E5A; }
+
+.mb-name { position: absolute; bottom: 8px; left: 14px; margin: 0; color: #FFFFFF; font-size: 15px; font-weight: 600; z-index: 10; }
+
+.mb-body { padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; }
+.mb-date { margin: 0; font-size: 12px; color: #5F5E5A; font-weight: 500; }
+.mb-meta { margin: 2px 0 0; font-size: 11px; color: #5F5E5A; }
+
+.mb-icon-box { width: 40px; height: 40px; background: #F7F8F7; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #1E1E1E; }
+.mb-link { font-size: 12px; color: #3C3489; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+
+.mb-add-card { border: 1px dashed #D3D1C7; border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; min-height: 158px; cursor: pointer; background-color: #F7F8F7; transition: background 0.2s; }
+.mb-add-card:hover { background-color: #EEEDFE; }
+.mb-add-icon { font-size: 24px; color: #3C3489; margin: 0 0 8px; display: flex; align-items: center; justify-content: center; }
+.mb-add-text { margin: 0; font-size: 13px; color: #5F5E5A; font-weight: 500; }

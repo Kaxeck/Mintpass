@@ -1,0 +1,70 @@
+/* ======= V3 MI TICKET ======= */
+.mt-container { max-width: 900px; margin: 0 auto; padding: 20px 16px 80px; font-family: var(--font-sans); }
+.mt-breadcrumbs { font-size: 11px; color: #5F5E5A; margin-bottom: 22px; cursor: pointer; }
+.mt-breadcrumbs:hover { text-decoration: underline; }
+
+.mt-card { background: #FFFFFF; border-radius: 16px; border: 0.5px solid #D3D1C7; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.03); }
+.mt-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; border-bottom: 0.5px solid #D3D1C7; }
+.mt-logo { font-size: 15px; font-weight: 500; color: #1E1E1E; }
+.mt-logo span { color: #4BAA46; }
+
+.mt-nav { display: flex; gap: 22px; align-items: center; font-size: 12px; color: #5F5E5A; }
+.mt-nav span { cursor: pointer; }
+.mt-nav span.active { color: #1E1E1E; font-weight: 600; }
+.mt-avatar { width: 28px; height: 28px; border-radius: 50%; background: #D3D1C7; }
+
+.mt-content { display: flex; gap: 26px; padding: 16px 24px 26px; flex-wrap: wrap; }
+
+.mt-hero { flex: 1; min-width: 300px; display: flex; flex-direction: column; align-items: center; background: #1E1E1E; border-radius: 16px; padding: 28px; position: relative; text-align: center; }
+.mt-badge-status { background: #EAF3DE; color: #27500A; font-size: 10px; font-weight: 600; padding: 4px 12px; border-radius: 12px; margin-bottom: 16px; text-transform: uppercase; }
+.mt-badge-status.resale { background: #EEEDFE; color: #3C3489; }
+.mt-badge-status.used { background: #F7F8F7; color: #5F5E5A; }
+.mt-badge-status.poap { background: #FEF3C7; color: #92400E; }
+
+.mt-qr-ring { width: 180px; height: 180px; border-radius: 50%; border: 4px solid #14F195; display: flex; align-items: center; justify-content: center; margin-bottom: 14px; position: relative; transition: border-color 0.3s; }
+.mt-qr-ring.used { border-color: #5DCAA5; }
+.mt-qr-ring.resale { border-color: #9945FF; }
+.mt-qr-ring.poap { border-color: #F59E0B; }
+
+.mt-qr-box { width: 140px; height: 140px; background: #FFFFFF; border-radius: 14px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; padding: 10px; }
+.mt-timer { margin: 0 0 4px; font-size: 12px; color: #B4B2A9; }
+.mt-timer span { color: #FFFFFF; font-weight: 600; }
+.mt-warning { margin: 0; font-size: 11px; color: #8A8880; text-align: center; }
+
+.mt-details { flex: 1.1; min-width: 300px; }
+.mt-title { margin: 0 0 4px; font-size: 22px; font-weight: 600; color: #1E1E1E; letter-spacing: -0.01em; }
+.mt-subtitle { margin: 0 0 18px; font-size: 12px; color: #5F5E5A; }
+
+.mt-info-grid { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+.mt-info-box { flex: 1; min-width: 80px; background: #F7F8F7; border-radius: 10px; padding: 12px; }
+.mt-info-label { margin: 0; font-size: 10px; color: #5F5E5A; }
+.mt-info-value { margin: 4px 0 0; font-size: 13px; font-weight: 600; color: #1E1E1E; }
+
+.mt-verify { background: #EEEDFE; border-radius: 12px; padding: 14px; display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.mt-verify-icon { width: 32px; height: 32px; border-radius: 50%; background: #FFFFFF; display: flex; align-items: center; justify-content: center; color: #3C3489; flex-shrink: 0; box-shadow: 0 2px 8px rgba(60, 52, 137, 0.1); font-size: 14px; }
+.mt-verify p { margin: 0; }
+.mt-verify-title { font-size: 13px; font-weight: 600; color: #26215C; }
+.mt-verify-link { font-size: 11px; color: #534AB7; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+.mt-verify-link:hover { text-decoration: underline; }
+
+.mt-actions-row { display: flex; gap: 10px; margin-bottom: 18px; }
+.mt-btn { flex: 1; text-align: center; padding: 12px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; border: none; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.mt-btn-primary { background: #14F195; color: #1E1E1E; }
+.mt-btn-primary:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(20, 241, 149, 0.2); }
+.mt-btn-secondary { background: #FFFFFF; border: 1px solid #D3D1C7; color: #1E1E1E; }
+.mt-btn-secondary:hover { background: #F7F8F7; }
+
+.mt-btn-outline { width: 100%; border: 1px solid #D3D1C7; color: #1E1E1E; background: #FFFFFF; text-align: center; padding: 12px; border-radius: 10px; font-size: 13px; font-weight: 600; margin-bottom: 18px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.mt-btn-outline:hover:not(:disabled) { background: #F7F8F7; }
+.mt-btn-outline:disabled { color: #B4B2A9; background: #F7F8F7; cursor: not-allowed; border-color: #EAEAEA; }
+
+.mt-soulbound-warn { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; color: #9D2449; background: #FDE8F3; border-radius: 10px; padding: 12px; margin-bottom: 18px; font-weight: 600; }
+
+.mt-footer { border-top: 0.5px solid #D3D1C7; padding-top: 14px; display: flex; align-items: center; gap: 10px; }
+.mt-footer-avatar { width: 32px; height: 32px; border-radius: 50%; background: #D3D1C7; display: flex; align-items: center; justify-content: center; color: #5F5E5A; }
+.mt-footer p { margin: 0; }
+.mt-footer-name { font-size: 12px; font-weight: 600; color: #1E1E1E; }
+.mt-footer-rep { margin-top: 2px; font-size: 11px; color: #5F5E5A; display: flex; align-items: center; gap: 4px; }
+
+.mt-flash { position: absolute; inset: 0; background: #FFFFFF; opacity: 0; transition: opacity 0.2s; pointer-events: none; border-radius: 14px; }
+.mt-flash.show { opacity: 0.8; }

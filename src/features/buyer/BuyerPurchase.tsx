@@ -1,16 +1,17 @@
 'use client';
 import { useState, useEffect } from "react";
 import * as Icons from "lucide-react";
-import { EventModel } from '../types';
-import { useUmi } from "../providers";
-import { mintTicket, getOrganizerReputation } from "../lib/metaplex";
+import { EventModel } from '../../types';
+import { useUmi } from "../../providers";
+import { mintTicket, getOrganizerReputation } from "../../lib/metaplex";
 import { useWalletSession, useSolanaClient } from "@solana/react-hooks";
 import { type Address } from "@solana/kit";
-import WalletButton from "../components/WalletButton";
-import AlertModal, { AlertModalProps } from "../components/AlertModal";
-import { LandingNavBar } from "../components/LandingNavBar";
-import { LandingFooter } from "../components/LandingFooter";
-import "../Home.css";
+import WalletButton from "../../components/WalletButton";
+import AlertModal, { AlertModalProps } from "../../components/AlertModal";
+import { LandingNavBar } from "../../components/LandingNavBar";
+import { LandingFooter } from "../../components/LandingFooter";
+import "../../Home.css";
+import "../../styles/BuyerPurchase.css";
 
 export default function BuyerPurchase({
   event,
@@ -160,58 +161,94 @@ export default function BuyerPurchase({
         <main className="lp-content">
           <LandingNavBar onGoToExplore={onBack} onGoToMyTickets={onGoToMyTicket} />
           
-          <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '32px 16px 80px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', fontSize: '12px', color: '#5F5E5A' }}>
-              <span onClick={onBack} style={{ cursor: 'pointer', color: '#5F5E5A', textDecoration: 'underline' }}>Explorar</span> &nbsp;/&nbsp; <span style={{ color: '#1E1E1E' }}>{event.name}</span>
+          <div className="bp-layout">
+            <div style={{ marginBottom: '24px' }}>
+              <button 
+                onClick={onBack}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'transparent', border: 'none', color: '#5F5E5A', fontSize: '13px', fontWeight: 500, cursor: 'pointer', padding: 0 }}
+                onMouseOver={e => e.currentTarget.style.color = '#1E1E1E'} 
+                onMouseOut={e => e.currentTarget.style.color = '#5F5E5A'}
+              >
+                <Icons.ArrowLeft size={16} /> Volver a Explorar
+              </button>
             </div>
-            <p style={{ margin: '0 0 4px', fontSize: '24px', fontWeight: 600, color: '#1E1E1E' }}>{event.name}</p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px', flexWrap: 'wrap' }}>
-              <span style={{ background: '#EAF3DE', color: '#27500A', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <p className="bp-title">{event.name}</p>
+            <div className="bp-meta-tags">
+              <span className="bp-tag-green">
                 <Icons.ShieldCheck size={12} /> Verificado en Solana
               </span>
-              <span style={{ fontSize: '13px', color: '#5F5E5A', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span className="bp-tag-gray">
                 <Icons.CalendarDays size={14} /> {event.date} &nbsp;·&nbsp; {event.venue}
               </span>
             </div>
 
-            <div style={{ display: 'flex', gap: '32px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <div className="bp-grid">
               
               {/* LEFT COLUMN */}
-              <div style={{ flex: '1 1 500px' }}>
-                <div style={{ display: 'flex', gap: '6px', marginBottom: '24px' }}>
-                  <div style={{ flex: 2, height: '280px', background: event.bg, borderRadius: '16px 0 0 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+              <div className="bp-left-col">
+                <div className="bp-images">
+                  <div className="bp-img-main" style={{ background: event.bg }}>
                     <div style={{ position: 'absolute', inset: 0, backgroundImage: 'url("https://images.unsplash.com/photo-1541532713592-79a0317b6b77?q=80&w=800&auto=format&fit=crop")', backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.8, mixBlendMode: 'overlay' }}></div>
                     <EventIcon size={64} color="#ffffff" style={{ position: 'relative', zIndex: 10, opacity: 0.9 }} />
                   </div>
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ flex: 1, background: '#2C2C2A', borderRadius: '0 16px 0 0', backgroundImage: 'url("https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?q=80&w=400&auto=format&fit=crop")', backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.9 }}></div>
-                    <div style={{ flex: 1, background: '#3A3A38', borderRadius: '0 0 16px 0', backgroundImage: 'url("https://images.unsplash.com/photo-1470229722913-7c092bce42f1?q=80&w=400&auto=format&fit=crop")', backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.9 }}></div>
+                  <div className="bp-img-col">
+                    <div className="bp-img-sub" style={{ background: '#2C2C2A', borderRadius: '0 16px 0 0', backgroundImage: 'url("https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?q=80&w=400&auto=format&fit=crop")' }}></div>
+                    <div className="bp-img-sub" style={{ background: '#3A3A38', borderRadius: '0 0 16px 0', backgroundImage: 'url("https://images.unsplash.com/photo-1470229722913-7c092bce42f1?q=80&w=400&auto=format&fit=crop")' }}></div>
                   </div>
                 </div>
 
-                <p style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: 600, color: '#1E1E1E' }}>Sobre el evento</p>
-                <p style={{ margin: '0 0 24px', fontSize: '14px', color: '#5F5E5A', lineHeight: 1.6, maxWidth: '520px' }}>
+                <p className="bp-h3">Sobre el evento</p>
+                <p className="bp-p">
                   Asegura tu entrada oficial. Este evento utiliza la infraestructura de Mintpass sobre Solana para garantizar boletos verificables, previniendo la reventa no autorizada y ofreciendo una experiencia rápida y segura.
                 </p>
 
-                <p style={{ margin: '0 0 12px', fontSize: '16px', fontWeight: 600, color: '#1E1E1E' }}>Ubicación</p>
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '32px' }}>
-                  <div style={{ width: '80px', height: '80px', background: '#F7F8F7', borderRadius: '12px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <p className="bp-h3">Ubicación</p>
+                <div className="bp-info-row">
+                  <div className="bp-info-icon">
                     <Icons.MapPin size={24} color="#D3D1C7" />
                   </div>
                   <div>
-                    <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#1E1E1E' }}>{event.venue}</p>
-                    <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#5F5E5A' }}>📍 Dirección del venue no especificada.</p>
+                    <p className="bp-info-title">{event.venue}</p>
+                    <p className="bp-info-sub">📍 Dirección del venue no especificada.</p>
                   </div>
                 </div>
 
-                <div style={{ background: '#F7F8F7', borderRadius: '12px', padding: '16px', display: 'flex', alignItems: 'center', gap: '12px', maxWidth: '400px' }}>
-                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#D3D1C7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <p className="bp-h3">Detalles Adicionales</p>
+                <div className="bp-info-row" style={{ marginBottom: '12px' }}>
+                  <div className="bp-info-icon">
+                    <Icons.Clock size={20} color="#D3D1C7" />
+                  </div>
+                  <div>
+                    <p className="bp-info-title">Apertura de puertas</p>
+                    <p className="bp-info-sub">Las puertas abren 2 horas antes del evento.</p>
+                  </div>
+                </div>
+                <div className="bp-info-row">
+                  <div className="bp-info-icon">
+                    <Icons.UserCheck size={20} color="#D3D1C7" />
+                  </div>
+                  <div>
+                    <p className="bp-info-title">Clasificación</p>
+                    <p className="bp-info-sub">Todas las edades</p>
+                  </div>
+                </div>
+                <div className="bp-info-row" style={{ marginTop: '12px' }}>
+                  <div className="bp-info-icon">
+                    <Icons.PhoneCall size={20} color="#D3D1C7" />
+                  </div>
+                  <div>
+                    <p className="bp-info-title">Contacto de Soporte</p>
+                    <p className="bp-info-sub">ayuda@mintpass.app</p>
+                  </div>
+                </div>
+
+                <div className="bp-org-card">
+                  <div className="bp-org-avatar">
                     <Icons.User size={20} color="#FFFFFF" />
                   </div>
                   <div>
-                    <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#1E1E1E' }}>Organizador</p>
-                    <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#5F5E5A' }}>
+                    <p className="bp-info-title">Organizador</p>
+                    <p className="bp-info-sub" style={{ margin: '2px 0 0', fontSize: '12px' }}>
                       {reputationLabel()}
                     </p>
                   </div>
@@ -219,93 +256,80 @@ export default function BuyerPurchase({
               </div>
 
               {/* RIGHT COLUMN (Sticky Purchase Card) */}
-              <div style={{ flex: '1 1 340px', position: 'sticky', top: '100px' }}>
+              <div className="bp-right-col">
                 {screen === 'buy' ? (
-                  <div style={{ border: '1px solid #D3D1C7', borderRadius: '16px', padding: '24px', boxShadow: '0 10px 40px rgba(0,0,0,0.06)', background: '#FFFFFF' }}>
-                    <p style={{ margin: '0 0 16px', fontSize: '18px', fontWeight: 600, color: '#1E1E1E' }}>Elige tus boletos</p>
+                  <div className="bp-card bp-card-pad">
+                    <p className="bp-h3" style={{ fontSize: '18px', marginBottom: '16px' }}>Elige tus boletos</p>
                     
-                    <div style={{ background: '#2C2C2A', color: '#B4B2A9', textAlign: 'center', fontSize: '10px', padding: '6px', borderRadius: '6px', marginBottom: '12px', fontWeight: 600, letterSpacing: '0.05em' }}>ESCENARIO</div>
+                    <div className="bp-stage-label">ESCENARIO</div>
 
                     {/* Mock Zone VIP */}
-                    <div style={{ border: '1px solid #D3D1C7', borderRadius: '12px', padding: '14px 16px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.5 }}>
+                    <div className="bp-zone-item disabled">
                       <div>
-                        <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#1E1E1E' }}>VIP</p>
-                        <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#E24B4A' }}>Agotado</p>
+                        <p className="bp-zone-title">VIP</p>
+                        <p className="bp-zone-sub" style={{ color: '#E24B4A' }}>Agotado</p>
                       </div>
-                      <p style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#1E1E1E' }}>$1,200</p>
+                      <p className="bp-zone-price">$1,200</p>
                     </div>
 
                     {/* Mock Zone Preferente */}
-                    <div style={{ border: '1px solid #D3D1C7', borderRadius: '12px', padding: '14px 16px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.5 }}>
+                    <div className="bp-zone-item disabled">
                       <div>
-                        <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#1E1E1E' }}>Preferente</p>
-                        <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#E24B4A' }}>Agotado</p>
+                        <p className="bp-zone-title">Preferente</p>
+                        <p className="bp-zone-sub" style={{ color: '#E24B4A' }}>Agotado</p>
                       </div>
-                      <p style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#1E1E1E' }}>$850</p>
+                      <p className="bp-zone-price">$850</p>
                     </div>
 
                     {/* Real Zone General */}
-                    <div style={{ border: '2px solid #14F195', background: '#F7F8F7', borderRadius: '12px', padding: '14px 16px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div className="bp-zone-item active">
                       <div>
-                        <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#1E1E1E' }}>Acceso General</p>
-                        <p style={{ margin: '4px 0 0', fontSize: '12px', color: available > 0 ? '#27500A' : '#E24B4A' }}>
+                        <p className="bp-zone-title">Acceso General</p>
+                        <p className="bp-zone-sub" style={{ color: available > 0 ? '#27500A' : '#E24B4A' }}>
                           {available > 0 ? `${available} disponibles` : 'Agotado'}
                         </p>
                       </div>
-                      <p style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#1E1E1E' }}>
+                      <p className="bp-zone-price">
                         {event.price === 0 ? 'Gratis' : `${event.price} SOL`}
                       </p>
                     </div>
 
                     {available > 0 && (
-                      <div style={{ background: '#FFFFFF', border: '1px solid #D3D1C7', borderRadius: '12px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                      <div className="bp-qty-box">
                         <div>
                           <p style={{ margin: 0, fontSize: '12px', color: '#5F5E5A' }}>Cantidad</p>
                           <p style={{ margin: '4px 0 0', fontSize: '13px', fontWeight: 600, color: '#1E1E1E' }}>Max. {maxAllowed} por wallet</p>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <button onClick={() => changeQty(-1)} style={{ width: '32px', height: '32px', border: '1px solid #D3D1C7', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', color: '#1E1E1E', cursor: 'pointer', background: '#FFFFFF' }}>−</button>
-                          <span style={{ fontSize: '15px', fontWeight: 600, color: '#1E1E1E', minWidth: '16px', textAlign: 'center' }}>{qty}</span>
-                          <button onClick={() => changeQty(1)} style={{ width: '32px', height: '32px', background: '#1E1E1E', color: '#FFFFFF', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', cursor: 'pointer', border: 'none' }}>+</button>
+                        <div className="bp-qty-actions">
+                          <button onClick={() => changeQty(-1)} className="bp-qty-btn light">−</button>
+                          <span className="bp-qty-val">{qty}</span>
+                          <button onClick={() => changeQty(1)} className="bp-qty-btn dark">+</button>
                         </div>
                       </div>
                     )}
 
                     {event.price > 0 && available > 0 && (
-                      <div style={{ borderTop: '0.5px solid #D3D1C7', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                      <div className="bp-total-row">
                         <span style={{ fontSize: '14px', color: '#5F5E5A', fontWeight: 500 }}>Total ({qty} {qty === 1 ? 'boleto' : 'boletos'})</span>
-                        <span style={{ fontSize: '18px', fontWeight: 600, color: '#1E1E1E' }}>{(qty * event.price).toFixed(3)} SOL</span>
+                        <span style={{ fontSize: '18px', fontWeight: 600, color: '#1E1E1E' }}>{(qty * event.price * 1.05).toFixed(3)} SOL</span>
                       </div>
                     )}
 
                     <button 
                       onClick={() => setScreen('checkout')} 
                       disabled={available <= 0 || maxAllowed <= 0}
-                      style={{ 
-                        width: '100%', 
-                        background: (available <= 0 || maxAllowed <= 0) ? '#D3D1C7' : '#14F195', 
-                        color: '#1E1E1E', 
-                        textAlign: 'center', 
-                        padding: '14px', 
-                        borderRadius: '12px', 
-                        fontSize: '14px', 
-                        fontWeight: 600, 
-                        border: 'none', 
-                        cursor: (available <= 0 || maxAllowed <= 0) ? 'not-allowed' : 'pointer',
-                        transition: 'transform 0.2s',
-                        boxShadow: (available > 0 && maxAllowed > 0) ? '0 4px 12px rgba(20, 241, 149, 0.2)' : 'none'
-                      }}
+                      className="bp-btn-primary"
                     >
                       {maxAllowed <= 0 ? 'LÍMITE ALCANZADO' : available <= 0 ? 'AGOTADO' : 'Continuar'}
                     </button>
                   </div>
                 ) : screen === 'checkout' ? (
-                  <div style={{ border: '1px solid #D3D1C7', borderRadius: '16px', overflow: 'hidden', fontFamily: 'var(--font-sans)', boxShadow: '0 10px 40px rgba(0,0,0,0.08)', background: '#FFFFFF' }}>
-                    <div style={{ padding: '14px 18px', borderBottom: '0.5px solid #D3D1C7', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span onClick={() => setScreen('buy')} style={{ fontSize: '13px', color: '#5F5E5A', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                  <div className="bp-card">
+                    <div className="bp-card-header">
+                      <span className="link" onClick={() => setScreen('buy')}>
                         <Icons.ArrowLeft size={16} style={{ marginRight: '6px' }} /> Confirmar boleto
                       </span>
-                      <span style={{ fontSize: '11px', color: '#5F5E5A', fontWeight: 500 }}>Paso único</span>
+                      <span className="info">Paso único</span>
                     </div>
                     
                     <div style={{ padding: '16px 18px 0' }}>
@@ -320,23 +344,32 @@ export default function BuyerPurchase({
                       </div>
                     </div>
 
-                    <div style={{ margin: '16px 18px', background: '#F7F8F7', borderRadius: '12px', padding: '14px 16px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#1E1E1E', marginBottom: '6px', fontWeight: 500 }}>
+                    <div className="bp-summary-box">
+                      <div className="bp-summary-row" style={{ fontWeight: 500 }}>
                         <span>{qty} boleto{qty > 1 ? 's' : ''} general</span><span>{(qty * event.price).toFixed(3)} SOL</span>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#5F5E5A', marginBottom: '6px' }}>
-                        <span>Servicio (visible, sin sorpresas)</span><span>0.00 SOL</span>
+                      <div className="bp-summary-row" style={{ color: '#5F5E5A' }}>
+                        <span>Servicio (5%)</span><span>{event.price === 0 ? '0.00' : (qty * event.price * 0.05).toFixed(3)} SOL</span>
                       </div>
-                      <div style={{ borderTop: '0.5px solid #D3D1C7', marginTop: '10px', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', fontSize: '15px', fontWeight: 600, color: '#1E1E1E' }}>
-                        <span>Total</span><span>{(qty * event.price).toFixed(3)} SOL</span>
+                      <div className="bp-summary-total">
+                        <span>Total</span><span>{event.price === 0 ? '0.00' : (qty * event.price * 1.05).toFixed(3)} SOL</span>
                       </div>
                     </div>
 
                     <div style={{ margin: '0 18px 12px', fontSize: '12px', color: '#5F5E5A', fontWeight: 500 }}>Método de pago</div>
-                    <div style={{ margin: '0 18px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                      <div onClick={() => setPaymentMethod('tarjeta')} style={{ flex: 1, minWidth: '90px', border: paymentMethod === 'tarjeta' ? '1px solid #1E1E1E' : '1px solid #D3D1C7', borderRadius: '10px', padding: '10px', textAlign: 'center', fontSize: '12px', color: paymentMethod === 'tarjeta' ? '#1E1E1E' : '#5F5E5A', fontWeight: paymentMethod === 'tarjeta' ? 600 : 500, cursor: 'pointer', background: paymentMethod === 'tarjeta' ? '#F7F8F7' : '#FFFFFF', transition: 'all 0.2s' }}>MercadoPago</div>
-                      <div onClick={() => setPaymentMethod('oxxo')} style={{ flex: 1, minWidth: '90px', border: paymentMethod === 'oxxo' ? '1px solid #1E1E1E' : '1px solid #D3D1C7', borderRadius: '10px', padding: '10px', textAlign: 'center', fontSize: '12px', color: paymentMethod === 'oxxo' ? '#1E1E1E' : '#5F5E5A', fontWeight: paymentMethod === 'oxxo' ? 600 : 500, cursor: 'pointer', background: paymentMethod === 'oxxo' ? '#F7F8F7' : '#FFFFFF', transition: 'all 0.2s' }}>Blink</div>
-                      <div onClick={() => setPaymentMethod('wallet')} style={{ flex: 1, minWidth: '90px', border: paymentMethod === 'wallet' ? '1px solid #4BAA46' : '1px solid #D3D1C7', borderRadius: '10px', padding: '10px', textAlign: 'center', fontSize: '12px', color: paymentMethod === 'wallet' ? '#27500A' : '#5F5E5A', fontWeight: paymentMethod === 'wallet' ? 600 : 500, cursor: 'pointer', background: paymentMethod === 'wallet' ? '#EAF3DE' : '#FFFFFF', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                    <div className="bp-wallet-opts">
+                      <div 
+                        onClick={() => setPaymentMethod('tarjeta')} 
+                        className={`bp-wallet-opt ${paymentMethod === 'tarjeta' ? 'selected' : ''}`}
+                      >MercadoPago</div>
+                      <div 
+                        onClick={() => setPaymentMethod('oxxo')} 
+                        className={`bp-wallet-opt ${paymentMethod === 'oxxo' ? 'selected' : ''}`}
+                      >Blink</div>
+                      <div 
+                        onClick={() => setPaymentMethod('wallet')} 
+                        className={`bp-wallet-opt ${paymentMethod === 'wallet' ? 'selected green' : ''}`}
+                      >
                         <Icons.Wallet size={14} /> Wallet
                       </div>
                     </div>
@@ -345,12 +378,12 @@ export default function BuyerPurchase({
                       <button 
                         onClick={() => {
                           if (paymentMethod !== 'wallet') {
-                            showAlert("Método de pago no disponible", "En esta versión demo on-chain, todas las compras de entradas se realizan mediante Wallet con SOL.", "info");
+                            showAlert("Método de pago no disponible", "En esta versión demo on-chain, todas las compras de entradas se realizan mediante Wallet con SOL.", "warning");
                           } else {
                             setScreen('wallet-checkout');
                           }
                         }}
-                        style={{ width: '100%', background: '#14F195', color: '#1E1E1E', textAlign: 'center', padding: '14px', borderRadius: '12px', fontSize: '15px', fontWeight: 600, border: 'none', cursor: 'pointer', boxShadow: '0 4px 12px rgba(20,241,149,0.2)' }}
+                        className="bp-btn-primary"
                       >
                         Confirmar y comprar
                       </button>
@@ -361,12 +394,12 @@ export default function BuyerPurchase({
                     </div>
                   </div>
                 ) : (
-                  <div style={{ border: '1px solid #D3D1C7', borderRadius: '16px', overflow: 'hidden', fontFamily: 'var(--font-sans)', boxShadow: '0 10px 40px rgba(0,0,0,0.08)', background: '#FFFFFF' }}>
-                    <div style={{ padding: '14px 18px', borderBottom: '0.5px solid #D3D1C7', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span onClick={() => setScreen('checkout')} style={{ fontSize: '13px', color: '#5F5E5A', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                  <div className="bp-card">
+                    <div className="bp-card-header">
+                      <span className="link" onClick={() => setScreen('checkout')}>
                         <Icons.ArrowLeft size={16} style={{ marginRight: '6px' }} /> Pagar con wallet
                       </span>
-                      <span style={{ fontSize: '11px', color: '#5F5E5A' }}>Sin pasarela fiat</span>
+                      <span className="info">Sin pasarela fiat</span>
                     </div>
 
                     {!walletConnected && (
@@ -383,23 +416,23 @@ export default function BuyerPurchase({
                       </div>
                     )}
 
-                    <div style={{ margin: '16px 18px', background: '#F7F8F7', borderRadius: '12px', padding: '14px 16px' }}>
+                    <div className="bp-summary-box">
                       <p style={{ margin: '0 0 10px', fontSize: '12px', color: '#5F5E5A' }}>Resumen de la transacción</p>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#1E1E1E', marginBottom: '6px' }}>
+                      <div className="bp-summary-row">
                         <span>Precio del boleto</span><span>{(qty * event.price).toFixed(3)} SOL</span>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#1E1E1E', marginBottom: '6px' }}>
+                      <div className="bp-summary-row">
                         <span>Comisión de red</span><span>0.0001 SOL</span>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#3C3489', marginBottom: '6px' }}>
+                      <div className="bp-summary-row" style={{ color: '#3C3489' }}>
                         <span>Price cap aplicado por el contrato</span><span>✓ dentro del límite</span>
                       </div>
-                      <div style={{ borderTop: '0.5px solid #D3D1C7', marginTop: '8px', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', fontSize: '15px', fontWeight: 500, color: '#1E1E1E' }}>
+                      <div className="bp-summary-total">
                         <span>Total a firmar</span><span>{(qty * event.price + 0.0001).toFixed(4)} SOL</span>
                       </div>
                     </div>
 
-                    <div style={{ margin: '0 18px 12px', background: '#EEEDFE', borderRadius: '12px', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div className="bp-alert-box">
                       <Icons.Lock style={{ fontSize: '20px', color: '#3C3489' }} />
                       <p style={{ margin: 0, fontSize: '11px', color: '#3C3489' }}>El NFT llega ya congelado a tu wallet en la misma transacción</p>
                     </div>
@@ -413,7 +446,7 @@ export default function BuyerPurchase({
                             startPurchase();
                           }
                         }}
-                        style={{ width: '100%', background: '#14F195', color: '#1E1E1E', textAlign: 'center', padding: '14px', borderRadius: '12px', fontSize: '15px', fontWeight: 500, border: 'none', cursor: 'pointer' }}
+                        className="bp-btn-primary"
                       >
                         Firmar y confirmar
                       </button>
@@ -435,38 +468,49 @@ export default function BuyerPurchase({
 
       {/* PROCESSING SCREEN */}
       {screen === 'processing' && (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#F1EFE8] animate-in fade-in duration-500 rounded-[12px]">
-          <div className="relative w-24 h-24 mb-8">
-            <div className="absolute inset-0 border-[4px] border-[#D3D1C7] rounded-full"></div>
-            <div className="absolute inset-0 border-[4px] border-[#1E1E1E] border-t-transparent rounded-full animate-spin"></div>
-            <div className="absolute inset-0 flex items-center justify-center bg-[#FFFFFF] rounded-full m-1 border border-[#D3D1C7] shadow-[0_4px_16px_rgba(0,0,0,0.06)]">
-              <Icons.Loader size={28} className="text-[#1E1E1E] animate-pulse" />
+        <div className="bp-processing animate-in fade-in duration-500">
+          <div style={{ position: 'relative', width: '96px', height: '96px', marginBottom: '32px' }}>
+            <div style={{ position: 'absolute', inset: 0, border: '4px solid #D3D1C7', borderRadius: '50%' }}></div>
+            <div style={{ position: 'absolute', inset: 0, border: '4px solid #1E1E1E', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+            <div style={{ position: 'absolute', inset: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFFFFF', borderRadius: '50%', border: '1px solid #D3D1C7', boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}>
+              <Icons.Loader size={28} color="#1E1E1E" style={{ animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
             </div>
           </div>
 
-          <h2 className="text-[24px] font-semibold text-[#1E1E1E] mb-2 tracking-tight">Autorizando acceso</h2>
-          <p className="text-[14px] text-[#5F5E5A] mb-12">Interactuando de forma segura con la red Solana...</p>
+          <h2>Autorizando acceso</h2>
+          <p className="bp-processing-sub">Interactuando de forma segura con la red Solana...</p>
 
-          <div className="w-full max-w-[340px] flex flex-col gap-3">
+          <div style={{ width: '100%', maxWidth: '340px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {[
               { step: 1, label: 'Verificando Wallet' },
               { step: 2, label: 'Firmando transacción' },
               { step: 3, label: 'Generando activo digital' },
               { step: 4, label: 'Confirmación On-Chain' }
-            ].map((s) => (
-              <div key={s.step} className={`flex items-center gap-4 p-4 rounded-[12px] border transition-all duration-500 ${progressStep === s.step ? 'bg-[#FFFFFF] border-[#1E1E1E] shadow-[0_4px_16px_rgba(0,0,0,0.05)]' : 'bg-[#FFFFFF]/50 border-[#D3D1C7]'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border transition-colors duration-300 ${progressStep > s.step ? 'bg-[#14F195]/20 border-[#14F195] text-[#27500A]' :
-                    progressStep === s.step ? 'bg-[#1E1E1E] border-[#1E1E1E] text-[#FFFFFF]' : 'bg-[#F7F8F7] border-[#D3D1C7] text-[#A1A1AA]'
-                  }`}>
-                  {progressStep > s.step ? <Icons.Check size={14} strokeWidth={3} /> :
-                    progressStep === s.step ? <div className="w-2 h-2 rounded-full bg-[#FFFFFF] animate-pulse"></div> :
-                      <span className="text-[12px] font-bold">{s.step}</span>}
+            ].map((s) => {
+              const status = progressStep > s.step ? 'done' : progressStep === s.step ? 'active' : 'todo';
+              return (
+                <div key={s.step} className="bp-step" style={{ 
+                  background: status === 'todo' ? 'rgba(255,255,255,0.5)' : '#FFFFFF',
+                  borderColor: status === 'active' ? '#1E1E1E' : '#D3D1C7',
+                  borderWidth: '1px',
+                  borderStyle: 'solid'
+                }}>
+                  <div style={{ 
+                    width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    background: status === 'done' ? 'rgba(20,241,149,0.2)' : status === 'active' ? '#1E1E1E' : '#F7F8F7',
+                    border: `1px solid ${status === 'done' ? '#14F195' : status === 'active' ? '#1E1E1E' : '#D3D1C7'}`,
+                    color: status === 'done' ? '#27500A' : status === 'active' ? '#FFFFFF' : '#A1A1AA'
+                  }}>
+                    {status === 'done' ? <Icons.Check size={14} strokeWidth={3} /> :
+                     status === 'active' ? <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#FFFFFF', animation: 'pulse 2s infinite' }}></div> :
+                     <span style={{ fontSize: '12px', fontWeight: 'bold' }}>{s.step}</span>}
+                  </div>
+                  <div style={{ fontSize: '14px', fontWeight: 500, letterSpacing: '0.025em', color: status === 'todo' ? '#5F5E5A' : '#1E1E1E' }}>
+                    {s.label}
+                  </div>
                 </div>
-                <div className={`text-[14px] font-medium tracking-wide ${progressStep >= s.step ? 'text-[#1E1E1E]' : 'text-[#5F5E5A]'}`}>
-                  {s.label}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

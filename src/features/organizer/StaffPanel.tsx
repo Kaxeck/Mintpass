@@ -1,16 +1,12 @@
 'use client';
 import { useState, useEffect } from "react";
 import * as Icons from "lucide-react";
-import PageNav from "../components/PageNav";
-import WalletMultiButton from "../components/WalletButton";
-import { useWalletSession, useSolanaClient } from "@solana/react-hooks";
-import { type Address, address } from "@solana/kit";
-import { processCheckIn } from "../lib/checkin-pda";
+import PageNav from "../../components/PageNav";
 import { CreatedEvent } from "./CreateEvent";
 import { Html5Qrcode } from "html5-qrcode";
 
 
-export default function StaffPanel({ event, stats, onCheckIn, onBack }: { event?: CreatedEvent, stats?: {sold: number, checked: number}, onCheckIn?: () => void, onBack: () => void }) {
+export default function StaffPanel({ event, stats, onCheckIn, onBack, isPwa = false }: { event?: CreatedEvent, stats?: {sold: number, checked: number}, onCheckIn?: () => void, onBack: () => void, isPwa?: boolean }) {
   // Estados principales del escáner
   const [scanning, setScanning] = useState(true);
   const [torchOn, setTorchOn] = useState(false);
@@ -165,21 +161,7 @@ export default function StaffPanel({ event, stats, onCheckIn, onBack }: { event?
     }, 2200);
   };
 
-  // Solana Wallet via @solana/react-hooks
-  const session = useWalletSession();
-  const client = useSolanaClient();
-  const walletAddress: Address | null = session?.account?.address ?? null;
-  const walletConnected = !!walletAddress;
-  const rpcRaw = client?.runtime?.rpc;
-
-  const rpc = rpcRaw ? {
-    async getAccountInfo(addr: Address) {
-      const result = await (rpcRaw.getAccountInfo as any)(addr, { encoding: 'base64' }).send();
-      if (!result.value) return null;
-      const decoded = Buffer.from(result.value.data[0], 'base64');
-      return { data: new Uint8Array(decoded) };
-    }
-  } : null;
+  const [isRelaying, setIsRelaying] = useState(false);
   // Eliminado manualMint, ahora 100% lectura por cámara real
 
   // Interceptar la salida para dar tiempo a la liberación de cámara
@@ -189,14 +171,9 @@ export default function StaffPanel({ event, stats, onCheckIn, onBack }: { event?
   };
 
   const verifyTicket = async (mintToVerify: string) => {
-    setScanning(false); // Detener cámara inmediatamente para evitar lecturas dobles
+    setScanning(false); 
+    setIsRelaying(true);
     
-    if (!walletConnected) {
-      alert("⚠️ El staff debe conectar su wallet superior para firmar los accesos en la blockchain.");
-      setTimeout(() => setScanning(true), 1500); // Reactivar cámara poco después
-      return;
-    }
-
     // Extraemos el mint si viene dentro de nuestro JSON cryptoPayload
     let targetMint = mintToVerify;
     try {
@@ -204,23 +181,16 @@ export default function StaffPanel({ event, stats, onCheckIn, onBack }: { event?
       if (parsed.mint) targetMint = parsed.mint;
     } catch(e) { }
     
-    try {
-      // 1. Conexión real enviando la transacción PDA de registro
-      if (!rpc || !walletAddress) {
-        alert("⚠️ No se pudo conectar con la blockchain.");
-        return;
-      }
-      const res = await processCheckIn(rpc, walletAddress, targetMint);
+    // Simulación del backend (Relayer)
+    setTimeout(() => {
+      setIsRelaying(false);
       
-      // 2. Mostrar la respuesta UI injectando el ID real detectado
-      if (res.status === 'valid') simulate('valid', targetMint);
-      else if (res.status === 'invalid') simulate('invalid', targetMint);
-      else simulate('duplicate', targetMint);
-      
-    } catch (e: any) {
-      alert("Falló la conexión de lectura con Solana Devnet: " + e.message);
-      setScanning(true);
-    }
+      // Simulamos la respuesta (aleatoria para el demo: 80% éxito, 10% inválido, 10% duplicado)
+      const rand = Math.random();
+      if (rand > 0.2) simulate('valid', targetMint);
+      else if (rand > 0.1) simulate('duplicate', targetMint);
+      else simulate('invalid', targetMint);
+    }, 800);
   };
 
   return (
@@ -248,18 +218,34 @@ export default function StaffPanel({ event, stats, onCheckIn, onBack }: { event?
         }
       `}</style>
       {/* ======= NAVBAR OSCURO PARA STAFF ======= */}
-      <PageNav 
-        onBack={handleBack} 
-        title="Panel de staff" 
-        rightElement={<WalletMultiButton className="wallet-chip" style={{ background: '#1a1a2e', color: '#AFA9EC', border: '1px solid #2a2a4a', padding: '4px 10px', fontSize: '11px', height: 'auto', lineHeight: 1 }} />} 
-      />
+      {!isPwa && (
+        <div style={{ position: 'relative', zIndex: 10, background: '#0a0a0f', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+          <PageNav 
+            title="Panel de Staff" 
+            onBack={handleBack} 
+          />
+        </div>
+      )}
+
+      {/* Relayer Loading Indicator */}
+      {isRelaying && (
+        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', zIndex: 50, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#FFF' }}>
+          <Icons.Loader2 size={48} className="spin" style={{ animation: 'spin 1s linear infinite', marginBottom: '16px', color: '#14F195' }} />
+          <p style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Procesando (Relayer)...</p>
+          <p style={{ margin: '8px 0 0', fontSize: '12px', color: '#A0A0A0' }}>Mintpass pagando el gas en Solana</p>
+        </div>
+      )}
 
       {/* ======= CONTENEDOR PRINCIPAL ======= */}
       <div className="staff-panel-main">
         
         {/* Chips de contexto del evento */}
         <div className="event-chip">
-          <div className="chip-icon" style={{ display: 'flex' }}><Icons.Music size={20} color="#534AB7" /></div>
+          {event?.coverImage ? (
+            <div className="chip-icon" style={{ backgroundImage: `url('${event.coverImage}')`, backgroundSize: 'cover', backgroundPosition: 'center', borderRadius: '10px', width: '40px', height: '40px' }} />
+          ) : (
+            <div className="chip-icon" style={{ display: 'flex' }}><Icons.Music size={20} color="#534AB7" /></div>
+          )}
           <div>
             <div className="chip-name">{event ? event.name : "Noche de Jazz — CDMX"}</div>
             <div className="chip-meta">{event ? `${event.date} · ${event.venue}` : "Hoy · 21:00 h · Foro Indie"}</div>

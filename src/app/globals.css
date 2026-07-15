@@ -110,29 +110,6 @@
 .ftab { font-size: 12px; padding: 4px 10px; border-radius: 20px; border: 0.5px solid var(--color-border-tertiary); color: var(--color-text-secondary); cursor: pointer; background: var(--color-background-primary); }
 .ftab.on { background: var(--color-background-secondary); color: var(--color-text-primary); border-color: var(--color-border-secondary); }
 
-/* Tarjetas de Eventos */
-.event-list { display: flex; flex-direction: column; gap: 8px; }
-.event-card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 14px 16px; cursor: pointer; transition: border-color .15s; display: flex; gap: 14px; align-items: flex-start; }
-.event-card:hover { border-color: var(--color-border-primary); }
-
-/* Portadas de Eventos */
-.event-cover { width: 52px; height: 52px; border-radius: var(--border-radius-md); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 22px; }
-.cover-purple { background: rgba(83,74,183,0.15); color: #7F77DD; }
-.cover-teal   { background: rgba(29,158,117,0.15); color: #5DCAA5; }
-.cover-coral  { background: rgba(216,90,48,0.15); color: #F0997B; }
-
-/* Contenido interno del Evento (Listado) */
-.event-info { flex: 1; min-width: 0; }
-.event-name { font-size: 14px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.event-meta { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 8px; }
-.event-bar-wrap { height: 4px; background: var(--color-background-secondary); border-radius: 2px; margin-bottom: 4px; }
-.event-bar { height: 4px; border-radius: 2px; }
-.event-bar-label { font-size: 11px; color: var(--color-text-tertiary); }
-
-/* Botones y estado de Eventos */
-.event-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
-.event-price { font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
-.event-actions { display: flex; gap: 6px; margin-top: 4px; }
 
 /* Botones secundarios */
 .btn-sm { font-size: 11px; padding: 3px 10px; border-radius: 6px; border: 0.5px solid var(--color-border-primary); background: var(--color-background-tertiary); color: var(--color-text-secondary); cursor: pointer; transition: color 0.2s, background 0.2s; }
@@ -141,9 +118,9 @@
 
 /* Etiquetas de Status (Pastillas) */
 .status-pill { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 20px; }
-.s-active  { background: rgba(29,158,117,0.15); border: 0.5px solid rgba(29,158,117,0.3); color: #5DCAA5; }
-.s-soon    { background: rgba(83,74,183,0.15); border: 0.5px solid rgba(83,74,183,0.3); color: #AFA9EC; }
-.s-past    { background: var(--color-background-tertiary); border: 0.5px solid var(--color-border-primary); color: var(--color-text-tertiary); }
+.s-active  { background: #EAF3DE; border: 0.5px solid #C8E6A5; color: #3B6D11; }
+.s-soon    { background: #EEEDFE; border: 0.5px solid #D5D3F5; color: #3C3489; }
+.s-past    { background: #F3F3F3; border: 0.5px solid #E0E0E0; color: #888; }
 
 /* Textos informativos de listas vacías */
 .empty-state { text-align: center; padding: 40px 20px; color: var(--color-text-tertiary); font-size: 13px; }

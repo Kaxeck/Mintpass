@@ -1,7 +1,7 @@
 'use client';
-import { LandingNavBar } from "../components/LandingNavBar";
-import { LandingFooter } from "../components/LandingFooter";
-import '../Home.css';
+import { LandingNavBar } from "../../components/LandingNavBar";
+import { LandingFooter } from "../../components/LandingFooter";
+import '../../Home.css';
 import { usePrivy } from "@privy-io/react-auth";
 import { useWalletSession } from "@solana/react-hooks";
 import { useEffect } from "react";

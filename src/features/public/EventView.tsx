@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { LandingNavBar } from '../components/LandingNavBar';
-import { LandingFooter } from '../components/LandingFooter';
+import { LandingNavBar } from '../../components/LandingNavBar';
+import { LandingFooter } from '../../components/LandingFooter';
 import * as Icons from 'lucide-react';
-import '../Home.css';
+import '../../Home.css';
 
 const LOCAL_EVENTS = [
   { id: 101, name: "Festival Sonora Norte", date: "15 ago · León, Gto", price: "Desde $650 MXN", cat: "Música", uiCat: "Conciertos" },
@@ -49,14 +49,16 @@ export default function EventView({ onBack, onGoToMyTickets, onGoToOrganizer, on
         
         <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '40px 16px 80px' }}>
           {/* Header de la sección */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
+          <div style={{ marginBottom: '32px' }}>
             <button 
               onClick={onBack}
-              style={{ background: '#F7F8F7', border: '0.5px solid #D3D1C7', borderRadius: '50%', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#1E1E1E', fontSize: '20px' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'transparent', border: 'none', color: '#5F5E5A', fontSize: '13px', fontWeight: 500, cursor: 'pointer', padding: 0, marginBottom: '16px' }}
+              onMouseOver={e => e.currentTarget.style.color = '#1E1E1E'} 
+              onMouseOut={e => e.currentTarget.style.color = '#5F5E5A'}
             >
-              <Icons.ArrowLeft size={20} strokeWidth={2.5} />
+              <Icons.ArrowLeft size={16} /> Volver al inicio
             </button>
-            <h1 style={{ fontSize: '28px', fontWeight: 600, color: '#1E1E1E', margin: 0 }}>Explorar Eventos</h1>
+            <h1 style={{ fontSize: '32px', fontWeight: 600, color: '#1E1E1E', margin: 0 }}>Explorar Eventos</h1>
           </div>
 
           {/* Búsqueda */}

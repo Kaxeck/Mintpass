@@ -8,7 +8,7 @@ use anchor_lang::solana_program::pubkey;
 // PROGRAMA: Mintpass Core (Monolito: Eventos, Reputación, Escrow, Tickets)
 // ============================================================================
 
-declare_id!("22222222222222222222222222222222");
+declare_id!("FTZot8vUVk4Ez7FTdakSqnNoEabysQbBW7GuAdr2EwFM");
 
 const MAX_NAME_LEN: usize = 64;
 const MAX_DESC_LEN: usize = 200;
@@ -16,7 +16,7 @@ const MAX_VENUE_LEN: usize = 100;
 const MAX_CATEGORY_LEN: usize = 30;
 
 pub const MINIMUM_FEE_LAMPORTS: u64 = 5_000_000; // 0.005 SOL
-pub const DEPLOYER_KEY: Pubkey = pubkey!("11111111111111111111111111111111"); // TODO: Reemplazar con la llave del admin inicial
+pub const DEPLOYER_KEY: Pubkey = pubkey!("EzkUvxaU38t4kKJdmqnyWnhTHij9UtWp28kqJuha1vfU"); // TODO: Reemplazar con la llave del admin inicial
 
 const SUCCESS_POINTS: u64 = 10;
 const CANCEL_PENALTY: u64 = 20;
@@ -260,12 +260,12 @@ pub mod mintpass_core {
         }
         counter.count = counter.count.checked_add(1).ok_or(CoreError::Overflow)?;
         
-        let zone = &mut event_record.zones[zone_index as usize];
-        let ticket_price = zone.price;
-        
-        require!(zone.tickets_sold < zone.capacity, CoreError::ExceedsCapacity);
+        let ticket_price = event_record.zones[zone_index as usize].price;
+        require!(event_record.zones[zone_index as usize].tickets_sold < event_record.zones[zone_index as usize].capacity, CoreError::ExceedsCapacity);
 
-        let escrow_state = &mut ctx.accounts.escrow_state;
+        let event_key = event_record.key();
+        let escrow_state_info = ctx.accounts.escrow_state.to_account_info();
+
         let receipt = &mut ctx.accounts.ticket_receipt;
 
         receipt.original_buyer = ctx.accounts.buyer.key();
@@ -275,10 +275,10 @@ pub mod mintpass_core {
         receipt.price_paid = ticket_price;
         receipt.status = TicketStatus::Valid;
         receipt.zone_index = zone_index;
-        receipt.event_record = event_record.key();
+        receipt.event_record = event_key;
         receipt.is_checked_in = false;
         receipt.checkin_timestamp = 0;
-        receipt.checkin_staff = Pubkey::default();
+        receipt.checkin_staff_id = String::new();
         receipt.resale_price = 0;
         receipt.resale_count = 0;
 
@@ -317,10 +317,7 @@ pub mod mintpass_core {
                 ticket_price,
             )?;
         }
-        
 
-
-        let event_key = event_record.key();
         let bump = ctx.bumps.escrow_state;
         let signer_seeds: &[&[&[u8]]] = &[&[
             b"escrow_state",
@@ -335,7 +332,7 @@ pub mod mintpass_core {
                 MintTo {
                     mint: ctx.accounts.ticket_mint.to_account_info(),
                     to: ctx.accounts.token_account.to_account_info(),
-                    authority: ctx.accounts.escrow_state.to_account_info(),
+                    authority: escrow_state_info.clone(),
                 },
                 signer_seeds,
             ),
@@ -348,7 +345,7 @@ pub mod mintpass_core {
                 ctx.accounts.token_program.to_account_info(),
                 Approve {
                     to: ctx.accounts.token_account.to_account_info(),
-                    delegate: ctx.accounts.escrow_state.to_account_info(),
+                    delegate: escrow_state_info.clone(),
                     authority: ctx.accounts.buyer.to_account_info(),
                 },
             ),
@@ -361,13 +358,16 @@ pub mod mintpass_core {
                 FreezeAccount {
                     account: ctx.accounts.token_account.to_account_info(),
                     mint: ctx.accounts.ticket_mint.to_account_info(),
-                    authority: ctx.accounts.escrow_state.to_account_info(),
+                    authority: escrow_state_info,
                 },
                 signer_seeds,
             ),
         )?;
 
+        let zone = &mut event_record.zones[zone_index as usize];
         zone.tickets_sold = zone.tickets_sold.checked_add(1).ok_or(CoreError::Overflow)?;
+
+        let escrow_state = &mut ctx.accounts.escrow_state;
         escrow_state.tickets_sold = escrow_state.tickets_sold.checked_add(1).ok_or(CoreError::Overflow)?;
         
         emit!(TicketBought {
@@ -948,7 +948,6 @@ pub struct CreateEvent<'info> {
         ],
         bump,
         seeds::program = Metadata::id(),
-        owner = Metadata::id(),
         constraint = collection_metadata.update_authority == organizer.key() @ CoreError::Unauthorized
     )]
     pub collection_metadata: Account<'info, MetadataAccount>,
@@ -1067,26 +1066,22 @@ pub struct BuyTicket<'info> {
         seeds = [b"receipt", ticket_mint.key().as_ref()],
         bump
     )]
-    pub ticket_receipt: Account<'info, TicketReceipt>,
+    pub ticket_receipt: Box<Account<'info, TicketReceipt>>,
     #[account(seeds = [b"config"], bump)]
     pub protocol_config: Account<'info, ProtocolConfig>,
     /// CHECK: Tesorería de Mintpass
     #[account(mut, constraint = mintpass_treasury.key() == protocol_config.treasury @ CoreError::InvalidTreasury)]
     pub mintpass_treasury: UncheckedAccount<'info>,
-    #[account(
-        seeds = [b"whitelist", escrow_state.organizer.as_ref()],
-        bump
-    )]
     pub whitelist_record: Option<Account<'info, WhitelistRecord>>,
-    #[account(mut, seeds = [b"escrow", event_record.key().as_ref()], bump)]
-    pub escrow_vault: SystemAccount<'info>,
-    #[account(mut, seeds = [b"escrow_state", event_record.key().as_ref()], bump)]
-    pub escrow_state: Account<'info, EscrowState>,
     #[account(
         mut,
         constraint = event_record.key() == escrow_state.event_record @ CoreError::Unauthorized
     )]
-    pub event_record: Account<'info, EventRecord>,
+    pub event_record: Box<Account<'info, EventRecord>>,
+    #[account(mut, seeds = [b"escrow", event_record.key().as_ref()], bump)]
+    pub escrow_vault: SystemAccount<'info>,
+    #[account(mut, seeds = [b"escrow_state", event_record.key().as_ref()], bump)]
+    pub escrow_state: Box<Account<'info, EscrowState>>,
     #[account(
         mut,
         constraint = token_account.owner == buyer.key() @ CoreError::Unauthorized,
@@ -1100,7 +1095,7 @@ pub struct BuyTicket<'info> {
         seeds = [b"counter", event_record.key().as_ref(), buyer.key().as_ref()],
         bump
     )]
-    pub ticket_counter: Account<'info, TicketCounter>,
+    pub ticket_counter: Box<Account<'info, TicketCounter>>,
     #[account(
         seeds = [
             b"metadata",
@@ -1109,10 +1104,9 @@ pub struct BuyTicket<'info> {
         ],
         bump,
         seeds::program = Metadata::id(),
-        owner = Metadata::id(),
         constraint = ticket_metadata.mint == ticket_mint.key() @ CoreError::InvalidMetadata
     )]
-    pub ticket_metadata: Account<'info, MetadataAccount>,
+    pub ticket_metadata: Box<Account<'info, MetadataAccount>>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 }
@@ -1150,22 +1144,18 @@ pub struct ForceRefund<'info> {
     pub token_account: Account<'info, TokenAccount>,
     #[account(mut, constraint = ticket_receipt.event_record == event_record.key() @ CoreError::InvalidTicket)]
     pub ticket_receipt: Account<'info, TicketReceipt>,
-    #[account(mut, seeds = [b"escrow", event_record.key().as_ref()], bump)]
-    pub escrow_vault: SystemAccount<'info>,
-    #[account(mut, seeds = [b"escrow_state", event_record.key().as_ref()], bump)]
-    pub escrow_state: Account<'info, EscrowState>,
     #[account(
         mut,
         constraint = event_record.key() == escrow_state.event_record @ CoreError::Unauthorized
     )]
     pub event_record: Account<'info, EventRecord>,
+    #[account(mut, seeds = [b"escrow", event_record.key().as_ref()], bump)]
+    pub escrow_vault: SystemAccount<'info>,
+    #[account(mut, seeds = [b"escrow_state", event_record.key().as_ref()], bump)]
+    pub escrow_state: Account<'info, EscrowState>,
     #[account(mut, constraint = ticket_mint.key() == ticket_receipt.ticket_mint @ CoreError::InvalidTicket)]
     pub ticket_mint: Account<'info, token::Mint>,
-    #[account(
-        mut,
-        seeds = [b"counter", event_record.key().as_ref(), current_owner.key().as_ref()],
-        bump
-    )]
+    #[account(mut)]
     pub ticket_counter: Option<Account<'info, TicketCounter>>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
@@ -1251,15 +1241,15 @@ pub struct BuyResale<'info> {
         mut,
         constraint = ticket_receipt.event_record == event_record.key() @ CoreError::InvalidTicket
     )]
-    pub ticket_receipt: Account<'info, TicketReceipt>,
+    pub ticket_receipt: Box<Account<'info, TicketReceipt>>,
     #[account(seeds = [b"config"], bump)]
     pub protocol_config: Account<'info, ProtocolConfig>,
     #[account(mut, constraint = mintpass_treasury.key() == protocol_config.treasury @ CoreError::InvalidTreasury)]
     /// CHECK: Tesorería de Mintpass
     pub mintpass_treasury: UncheckedAccount<'info>,
-    pub event_record: Account<'info, EventRecord>,
+    pub event_record: Box<Account<'info, EventRecord>>,
     #[account(seeds = [b"escrow_state", event_record.key().as_ref()], bump)]
-    pub escrow_state: Account<'info, EscrowState>,
+    pub escrow_state: Box<Account<'info, EscrowState>>,
     #[account(constraint = ticket_mint.key() == ticket_receipt.ticket_mint @ CoreError::InvalidTicket)]
     pub ticket_mint: Account<'info, token::Mint>,
     #[account(
@@ -1269,7 +1259,7 @@ pub struct BuyResale<'info> {
         seeds = [b"counter", event_record.key().as_ref(), buyer.key().as_ref()],
         bump
     )]
-    pub ticket_counter: Account<'info, TicketCounter>,
+    pub ticket_counter: Box<Account<'info, TicketCounter>>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 }
@@ -1302,7 +1292,6 @@ pub struct PerformCheckin<'info> {
         ],
         bump,
         seeds::program = Metadata::id(),
-        owner = Metadata::id(),
         constraint = ticket_metadata.mint == ticket_mint.key() @ CoreError::InvalidMetadata
     )]
     pub ticket_metadata: Account<'info, MetadataAccount>,

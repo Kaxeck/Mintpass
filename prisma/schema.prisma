@@ -1,0 +1,175 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ATTENDEE
+  ORGANIZER
+  ADMIN
+}
+
+enum TicketStatus {
+  VALID
+  CHECKED_IN
+  REFUNDED
+  LISTED
+  RESOLD
+  CANCELLED
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  CANCELLED
+}
+
+enum AccessStatus {
+  ACTIVE
+  REVOKED
+}
+
+model UserProfile {
+  id                String   @id // Privy DID
+  walletPubkey      String   @unique // Solana Pubkey
+  email             String?  @unique
+  name              String?
+  role              Role     @default(ATTENDEE)
+  
+  // Organizer Off-chain Data
+  companyName       String?
+  organizerCategory String?
+  bio               String?
+  logoUrl           String?
+  website           String?
+  contactEmail      String?
+  contactPhone      String?
+  socialLinks       Json?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  events              Event[]
+  tickets             Ticket[]
+  reputation          OrganizerReputation?
+  whitelist           OrganizerWhitelist?
+}
+
+model OrganizerReputation {
+  organizerPubkey   String   @id
+  score             Int      @default(0)
+  totalEvents       Int      @default(0)
+  successfulEvents  Int      @default(0)
+  cancelledEvents   Int      @default(0)
+  lastSyncedSlot    BigInt
+
+  userProfile       UserProfile @relation(fields: [organizerPubkey], references: [walletPubkey])
+}
+
+model OrganizerWhitelist {
+  organizerPubkey   String   @id
+  isAuthorized      Boolean  @default(false)
+  lastSyncedSlot    BigInt
+
+  userProfile       UserProfile @relation(fields: [organizerPubkey], references: [walletPubkey])
+}
+
+model Event {
+  id                String      @id @default(cuid()) // ID Interno para Drafts
+  address           String?     @unique // Solana PDA (Nulo si DRAFT)
+  status            EventStatus @default(DRAFT)
+  collectionMint    String?     @unique
+  organizerPubkey   String
+  
+  title             String
+  description       String?
+  coverImageUrl     String?
+  location          String?
+  startDate         DateTime?
+  endDate           DateTime?
+  doorTime          String?
+  ageRestriction    String?
+  lineup            Json?       
+  
+  category          String?
+  themeColor        String?
+  iconName          String?
+  
+  ticketPriceSol    Float       @default(0)
+  capacity          Int         @default(0)
+  zones             Json        @default("[]")
+  isEscrowCompleted Boolean     @default(false)
+  lastSyncedSlot    BigInt      @default(0)
+  lastUpdatedAt     DateTime    @updatedAt
+
+  userProfile       UserProfile       @relation(fields: [organizerPubkey], references: [walletPubkey])
+  tickets           Ticket[]
+  staffAccessLinks  StaffAccessLink[]
+
+  @@index([organizerPubkey])
+}
+
+model Ticket {
+  mintAddress         String       @id
+  eventAddress        String
+  ownerPubkey         String
+  originalBuyerPubkey String?
+  status              TicketStatus
+  zoneIndex           Int
+  row                 String?
+  seat                String?
+  
+  originalPrice       Float
+  pricePaid           Float
+  resalePrice         Float?
+  resaleCount         Int          @default(0)
+  
+  isCheckedIn         Boolean      @default(false)
+  checkinTimestamp    DateTime?
+  checkinStaffId      String?
+  
+  metadataUri         String?
+  lastSyncedSlot      BigInt
+  lastUpdatedAt       DateTime     @updatedAt
+
+  event               Event             @relation(fields: [eventAddress], references: [address])
+  owner               UserProfile       @relation(fields: [ownerPubkey], references: [walletPubkey])
+  checkinStaff        StaffAccessLink?  @relation(fields: [checkinStaffId], references: [id])
+  auditLogs           TicketAuditLog[]
+
+  @@index([ownerPubkey])
+  @@index([eventAddress])
+}
+
+model TicketAuditLog {
+  id             String        @id @default(uuid())
+  ticketMint     String
+  previousStatus TicketStatus?
+  newStatus      TicketStatus
+  changedAtSlot  BigInt
+  txSignature    String        @unique
+  timestamp      DateTime      @default(now())
+
+  ticket         Ticket        @relation(fields: [ticketMint], references: [mintAddress])
+  
+  @@index([ticketMint])
+}
+
+model StaffAccessLink {
+  id             String       @id @default(uuid())
+  eventId        String
+  name           String
+  token          String       @unique
+  status         AccessStatus @default(ACTIVE)
+  createdAt      DateTime     @default(now())
+
+  event          Event        @relation(fields: [eventId], references: [id])
+  checkedTickets Ticket[]
+
+  @@index([eventId])
+}

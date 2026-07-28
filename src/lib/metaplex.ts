@@ -64,7 +64,7 @@ async function deriveReputationPDA(organizerAddress: Address): Promise<readonly 
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// CREATE EVENT COLLECTION (via UMI / MPL Core)
+// CREATE EVENT COLLECTION (via UMI / SPL Token)
 // ═══════════════════════════════════════════════════════════════════
 export async function createEventCollection(
   umi: Umi,
@@ -75,6 +75,10 @@ export async function createEventCollection(
     organizerWallet: string;
   }
 ): Promise<string> {
+  const { createMintWithAssociatedToken } = await import("@metaplex-foundation/mpl-toolbox");
+  const { createMetadataAccountV3 } = await import("@metaplex-foundation/mpl-token-metadata");
+  const { generateSigner, transactionBuilder } = await import("@metaplex-foundation/umi");
+
   const metadataUri = await uploadMetadata({
     name: eventData.name,
     description: eventData.description,
@@ -86,20 +90,40 @@ export async function createEventCollection(
   });
 
   const collectionSigner = generateSigner(umi);
-  const appMasterSigner = getMasterSigner(umi);
 
-  await createCollection(umi, {
-    collection: collectionSigner,
-    name: eventData.name,
-    uri: metadataUri,
-    updateAuthority: appMasterSigner.publicKey,
-  }).sendAndConfirm(umi);
+  let builder = transactionBuilder()
+    .add(createMintWithAssociatedToken(umi, {
+      mint: collectionSigner,
+      owner: umi.identity.publicKey,
+      amount: 1, // Mint 1 token for the collection NFT
+      decimals: 0,
+      mintAuthority: umi.identity.publicKey,
+      freezeAuthority: umi.identity.publicKey,
+    }))
+    .add(createMetadataAccountV3(umi, {
+      mint: collectionSigner.publicKey,
+      mintAuthority: umi.identity,
+      updateAuthority: umi.identity,
+      data: {
+        name: eventData.name,
+        symbol: "EVENT",
+        uri: metadataUri,
+        sellerFeeBasisPoints: 0,
+        creators: null,
+        collection: null,
+        uses: null
+      },
+      isMutable: true,
+      collectionDetails: { __kind: 'V1', size: 0 }
+    }));
+
+  await builder.sendAndConfirm(umi);
 
   return collectionSigner.publicKey.toString();
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// MINT TICKET (via UMI / MPL Core)
+// GENERATE TICKET INSTRUCTIONS (via UMI / SPL Token)
 // ═══════════════════════════════════════════════════════════════════
 export async function mintTicket(umi: Umi, params: {
   collectionMint: string;
@@ -107,7 +131,12 @@ export async function mintTicket(umi: Umi, params: {
   priceSol: number;
   qty: number;
   eventData: { name: string; date: string; venue: string; ticketNumber: number; imageUrl: string };
-}): Promise<string[]> {
+  escrowStatePda: Address;
+}): Promise<{ txBuilder: any; mintSigner: any }[]> {
+  const { createMintWithAssociatedToken, setAuthority, AuthorityType } = await import("@metaplex-foundation/mpl-toolbox");
+  const { createMetadataAccountV3 } = await import("@metaplex-foundation/mpl-token-metadata");
+  const { publicKey, transactionBuilder, generateSigner, some } = await import("@metaplex-foundation/umi");
+
   const metadataUri = await uploadMetadata({
     name: `${params.eventData.name} Ticket`,
     description: `Ticket de entrada oficial para ${params.eventData.name}`,
@@ -119,27 +148,60 @@ export async function mintTicket(umi: Umi, params: {
   });
 
   const appMasterSigner = getMasterSigner(umi);
-  let builder = transactionBuilder();
-  const mints: string[] = [];
+  const infos = [];
 
   for (let i = 0; i < params.qty; i++) {
-    const assetSigner = generateSigner(umi);
+    const mintSigner = generateSigner(umi);
     const ticketName = `${params.eventData.name} #${params.eventData.ticketNumber + i}`;
 
-    builder = builder.add(createV1(umi, {
-      asset: assetSigner,
-      collection: publicKey(params.collectionMint),
-      name: ticketName,
-      uri: metadataUri,
+    let builder = transactionBuilder();
+
+    // 1. Create Mint & ATA
+    builder = builder.add(createMintWithAssociatedToken(umi, {
+      mint: mintSigner,
       owner: publicKey(params.buyerAddress),
-      authority: appMasterSigner,
+      amount: 0,
+      decimals: 0,
+      mintAuthority: umi.identity.publicKey,
+      freezeAuthority: umi.identity.publicKey,
     }));
 
-    mints.push(assetSigner.publicKey.toString());
+    // 2. Create Metadata
+    builder = builder.add(createMetadataAccountV3(umi, {
+      mint: mintSigner.publicKey,
+      mintAuthority: umi.identity,
+      updateAuthority: appMasterSigner,
+      data: {
+        name: ticketName,
+        symbol: "TICKET",
+        uri: metadataUri,
+        sellerFeeBasisPoints: 0,
+        creators: null,
+        collection: { verified: false, key: publicKey(params.collectionMint) },
+        uses: null
+      },
+      isMutable: true,
+      collectionDetails: null
+    }));
+
+    // 3. Set Authorities to Escrow State
+    builder = builder.add(setAuthority(umi, {
+      owned: mintSigner.publicKey,
+      owner: umi.identity,
+      authorityType: AuthorityType.MintTokens,
+      newAuthority: some(publicKey(params.escrowStatePda))
+    }));
+    builder = builder.add(setAuthority(umi, {
+      owned: mintSigner.publicKey,
+      owner: umi.identity,
+      authorityType: AuthorityType.FreezeAccount,
+      newAuthority: some(publicKey(params.escrowStatePda))
+    }));
+
+    infos.push({ txBuilder: builder, mintSigner });
   }
 
-  await builder.sendAndConfirm(umi);
-  return mints;
+  return infos;
 }
 
 // ═══════════════════════════════════════════════════════════════════

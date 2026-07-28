@@ -24,6 +24,7 @@ export interface EventModel {
   actions?: string[];
   primaryAction?: number;
   meta?: string;
+  organizerWallet?: string;
   coverStyle?: any;
   priceStyle?: any;
 }

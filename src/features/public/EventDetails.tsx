@@ -1,12 +1,12 @@
 'use client';
 import { useState } from "react";
 import * as Icons from "lucide-react";
-import PageNav from "../../components/PageNav";
+import PageNav from "../../components/layout/PageNav";
 import { CreatedEvent } from "../organizer/CreateEvent";
 import { useWalletSession, useSolanaClient } from "@solana/react-hooks";
 import { createEscrowReleaseInstruction } from "../../lib/escrow";
 import { type Address } from "@solana/kit";
-import AlertModal, { AlertModalProps } from "../../components/AlertModal";
+import AlertModal, { AlertModalProps } from "../../components/ui/AlertModal";
 
 export default function EventDetails({ event, stats, ownedTickets = [], onBack, onGoToStaff }: { event: CreatedEvent, stats?: {sold: number, checked: number}, ownedTickets?: Array<{ mint: string, purchaseDate: number, eventId: number }>, onBack: () => void, onGoToStaff: () => void }) {
   if (!event) return null;

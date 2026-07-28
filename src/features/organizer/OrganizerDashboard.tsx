@@ -1,15 +1,16 @@
 'use client';
 import { useState, useEffect } from "react";
 import * as Icons from "lucide-react";
-import WalletButton from "../../components/WalletButton";
+import WalletButton from "../../components/ui/WalletButton";
 import { useWalletSession, useSolanaClient } from "@solana/react-hooks";
 import { type Address, address as getAddress } from "@solana/kit";
 import { getOrganizerReputation } from "../../lib/metaplex";
 import { readAllEventsFromChain, type OnChainEventData } from "../../lib/event-pda";
 import CreateEvent, { type CreatedEvent } from "./CreateEvent";
 import CheckInStaff from "./CheckInStaff";
-import '../../Home.css';
-import '../../styles/OrganizerDashboard.css';
+import OrganizerProfileSetup, { type OrganizerProfile } from "./OrganizerProfileSetup";
+import '../../styles/Home.css';
+import './OrganizerDashboard.css';
 
 import { usePrivy } from "@privy-io/react-auth";
 
@@ -21,6 +22,8 @@ export default function OrganizerDashboard({
   onEventClick,
   onGoToMyTickets,
   onGoToExplore,
+  organizerProfile,
+  onProfileComplete
 }: {
   createdEvents: CreatedEvent[];
   eventStats?: Record<number, { sold: number; checked: number }>;
@@ -29,6 +32,8 @@ export default function OrganizerDashboard({
   onEventClick: (id: number) => void;
   onGoToMyTickets?: () => void;
   onGoToExplore?: () => void;
+  organizerProfile?: OrganizerProfile | null;
+  onProfileComplete?: (profile: OrganizerProfile) => void;
 }) {
   const { authenticated, user, ready } = usePrivy();
   const session = useWalletSession();
@@ -220,9 +225,13 @@ export default function OrganizerDashboard({
         </div>
 
         {/* Main Content */}
-        <div style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', height: '100vh' }}>
+        <div style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', height: '100vh', background: '#F7F8F7' }}>
           
-          {activeSection === 'dashboard' ? (
+          {!organizerProfile ? (
+            <div style={{ margin: '-32px -40px', height: 'calc(100vh)', overflow: 'auto' }}>
+              <OrganizerProfileSetup onComplete={onProfileComplete!} />
+            </div>
+          ) : activeSection === 'dashboard' ? (
             <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
             <div>

@@ -2,18 +2,20 @@
 import { useState, Fragment, useMemo } from 'react';
 import { Country, State, City } from 'country-state-city';
 import * as Icons from "lucide-react";
-import PageNav from "../../components/PageNav";
-import { useUmi } from "../../providers";
+import PageNav from "../../components/layout/PageNav";
+import { useUmi } from "../../components/providers";
 import { createEventCollection } from "../../lib/metaplex";
 import { buildSaveEventInstruction } from "../../lib/event-pda";
+import { transactionBuilder } from "@metaplex-foundation/umi";
 import { useWalletSession } from "@solana/react-hooks";
 import { Address } from "@solana/kit";
-import AlertModal, { AlertModalProps } from "../../components/AlertModal";
+import AlertModal, { AlertModalProps } from "../../components/ui/AlertModal";
 
 export interface CreatedEvent {
   id: number;
   collectionMint: string;
   name: string;
+  organizerName?: string;
   description: string;
   date: string;
   time: string;
@@ -194,12 +196,18 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
       };
 
       try {
-        // Guardar metadata en PDA on-chain via @solana/kit
-        const { pda } = await buildSaveEventInstruction(walletAddress, eventDataOnChain);
+        // Guardar metadata en PDA on-chain via Anchor (usando UMI)
+        const { instruction, pda } = await buildSaveEventInstruction(walletAddress, eventDataOnChain);
         console.log("PDA para guardar evento:", pda);
-        // NOTA: La transacción de guardado on-chain requiere compilar la instrucción
-        // con el signer de la wallet via @solana/kit. Se integrará en la siguiente iteración.
-        console.log("Evento guardado exitosamente on-chain.");
+        
+        let txBuilder = transactionBuilder().add({
+          instruction: instruction,
+          signers: [umi.identity],
+          bytesCreatedOnChain: 0
+        });
+
+        await txBuilder.sendAndConfirm(umi);
+        console.log("Evento guardado exitosamente on-chain en Anchor.");
       } catch (pdaError: unknown) {
         const msg = pdaError instanceof Error ? pdaError.message : String(pdaError);
         console.warn("Advertencia: No se pudo guardar metadata en PDA on-chain:", msg);
@@ -255,6 +263,9 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
   const totalAforo = zones.reduce((acc, z) => acc + z.capacity, 0);
   const minPrice = zones.length > 0 ? Math.min(...zones.map(z => z.price)) : 0;
   const displayPrice = minPrice === 0 ? 'Gratis' : `Desde $${minPrice}`;
+
+  const freeTicketsCount = zones.reduce((acc, z) => z.price === 0 ? acc + z.capacity : acc, 0);
+  const platformFeeSOL = (freeTicketsCount * 0.005).toFixed(3); // Tarifa fija de 0.005 SOL por boleto gratis
 
   return (
     <div style={{ 
@@ -585,17 +596,22 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
                   <span style={{ fontSize: '12px', color: '#1E1E1E', fontWeight: 500 }}>{allowRefunds ? `Sí (Hasta ${refundTimeLimit||'0'} días antes)` : 'No permitidas'}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '12px', color: '#5F5E5A' }}>Comisiones (Fees)</span>
-                  <span style={{ fontSize: '12px', color: '#1E1E1E', fontWeight: 500 }}>{minPrice === 0 ? 'Cubiertas por el Organizador (Boletos Gratis)' : 'El Comprador paga el 5%'}</span>
+                  <span style={{ fontSize: '12px', color: '#5F5E5A' }}>Comisiones al comprador</span>
+                  <span style={{ fontSize: '12px', color: '#1E1E1E', fontWeight: 500 }}>{minPrice === 0 ? 'Ninguna (Subsidio)' : '5% o Mínimo (0.005 SOL)'}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: '12px', color: '#5F5E5A' }}>Precio base</span>
                   <span style={{ fontSize: '12px', color: '#1E1E1E', fontWeight: 500 }}>{displayPrice}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '12px', color: '#5F5E5A' }}>Reventa Oficial</span>
-                  <span style={{ fontSize: '12px', color: '#1E1E1E', fontWeight: 500 }}>{allowResale ? `Sí (${resaleCapLimit}%)` : 'No'}</span>
-                </div>
+                {freeTicketsCount > 0 && (
+                  <div style={{ background: '#FFF4E5', padding: '10px', borderRadius: '8px', marginTop: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <span style={{ fontSize: '12px', color: '#B35F00', fontWeight: 600 }}>Tarifa de Plataforma (Boletos Gratis)</span>
+                      <span style={{ fontSize: '12px', color: '#B35F00', fontWeight: 700 }}>{platformFeeSOL} SOL</span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '10px', color: '#B35F00' }}>Se aplicará esta tarifa fija por boleto por el uso del sistema. <br/><strong>Nota:</strong> Solo organizadores en la Whitelist de Mintpass pueden emitir boletos gratis on-chain.</p>
+                  </div>
+                )}
               </div>
             </div>
 

@@ -2,7 +2,7 @@
 import { useState } from "react";
 import * as Icons from "lucide-react";
 import { CreatedEvent } from "./CreateEvent";
-import '../../styles/CheckInStaff.css';
+import './CheckInStaff.css';
 
 export default function CheckInStaff({ events, onGoToScanner }: { events: CreatedEvent[], onGoToScanner: (token: string) => void }) {
   const [view, setView] = useState<'list' | 'manage'>('list');

@@ -1,15 +1,17 @@
 'use client';
 import { useState, useEffect } from "react";
 import * as Icons from "lucide-react";
-import PageNav from "../../components/PageNav";
+import PageNav from "../../components/layout/PageNav";
+import "./StaffScanner.css";
 import { CreatedEvent } from "./CreateEvent";
-import { Html5Qrcode } from "html5-qrcode";
-
+import { Scanner } from '@yudiel/react-qr-scanner';
 
 export default function StaffPanel({ event, stats, onCheckIn, onBack, isPwa = false }: { event?: CreatedEvent, stats?: {sold: number, checked: number}, onCheckIn?: () => void, onBack: () => void, isPwa?: boolean }) {
   // Estados principales del escáner
   const [scanning, setScanning] = useState(true);
   const [torchOn, setTorchOn] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+  const [filterText, setFilterText] = useState('');
   
   // Contadores de estadísticas
   const okCount = stats?.checked || 0;
@@ -45,65 +47,37 @@ export default function StaffPanel({ event, stats, onCheckIn, onBack, isPwa = fa
     localStorage.setItem(LS_LOGS_KEY, JSON.stringify(logs));
   }, [logs]);
 
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const filteredLogs = logs.filter(log => log.addr.toLowerCase().includes(filterText.toLowerCase()) || log.statusText.toLowerCase().includes(filterText.toLowerCase()));
+
   const errCount = logs.filter(l => l.statusClass === 'ls-err').length;
   const dupCount = logs.filter(l => l.statusClass === 'ls-dup').length;
-
-  // Bucle de inicialización del escáner visual
-  useEffect(() => {
-    let html5QrCode: Html5Qrcode | null = null;
-    let isMounted = true;
-    
-    if (scanning && (!resultData || !resultData.show)) {
-      html5QrCode = new Html5Qrcode("qr-reader");
-      html5QrCode.start(
-        { facingMode: "environment" },
-        { fps: 15, qrbox: { width: 250, height: 250 } },
-        (decodedText) => {
-           if (isMounted) {
-             verifyTicket(decodedText);
-           }
-        },
-        () => {}
-      ).catch(e => {
-         console.warn("No se detectó cámara física o no se dieron permisos: ", e);
-      });
-    }
-
-    return () => {
-      isMounted = false;
-      
-      // Apagado forzoso de HW (soluciona que la luz de la webcam se quede prendida en Chrome)
-      try {
-        const vid = document.querySelector('#qr-reader video') as HTMLVideoElement;
-        if (vid && vid.srcObject) {
-          (vid.srcObject as MediaStream).getTracks().forEach(t => t.stop());
-          vid.srcObject = null;
-        }
-      } catch (e) {}
-
-      if (html5QrCode) {
-        try {
-          // Intentamos detener siempre pase lo que pase para soltar la cámara
-          html5QrCode.stop().then(() => html5QrCode?.clear()).catch(() => {});
-        } catch (e) {}
-      }
-    };
-  }, [scanning, resultData?.show]);
 
   // Tipos de resultados para la simulación (Diccionario de respuestas UI)
   const resultTypes = {
     valid: {
-      bg: '#000d0a', iconBg: 'ri-valid', label: 'Entrada válida', sub: 'NFT verificado on-chain',
+      bg: '#000d0a', iconBg: 'ri-valid', label: 'Acceso concedido', sub: 'Zona VIP',
       svg: <path d="M8 26L14 20L26 10" stroke="#5DCAA5" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none"/>,
       dotClass: 'ld-ok', statusClass: 'ls-ok', statusText: 'Válido'
     },
     invalid: {
-      bg: '#1a0000', iconBg: 'ri-invalid', label: 'Entrada inválida', sub: 'NFT no encontrado en la colección',
+      bg: '#1a0000', iconBg: 'ri-invalid', label: 'Acceso denegado', sub: 'Boleto inválido',
       svg: <path d="M10 10l12 12M22 10L10 22" stroke="#F09595" strokeWidth="3" strokeLinecap="round" fill="none"/>,
       dotClass: 'ld-err', statusClass: 'ls-err', statusText: 'Inválido'
     },
     duplicate: {
-      bg: '#1a0f00', iconBg: 'ri-repeat', label: 'Ya ingresó', sub: 'Este ticket fue escaneado antes',
+      bg: '#1a0f00', iconBg: 'ri-repeat', label: 'Ya ingresó', sub: 'Boleto duplicado',
       svg: <path d="M16 8v8M16 20v2" stroke="#FAC775" strokeWidth="3" strokeLinecap="round" fill="none"/>,
       dotClass: 'ld-dup', statusClass: 'ls-dup', statusText: 'Duplicado'
     }
@@ -117,10 +91,10 @@ export default function StaffPanel({ event, stats, onCheckIn, onBack, isPwa = fa
     if (realMintAddress) {
       addr = realMintAddress.substring(0, 5) + '...' + realMintAddress.substring(realMintAddress.length - 4);
     } else {
-      const addrs = ['7xKf','3mTv','9bWx','1nPq','5rKm','2pQs','8nLx','4kWd'];
-      const suffs = ['9pQm','2nLs','4kRd','7cYe','3wBx','6mTr','1vNs','9qPk'];
+      const addrs = ['#0842','#0839','#0801','#0798','#0795'];
+      const suffs = ['Zona VIP','Preferente','General','Platea','General'];
       const idx = Math.floor(Math.random() * addrs.length);
-      addr = addrs[idx] + '…' + suffs[idx];
+      addr = `${addrs[idx]} · ${suffs[idx]}`;
     }
     
     const now = new Date();
@@ -132,9 +106,67 @@ export default function StaffPanel({ event, stats, onCheckIn, onBack, isPwa = fa
     ]);
   };
 
+  // Función para feedback de hardware
+  const triggerFeedback = (isValid: boolean) => {
+    try {
+      if (isValid) {
+        if (navigator.vibrate) navigator.vibrate(50);
+        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800, ctx.currentTime);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.15);
+      } else {
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(300, ctx.currentTime);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+      }
+    } catch (e) {
+      // Ignorar si el navegador bloquea el audio
+    }
+  };
+
+  // Función para alternar linterna manualmente obteniendo el track de video activo
+  const toggleTorch = async () => {
+    try {
+      const video = document.querySelector('video');
+      if (!video || !video.srcObject) return;
+      const track = (video.srcObject as MediaStream).getVideoTracks()[0];
+      if (track) {
+        const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+        if ((capabilities as any).torch) {
+          const currentTorch = (track.getSettings() as any).torch || false;
+          await track.applyConstraints({
+            advanced: [{ torch: !currentTorch }]
+          } as any);
+          setTorchOn(!currentTorch);
+        } else {
+          console.warn("El dispositivo no soporta linterna.");
+        }
+      }
+    } catch (e) {
+      console.error("Error activando linterna:", e);
+    }
+  };
+
   // Función central para simular el escaneo de un código
   const simulate = (type: keyof typeof resultTypes, mintAddress?: string) => {
     const r = resultTypes[type];
+
+    triggerFeedback(type === 'valid');
 
     // Mostramos overlay de resultado
     setResultData({
@@ -162,12 +194,11 @@ export default function StaffPanel({ event, stats, onCheckIn, onBack, isPwa = fa
   };
 
   const [isRelaying, setIsRelaying] = useState(false);
-  // Eliminado manualMint, ahora 100% lectura por cámara real
 
   // Interceptar la salida para dar tiempo a la liberación de cámara
   const handleBack = () => {
     setScanning(false);
-    setTimeout(onBack, 400); // 400ms para asegurar que Html5Qrcode.stop() procesa el hardware
+    setTimeout(onBack, 400); 
   };
 
   const verifyTicket = async (mintToVerify: string) => {
@@ -194,35 +225,21 @@ export default function StaffPanel({ event, stats, onCheckIn, onBack, isPwa = fa
   };
 
   return (
-    <div className="app bg-[#0a0a0f] min-h-screen text-white font-sans">
+    <div className="app min-h-screen text-white font-sans" style={{ background: 'var(--color-background-primary)' }}>
       <style>{`
-        #qr-reader { 
-          position: absolute !important;
-          top: 0 !important;
-          left: 0 !important;
-          width: 100% !important;
-          height: 100% !important;
-          border: none !important; 
-          background: transparent !important; 
-          z-index: 0 !important;
-        }
-        #qr-reader * { margin: 0; padding: 0; }
-        #qr-reader video {
+        /* Yudiel Scanner Override styles */
+        video {
           object-fit: cover !important;
           width: 100% !important;
           height: 100% !important;
-          position: absolute !important;
-          top: 0 !important;
-          left: 0 !important;
-          z-index: 1 !important;
         }
       `}</style>
+      
       {/* ======= NAVBAR OSCURO PARA STAFF ======= */}
       {!isPwa && (
-        <div style={{ position: 'relative', zIndex: 10, background: '#0a0a0f', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+        <div style={{ position: 'relative', zIndex: 10, background: 'var(--color-background-primary)' }}>
           <PageNav 
             title="Panel de Staff" 
-            onBack={handleBack} 
           />
         </div>
       )}
@@ -237,140 +254,119 @@ export default function StaffPanel({ event, stats, onCheckIn, onBack, isPwa = fa
       )}
 
       {/* ======= CONTENEDOR PRINCIPAL ======= */}
-      <div className="staff-panel-main">
+      <div className="scanner-container" style={{ padding: '20px 16px' }}>
         
-        {/* Chips de contexto del evento */}
-        <div className="event-chip">
-          {event?.coverImage ? (
-            <div className="chip-icon" style={{ backgroundImage: `url('${event.coverImage}')`, backgroundSize: 'cover', backgroundPosition: 'center', borderRadius: '10px', width: '40px', height: '40px' }} />
-          ) : (
-            <div className="chip-icon" style={{ display: 'flex' }}><Icons.Music size={20} color="#534AB7" /></div>
-          )}
-          <div>
-            <div className="chip-name">{event ? event.name : "Noche de Jazz — CDMX"}</div>
-            <div className="chip-meta">{event ? `${event.date} · ${event.venue}` : "Hoy · 21:00 h · Foro Indie"}</div>
+        {/* ESCÁNER */}
+        <p className="scanner-title">Escáner con contador de aforo</p>
+        <div className="scanner-card-new">
+          <div className="scanner-header-new">
+            <span className="scanner-guard">Guardia 2 · {event?.venue || "Sonora Norte"}</span>
+            <span className="scanner-status" style={{ color: isOnline ? '#5DCAA5' : '#E38C7A' }}>
+              <span className="scanner-status-dot" style={{ background: isOnline ? '#5DCAA5' : '#E38C7A' }}></span>
+              {isOnline ? 'En línea' : 'Sin conexión'}
+            </span>
           </div>
-          <div className="chip-right">
-            <div className="chip-capacity">{okCount}/{event ? event.aforo : 200}</div>
-            <div className="chip-cap-lbl">ingresaron</div>
+
+          <div className="scanner-progress-area">
+            <div className="scanner-progress-text">
+              <span className="scanner-count-main">{okCount}<span className="scanner-count-sub"> / {event?.aforo || 500} escaneados</span></span>
+              <span className="scanner-pct">{Math.round((okCount / (event?.aforo || 500)) * 100)}%</span>
+            </div>
+            <div className="scanner-track">
+              <div className="scanner-fill" style={{ width: `${Math.round((okCount / (event?.aforo || 500)) * 100)}%` }}></div>
+            </div>
           </div>
-        </div>
 
-        {/* Módulo principal del escáner visual */}
-        <div className="scanner-card">
-          <div 
-            className="scanner-area overflow-hidden" 
-            style={{ background: resultData && resultData.show ? resultData.bg : '#000', position: 'relative' }}
-          >
-            {/* Contenedor nativo del flujo de video */}
-            <div id="qr-reader" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: (!resultData?.show && scanning) ? 1 : 0, pointerEvents: 'none', objectFit: 'cover' }}></div>
-
-            {/* Marco de enfoque simulado (diseño custom sobreescrito al stream de video) */}
-            <div className="scanner-frame" style={{ opacity: resultData?.show ? 0 : 1, zIndex: 10 }}>
-              <div className="corner corner-tl"></div>
-              <div className="corner corner-tr"></div>
-              <div className="corner corner-bl"></div>
-              <div className="corner corner-br"></div>
-              {/* Línea láser de escaneo, pausable desde estado */}
-              <div className="scan-line" style={{ animationPlayState: scanning ? 'running' : 'paused' }}></div>
-            </div>
-            
-            <div className="scanner-hint" style={{ opacity: resultData?.show ? 0 : 1 }}>
-              Apunta la cámara al QR del asistente
-            </div>
-
-            {/* Overlay dinámico que se dispara al validar QR */}
-            <div className={`result-overlay ${resultData?.show ? 'show' : ''}`}>
-               {resultData && (
-                <>
-                  <div className={`result-icon ${resultData.iconBg}`}>
-                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-                      {resultData.svg}
-                    </svg>
-                  </div>
-                  <div className="result-label" style={{ fontWeight: 500, fontSize: '18px' }}>{resultData.label}</div>
-                  <div className="result-sub" style={{ fontSize: '13px', opacity: 0.7 }}>{resultData.sub}</div>
-                </>
+          <div className="scanner-camera-area">
+            {/* Contenedor nativo del flujo de video usando react-qr-scanner */}
+            <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: (!resultData?.show && scanning) ? 1 : 0 }}>
+              {scanning && !resultData?.show && (
+                <Scanner
+                  onScan={(result) => {
+                    if (result && result.length > 0 && result[0].rawValue) {
+                      verifyTicket(result[0].rawValue);
+                    }
+                  }}
+                  components={{ finder: false, torch: false }}
+                  styles={{ videoContainer: { width: '100%', height: '100%', objectFit: 'cover' } } as any}
+                />
               )}
             </div>
 
+            <span className="scanner-camera-hint" style={{ opacity: resultData?.show ? 0 : 1 }}>Apunta al QR del boleto</span>
+          </div>
 
+          {resultData?.show ? (
+            <div className={`scanner-result-overlay ${resultData.type === 'valid' ? 'success' : resultData.type === 'invalid' ? 'error' : 'duplicate'}`}>
+              <span className={`scanner-result-icon ${resultData.type === 'valid' ? 'success' : resultData.type === 'invalid' ? 'error' : 'duplicate'}`}>
+                {resultData.type === 'valid' ? '✓' : resultData.type === 'invalid' ? '✕' : '⚠'}
+              </span>
+              <p className={`scanner-result-title ${resultData.type === 'valid' ? 'success' : resultData.type === 'invalid' ? 'error' : 'duplicate'}`}>{resultData.label}</p>
+              <p className={`scanner-result-sub ${resultData.type === 'valid' ? 'success' : resultData.type === 'invalid' ? 'error' : 'duplicate'}`}>{resultData.sub}</p>
+            </div>
+          ) : (
+            <div className="scanner-action-area" style={{ marginTop: '12px', display: 'flex', gap: '10px' }}>
+              <button className="scanner-action-btn" style={{ flex: 1 }} onClick={() => setScanning(!scanning)}>
+                {scanning ? 'Pausar escáner' : 'Activar escáner'}
+              </button>
+              <button 
+                className="scanner-action-btn" 
+                style={{ 
+                  width: '48px', 
+                  flexShrink: 0, 
+                  padding: '0', 
+                  display: 'flex', 
+                  justifyContent: 'center', 
+                  alignItems: 'center', 
+                  background: torchOn ? '#14F195' : 'var(--color-background-tertiary)', 
+                  color: torchOn ? '#1E1E1E' : '#FFF' 
+                }}
+                onClick={toggleTorch}
+              >
+                <Icons.Flashlight size={20} />
+              </button>
+            </div>
+          )}
+
+          {/* Separador para el historial integrado */}
+          <div style={{ height: '1px', background: 'var(--color-border-tertiary)', margin: '16px 0 12px' }}></div>
+          
+          <div style={{ padding: '0 18px 16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+                Historial de escaneos recientes
+              </p>
+              <input 
+                type="text" 
+                placeholder="Filtrar..." 
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+                style={{ background: 'var(--color-background-tertiary)', border: '1px solid var(--color-border-secondary)', borderRadius: '6px', padding: '4px 8px', fontSize: '12px', color: '#FFF', width: '100px' }}
+              />
+            </div>
             
-            {/* Animación de escaneo línea láser */}
-          </div>
+            <div className="history-list" style={{ maxHeight: '240px', padding: 0, margin: '0 -18px' }}>
+              {filteredLogs.length === 0 ? (
+                <div style={{padding: '16px', textAlign: 'center', fontSize: '12px', color: '#555'}}>Sin registros encontrados</div>
+              ) : (
+                filteredLogs.map((log, i) => {
+                  let type = 'success';
+                  let icon = '✓';
+                  if (log.statusClass === 'ls-err') { type = 'error'; icon = '✕'; }
+                  if (log.statusClass === 'ls-dup') { type = 'duplicate'; icon = '⚠'; }
 
-          {/* Estadísticas rápidas bajo el escáner */}
-          <div className="stats-strip">
-            <div className="strip-stat">
-              <div className="strip-val v-green">{okCount}</div>
-              <div className="strip-lbl">Válidos</div>
+                  return (
+                    <div className={`history-item ${type}`} key={i}>
+                      <span className={`history-icon ${type}`}>{icon}</span>
+                      <div className="history-item-details">
+                        <p className={`history-item-text ${type}`}>{log.addr}</p>
+                      </div>
+                      <span className={`history-item-time ${type}`}>{log.time}</span>
+                    </div>
+                  );
+                })
+              )}
             </div>
-            <div className="strip-stat">
-              <div className="strip-val v-red">{errCount}</div>
-              <div className="strip-lbl">Inválidos</div>
-            </div>
-            <div className="strip-stat">
-              <div className="strip-val v-amber">{dupCount}</div>
-              <div className="strip-lbl">Duplicados</div>
-            </div>
-            <div className="strip-stat">
-              <div className="strip-val v-white">{Math.max(0, (event?.aforo || 200) - okCount - errCount)}</div>
-              <div className="strip-lbl">Pendientes</div>
-            </div>
-          </div>
-
-          {/* Botones de control (Scan/Flash) */}
-          <div className="scanner-controls">
-            <button 
-              className={`btn-scan ${scanning ? 'btn-scan-on' : 'btn-scan-off'}`} 
-              onClick={() => setScanning(!scanning)}
-            >
-              {scanning ? 'Escáner activo' : 'Escáner pausado'}
-            </button>
-            <div 
-              className={`btn-torch ${torchOn ? 'on' : ''}`} 
-              onClick={() => setTorchOn(!torchOn)}
-              style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-            >
-              <Icons.Flashlight size={18} color="currentColor" />
-            </div>
-          </div>
-
-          {/* Controles de demostración para el usuario o jurado */}
-          <div className="demo-row">
-            <span style={{fontSize: '11px', color: '#555', marginRight: '4px'}}>Simular:</span>
-            <button className="demo-btn" onClick={() => simulate('valid')}>Válido</button>
-            <button className="demo-btn" onClick={() => simulate('invalid')}>Inválido</button>
-            <button className="demo-btn" onClick={() => simulate('duplicate')}>Duplicado</button>
-          </div>
-        </div>
-
-        {/* Registro en tiempo real de los escaneos (Logs) */}
-        <div className="log-card">
-          <div className="log-header">
-            <span className="log-title" style={{ display: 'flex', gap: '6px', alignItems: 'center' }}><Icons.List size={14} /> Registro de escaneos</span>
-            <span className="log-clear" onClick={() => setLogs([])}>Limpiar</span>
-          </div>
-          <div className="log-list">
-            {logs.length === 0 ? (
-              <div style={{padding: '16px', textAlign: 'center', fontSize: '12px', color: '#555'}}>Sin registros</div>
-            ) : (
-              logs.map((log, i) => (
-                <div className="log-row" key={i}>
-                  <div className={`log-dot ${log.dotClass}`}></div>
-                  <div className="log-addr" style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
-                    {log.addr}
-                    {log.mint && (
-                      <a href={`https://explorer.solana.com/address/${log.mint}?cluster=devnet`} target="_blank" rel="noreferrer" style={{color: '#AFA9EC', opacity: 0.8, display: 'flex'}}>
-                        <Icons.ExternalLink size={12} />
-                      </a>
-                    )}
-                  </div>
-                  <div className={`log-status ${log.statusClass}`}>{log.statusText}</div>
-                  <div className="log-time">{log.time}</div>
-                </div>
-              ))
-            )}
           </div>
         </div>
 
@@ -378,4 +374,3 @@ export default function StaffPanel({ event, stats, onCheckIn, onBack, isPwa = fa
     </div>
   );
 }
-

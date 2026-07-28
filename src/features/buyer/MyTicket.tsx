@@ -2,14 +2,14 @@
 import { useState, useEffect } from "react";
 import * as Icons from "lucide-react";
 import QRCode from "react-qr-code";
-import { useUmi } from "../../providers";
+import { useUmi } from "../../components/providers";
 import { mutateToPoap } from "../../lib/metaplex";
-import AlertModal, { AlertModalProps } from "../../components/AlertModal";
-import "../../Home.css";
-import "../../styles/MyTicket.css";
+import AlertModal, { AlertModalProps } from "../../components/ui/AlertModal";
+import "../../styles/Home.css";
+import "./MyTicket.css";
 
-import { LandingNavBar } from "../../components/LandingNavBar";
-import { LandingFooter } from "../../components/LandingFooter";
+import { LandingNavBar } from "../../components/layout/LandingNavBar";
+import { LandingFooter } from "../../components/layout/LandingFooter";
 
 const PERIOD = 30; // 30 segundos de vigencia del código QR
 

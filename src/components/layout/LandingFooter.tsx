@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 
 export function LandingFooter() {
   return (
@@ -26,7 +27,7 @@ export function LandingFooter() {
           <div>
             <h4 style={{ color: '#FFFFFF', margin: '0 0 16px', fontSize: '14px', fontWeight: 600 }}>Soporte</h4>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <li><a href="#" style={{ color: 'inherit', textDecoration: 'none' }}>Centro de Ayuda</a></li>
+              <li><Link href="/ayuda" style={{ color: 'inherit', textDecoration: 'none' }}>Centro de Ayuda</Link></li>
               <li><a href="#" style={{ color: 'inherit', textDecoration: 'none' }}>Términos de Servicio</a></li>
               <li><a href="#" style={{ color: 'inherit', textDecoration: 'none' }}>Privacidad</a></li>
             </ul>

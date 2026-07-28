@@ -1,7 +1,8 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, PropsWithChildren } from "react";
-import { CreatedEvent } from "./features/organizer/CreateEvent";
+import { CreatedEvent } from "../features/organizer/CreateEvent";
+import { OrganizerProfile } from "../features/organizer/OrganizerProfileSetup";
 
 const LS_EVENTS_KEY = "mintpass_created_events";
 const LS_COLLECTION_KEY = "mintpass_last_collection";
@@ -28,6 +29,8 @@ interface MintpassContextType {
   setOwnedTickets: React.Dispatch<React.SetStateAction<OwnedTicket[]>>;
   eventStats: Record<number, EventStats>;
   updateStats: (id: number, type: 'sold' | 'checked', amount: number) => void;
+  organizerProfile: OrganizerProfile | null;
+  setOrganizerProfile: React.Dispatch<React.SetStateAction<OrganizerProfile | null>>;
   isHydrated: boolean;
 }
 
@@ -44,6 +47,7 @@ export function useMintpassStore() {
 export function MintpassProvider({ children }: PropsWithChildren) {
   const [isHydrated, setIsHydrated] = useState(false);
   const [createdEvents, setCreatedEvents] = useState<CreatedEvent[]>([]);
+  const [organizerProfile, setOrganizerProfile] = useState<OrganizerProfile | null>(null);
   const [collectionMint, setCollectionMint] = useState<string>('');
   const [ownedTickets, setOwnedTickets] = useState<OwnedTicket[]>([]);
   const [eventStats, setEventStats] = useState<Record<number, EventStats>>({});
@@ -124,6 +128,9 @@ export function MintpassProvider({ children }: PropsWithChildren) {
 
       const savedStats = localStorage.getItem("mintpass_event_stats");
       if (savedStats) setEventStats(JSON.parse(savedStats));
+
+      const savedProfile = localStorage.getItem("mintpass_organizer_profile");
+      if (savedProfile) setOrganizerProfile(JSON.parse(savedProfile));
     } catch (e) {
       console.error("Error hydrating state from localStorage", e);
     } finally {
@@ -136,6 +143,15 @@ export function MintpassProvider({ children }: PropsWithChildren) {
     if (!isHydrated) return;
     localStorage.setItem(LS_EVENTS_KEY, JSON.stringify(createdEvents));
   }, [createdEvents, isHydrated]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    if (organizerProfile) {
+      localStorage.setItem("mintpass_organizer_profile", JSON.stringify(organizerProfile));
+    } else {
+      localStorage.removeItem("mintpass_organizer_profile");
+    }
+  }, [organizerProfile, isHydrated]);
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -167,6 +183,8 @@ export function MintpassProvider({ children }: PropsWithChildren) {
         setOwnedTickets,
         eventStats,
         updateStats,
+        organizerProfile,
+        setOrganizerProfile,
         isHydrated
       }}
     >

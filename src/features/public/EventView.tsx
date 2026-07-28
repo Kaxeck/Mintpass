@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { LandingNavBar } from '../../components/LandingNavBar';
-import { LandingFooter } from '../../components/LandingFooter';
+import { LandingNavBar } from '../../components/layout/LandingNavBar';
+import { LandingFooter } from '../../components/layout/LandingFooter';
 import * as Icons from 'lucide-react';
-import '../../Home.css';
+import '../../styles/Home.css';
 
 const LOCAL_EVENTS = [
   { id: 101, name: "Festival Sonora Norte", date: "15 ago · León, Gto", price: "Desde $650 MXN", cat: "Música", uiCat: "Conciertos" },

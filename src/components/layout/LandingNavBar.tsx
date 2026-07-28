@@ -1,7 +1,8 @@
 import React from 'react';
-import WalletMultiButton from './WalletButton';
+import WalletMultiButton from '../ui/WalletButton';
 import { usePrivy } from "@privy-io/react-auth";
 import { useWalletSession } from "@solana/react-hooks";
+import { useMintpassStore } from "@/store";
 import { useRouter } from "next/navigation";
 
 interface LandingNavBarProps {
@@ -13,6 +14,7 @@ interface LandingNavBarProps {
 export function LandingNavBar({ onGoToExplore, onGoToMyTickets, onGoToOrganizer }: LandingNavBarProps) {
   const { authenticated, user } = usePrivy();
   const session = useWalletSession();
+  const { organizerProfile } = useMintpassStore();
   const router = useRouter();
 
   const walletAddressStr = user?.wallet?.address || session?.account?.address?.toString() || null;
@@ -42,7 +44,7 @@ export function LandingNavBar({ onGoToExplore, onGoToMyTickets, onGoToOrganizer 
             
             {isConnected ? (
               <button type="button" className="lp-nav-btn" onClick={() => router.push('/dashboard')}>
-                Dashboard
+                {organizerProfile ? 'Dashboard' : 'Quieres ser organizador'}
               </button>
             ) : (
               <button type="button" className="lp-nav-btn" onClick={() => onGoToOrganizer ? onGoToOrganizer() : router.push('/organizers')}>

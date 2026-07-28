@@ -2,16 +2,19 @@
 import { useState, useEffect } from "react";
 import * as Icons from "lucide-react";
 import { EventModel } from '../../types';
-import { useUmi } from "../../providers";
+import { useUmi } from "../../components/providers";
 import { mintTicket, getOrganizerReputation } from "../../lib/metaplex";
+import { buildBuyTicketInstruction, deriveEventPDA } from "../../lib/event-pda";
+import { address } from "@solana/addresses";
+import { transactionBuilder } from "@metaplex-foundation/umi";
 import { useWalletSession, useSolanaClient } from "@solana/react-hooks";
 import { type Address } from "@solana/kit";
-import WalletButton from "../../components/WalletButton";
-import AlertModal, { AlertModalProps } from "../../components/AlertModal";
-import { LandingNavBar } from "../../components/LandingNavBar";
-import { LandingFooter } from "../../components/LandingFooter";
-import "../../Home.css";
-import "../../styles/BuyerPurchase.css";
+import WalletButton from "../../components/ui/WalletButton";
+import AlertModal, { AlertModalProps } from "../../components/ui/AlertModal";
+import { LandingNavBar } from "../../components/layout/LandingNavBar";
+import { LandingFooter } from "../../components/layout/LandingFooter";
+import "../../styles/Home.css";
+import "./BuyerPurchase.css";
 
 export default function BuyerPurchase({
   event,
@@ -118,7 +121,18 @@ export default function BuyerPurchase({
     }, 900);
 
     try {
-      const ticketMints = await mintTicket(umi, {
+      const organizerAddr = address(event.organizerWallet || "11111111111111111111111111111111");
+      const [eventRecordPda] = await deriveEventPDA(organizerAddr, collectionMint);
+      
+      const { EVENT_REGISTRY_PROGRAM_ID } = await import("../../lib/anchor");
+      const { getProgramDerivedAddress } = await import("@solana/addresses");
+      
+      const escrowStatePda = (await getProgramDerivedAddress({
+        programAddress: EVENT_REGISTRY_PROGRAM_ID,
+        seeds: [Buffer.from("escrow_state"), address(eventRecordPda)]
+      }))[0];
+
+      const ticketMintInfos = await mintTicket(umi, {
         collectionMint,
         buyerAddress: walletAddress!,
         priceSol: qty * event.price,
@@ -129,11 +143,32 @@ export default function BuyerPurchase({
           venue: event.venue,
           ticketNumber: event.sold + 1,
           imageUrl: "https://images.unsplash.com/photo-1541532713592-79a0317b6b77?q=80&w=800&auto=format&fit=crop"
-        }
+        },
+        escrowStatePda
       });
+
+      const successfulMints: string[] = [];
+
+      for (const info of ticketMintInfos) {
+        const { instruction } = await buildBuyTicketInstruction(
+          address(walletAddress!),
+          eventRecordPda,
+          organizerAddr,
+          address(info.mintSigner.publicKey),
+          0 // zoneIndex
+        );
+        let finalTx = info.txBuilder.add({
+          instruction: instruction,
+          signers: [umi.identity],
+          bytesCreatedOnChain: 0
+        });
+        await finalTx.sendAndConfirm(umi);
+        successfulMints.push(info.mintSigner.publicKey.toString());
+      }
+
       clearInterval(interval);
       setProgressStep(4);
-      onSuccessMint(ticketMints, qty);
+      onSuccessMint(successfulMints, qty);
       setTimeout(() => setScreen('success'), 600);
     } catch (e: unknown) {
       console.error(e);

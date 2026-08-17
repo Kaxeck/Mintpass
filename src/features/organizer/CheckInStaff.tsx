@@ -6,8 +6,8 @@ import './CheckInStaff.css';
 
 export default function CheckInStaff({ events, onGoToScanner }: { events: CreatedEvent[], onGoToScanner: (token: string) => void }) {
   const [view, setView] = useState<'list' | 'manage'>('list');
-  const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
-  const [links, setLinks] = useState<{ id: string, name: string, token: string, createdAt: number, status: 'active' | 'revoked', eventId: number }[]>([]);
+  const [selectedEventId, setSelectedEventId] = useState<string | number | null>(null);
+  const [links, setLinks] = useState<{ id: string, name: string, token: string, createdAt: number, status: 'active' | 'revoked', eventId: string | number }[]>([]);
   const [copied, setCopied] = useState<string | null>(null);
 
   const generateLink = () => {

@@ -7,10 +7,11 @@ import { Instruction, AccountRole } from "@solana/instructions";
 export const MINTPASS_IDL: any = {
   version: "0.1.0",
   name: "mintpass_core",
-  address: process.env.NEXT_PUBLIC_EVENT_REGISTRY_PROGRAM_ID || "22222222222222222222222222222222",
+  address: process.env.NEXT_PUBLIC_EVENT_REGISTRY_PROGRAM_ID || "FTZot8vUVk4Ez7FTdakSqnNoEabysQbBW7GuAdr2EwFM",
   instructions: [
     {
       name: "createEvent",
+      discriminator: [49, 219, 29, 203, 22, 98, 100, 87],
       accounts: [
         { name: "organizer", isMut: true, isSigner: true },
         { name: "collectionMint", isMut: false, isSigner: false },
@@ -43,6 +44,7 @@ export const MINTPASS_IDL: any = {
     },
     {
       name: "buyTicket",
+      discriminator: [11, 24, 17, 193, 168, 116, 164, 169],
       accounts: [
         { name: "payer", isMut: true, isSigner: true },
         { name: "buyer", isMut: true, isSigner: true },
@@ -85,9 +87,9 @@ export const MINTPASS_IDL: any = {
   ]
 };
 
-export const EVENT_REGISTRY_PROGRAM_ID = address(
-  process.env.NEXT_PUBLIC_EVENT_REGISTRY_PROGRAM_ID || "22222222222222222222222222222222"
-);
+if (!process.env.NEXT_PUBLIC_EVENT_REGISTRY_PROGRAM_ID) throw new Error("Missing NEXT_PUBLIC_EVENT_REGISTRY_PROGRAM_ID");
+
+export const EVENT_REGISTRY_PROGRAM_ID = address(process.env.NEXT_PUBLIC_EVENT_REGISTRY_PROGRAM_ID);
 
 const coder = new BorshCoder(MINTPASS_IDL);
 
@@ -116,11 +118,11 @@ export function buildCreateEventInstruction(
 const FETCH_IDL: any = {
   version: "0.1.0",
   name: "mintpass_core",
-  address: process.env.NEXT_PUBLIC_EVENT_REGISTRY_PROGRAM_ID || "22222222222222222222222222222222",
+  address: process.env.NEXT_PUBLIC_EVENT_REGISTRY_PROGRAM_ID,
   instructions: [],
   accounts: [
     {
-      name: "TicketReceipt",
+      name: "ticketReceipt",
       type: {
         kind: "struct",
         fields: [
@@ -141,7 +143,7 @@ const FETCH_IDL: any = {
       }
     },
     {
-      name: "EventRecord",
+      name: "eventRecord",
       type: {
         kind: "struct",
         fields: [

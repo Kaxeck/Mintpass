@@ -1,18 +1,35 @@
-'use client';
+import { getPublishedEvents } from "@/app/actions/events";
+import ClientExplorePage from "./ClientExplorePage";
 
-import dynamic from 'next/dynamic';
-import { useRouter } from 'next/navigation';
+export const dynamic = 'force-dynamic';
 
-const EventView = dynamic(() => import("@/features/public/EventView"), { ssr: false });
+export default async function ExplorePage() {
+  const dbEvents = await getPublishedEvents();
+  
+  const formattedEvents = dbEvents.map(ev => {
+    let dateStr = "";
+    let timeStr = "";
+    if (ev.startDate) {
+      const dateObj = new Date(ev.startDate);
+      dateStr = dateObj.toISOString().split('T')[0];
+      timeStr = dateObj.toTimeString().split(' ')[0].substring(0, 5);
+    }
 
-export default function ExplorePage() {
-  const router = useRouter();
+    return {
+      id: ev.id,
+      name: ev.title,
+      category: ev.category || "Otro",
+      date: dateStr,
+      time: timeStr,
+      venue: ev.location || "",
+      price: `$${ev.ticketPriceSol} SOL`,
+      aforo: ev.capacity || 0,
+      coverImage: ev.coverImageUrl || undefined,
+      organizerName: (ev as any).userProfile?.companyName || ""
+    };
+  });
 
   return (
-    <EventView 
-      onBack={() => router.back()} 
-      onGoToMyTickets={() => router.push('/tickets')}
-      onEventClick={(id: number) => router.push(`/purchase/${id}`)}
-    />
+    <ClientExplorePage events={formattedEvents} />
   );
 }

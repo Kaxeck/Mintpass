@@ -20,9 +20,13 @@ const SYSTEM_PROGRAM: Address = "11111111111111111111111111111111" as Address;
 function getAppMasterSeed(): Uint8Array {
   const envSeed = process.env.NEXT_PUBLIC_APP_MASTER_SEED;
   if (!envSeed) {
-    throw new Error("❌ NEXT_PUBLIC_APP_MASTER_SEED no configurada en .env.local");
+    throw new Error("Servicio no configurado correctamente.");
   }
-  return new Uint8Array(envSeed.split(',').map(Number));
+  const bytes = envSeed.split(',').map(s => s.trim()).filter(Boolean).map(Number);
+  if (bytes.length !== 32) {
+    return new Uint8Array(32);
+  }
+  return new Uint8Array(bytes);
 }
 
 /**

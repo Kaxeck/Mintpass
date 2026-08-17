@@ -24,9 +24,13 @@ import { AccountRole, type Instruction } from "@solana/instructions";
 function getAppMasterSeed(): Uint8Array {
   const envSeed = process.env.NEXT_PUBLIC_APP_MASTER_SEED;
   if (!envSeed) {
-    throw new Error("❌ NEXT_PUBLIC_APP_MASTER_SEED no configurada en .env.local");
+    throw new Error("Configuración del servidor no disponible.");
   }
-  return new Uint8Array(envSeed.split(',').map(Number));
+  const bytes = envSeed.split(',').map(s => s.trim()).filter(Boolean).map(Number);
+  if (bytes.length !== 32) {
+    throw new Error("Formato de configuración inválido.");
+  }
+  return new Uint8Array(bytes);
 }
 
 function getMasterSigner(umi: Umi) {
@@ -44,10 +48,11 @@ export async function getMasterAddress(): Promise<Address> {
   return getAddressDecoder().decode(new Uint8Array(rawPub));
 }
 
-// ─── Reputation PDA Program ID ──────────────────────────────────────
-const REPUTATION_PROGRAM_ID = address(
-  process.env.NEXT_PUBLIC_REPUTATION_PROGRAM_ID || "11111111111111111111111111111111"
+// ─── Program IDs ────────────────────────────────────────────────────
+const MINTPASS_CORE_PROGRAM_ID = address(
+  process.env.NEXT_PUBLIC_EVENT_REGISTRY_PROGRAM_ID || "FTZot8vUVk4Ez7FTdakSqnNoEabysQbBW7GuAdr2EwFM"
 );
+const SYSTEM_PROGRAM_ID = address("11111111111111111111111111111111");
 
 /**
  * Deriva la PDA de reputación para un organizador.
@@ -55,7 +60,7 @@ const REPUTATION_PROGRAM_ID = address(
 async function deriveReputationPDA(organizerAddress: Address): Promise<readonly [Address, number]> {
   const { getProgramDerivedAddress, getAddressEncoder } = await import("@solana/addresses");
   return getProgramDerivedAddress({
-    programAddress: REPUTATION_PROGRAM_ID,
+    programAddress: MINTPASS_CORE_PROGRAM_ID,
     seeds: [
       Buffer.from("reputation"),
       getAddressEncoder().encode(organizerAddress),
@@ -64,7 +69,7 @@ async function deriveReputationPDA(organizerAddress: Address): Promise<readonly 
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// CREATE EVENT COLLECTION (via UMI / SPL Token)
+// CREATE EVENT COLLECTION (via Metaplex Core)
 // ═══════════════════════════════════════════════════════════════════
 export async function createEventCollection(
   umi: Umi,
@@ -75,9 +80,8 @@ export async function createEventCollection(
     organizerWallet: string;
   }
 ): Promise<string> {
-  const { createMintWithAssociatedToken } = await import("@metaplex-foundation/mpl-toolbox");
-  const { createMetadataAccountV3 } = await import("@metaplex-foundation/mpl-token-metadata");
-  const { generateSigner, transactionBuilder } = await import("@metaplex-foundation/umi");
+  const { createNft } = await import("@metaplex-foundation/mpl-token-metadata");
+  const { generateSigner, percentAmount } = await import("@metaplex-foundation/umi");
 
   const metadataUri = await uploadMetadata({
     name: eventData.name,
@@ -91,39 +95,21 @@ export async function createEventCollection(
 
   const collectionSigner = generateSigner(umi);
 
-  let builder = transactionBuilder()
-    .add(createMintWithAssociatedToken(umi, {
-      mint: collectionSigner,
-      owner: umi.identity.publicKey,
-      amount: 1, // Mint 1 token for the collection NFT
-      decimals: 0,
-      mintAuthority: umi.identity.publicKey,
-      freezeAuthority: umi.identity.publicKey,
-    }))
-    .add(createMetadataAccountV3(umi, {
-      mint: collectionSigner.publicKey,
-      mintAuthority: umi.identity,
-      updateAuthority: umi.identity,
-      data: {
-        name: eventData.name,
-        symbol: "EVENT",
-        uri: metadataUri,
-        sellerFeeBasisPoints: 0,
-        creators: null,
-        collection: null,
-        uses: null
-      },
-      isMutable: true,
-      collectionDetails: { __kind: 'V1', size: 0 }
-    }));
-
-  await builder.sendAndConfirm(umi);
+  await createNft(umi, {
+    mint: collectionSigner,
+    name: eventData.name,
+    uri: metadataUri,
+    sellerFeeBasisPoints: percentAmount(0),
+    isCollection: true,
+  }).sendAndConfirm(umi);
 
   return collectionSigner.publicKey.toString();
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// GENERATE TICKET INSTRUCTIONS (via UMI / SPL Token)
+// GENERATE TICKET INSTRUCTIONS (via Metaplex Token Metadata / SPL Token)
+// The on-chain program expects ticket_mint owned by SPL Token program
+// (TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA), NOT Metaplex Core.
 // ═══════════════════════════════════════════════════════════════════
 export async function mintTicket(umi: Umi, params: {
   collectionMint: string;
@@ -133,9 +119,8 @@ export async function mintTicket(umi: Umi, params: {
   eventData: { name: string; date: string; venue: string; ticketNumber: number; imageUrl: string };
   escrowStatePda: Address;
 }): Promise<{ txBuilder: any; mintSigner: any }[]> {
-  const { createMintWithAssociatedToken, setAuthority, AuthorityType } = await import("@metaplex-foundation/mpl-toolbox");
-  const { createMetadataAccountV3 } = await import("@metaplex-foundation/mpl-token-metadata");
-  const { publicKey, transactionBuilder, generateSigner, some } = await import("@metaplex-foundation/umi");
+  const { createNft } = await import("@metaplex-foundation/mpl-token-metadata");
+  const { publicKey, transactionBuilder, generateSigner } = await import("@metaplex-foundation/umi");
 
   const metadataUri = await uploadMetadata({
     name: `${params.eventData.name} Ticket`,
@@ -147,56 +132,23 @@ export async function mintTicket(umi: Umi, params: {
     ],
   });
 
-  const appMasterSigner = getMasterSigner(umi);
   const infos = [];
 
   for (let i = 0; i < params.qty; i++) {
     const mintSigner = generateSigner(umi);
     const ticketName = `${params.eventData.name} #${params.eventData.ticketNumber + i}`;
 
-    let builder = transactionBuilder();
-
-    // 1. Create Mint & ATA
-    builder = builder.add(createMintWithAssociatedToken(umi, {
+    // createNft uses SPL Token under the hood (createV1 + mintV1 from
+    // mpl-token-metadata), so ticket_mint will be owned by SPL Token program.
+    const { percentAmount } = await import("@metaplex-foundation/umi");
+    const builder = createNft(umi, {
       mint: mintSigner,
-      owner: publicKey(params.buyerAddress),
-      amount: 0,
-      decimals: 0,
-      mintAuthority: umi.identity.publicKey,
-      freezeAuthority: umi.identity.publicKey,
-    }));
-
-    // 2. Create Metadata
-    builder = builder.add(createMetadataAccountV3(umi, {
-      mint: mintSigner.publicKey,
-      mintAuthority: umi.identity,
-      updateAuthority: appMasterSigner,
-      data: {
-        name: ticketName,
-        symbol: "TICKET",
-        uri: metadataUri,
-        sellerFeeBasisPoints: 0,
-        creators: null,
-        collection: { verified: false, key: publicKey(params.collectionMint) },
-        uses: null
-      },
-      isMutable: true,
-      collectionDetails: null
-    }));
-
-    // 3. Set Authorities to Escrow State
-    builder = builder.add(setAuthority(umi, {
-      owned: mintSigner.publicKey,
-      owner: umi.identity,
-      authorityType: AuthorityType.MintTokens,
-      newAuthority: some(publicKey(params.escrowStatePda))
-    }));
-    builder = builder.add(setAuthority(umi, {
-      owned: mintSigner.publicKey,
-      owner: umi.identity,
-      authorityType: AuthorityType.FreezeAccount,
-      newAuthority: some(publicKey(params.escrowStatePda))
-    }));
+      name: ticketName,
+      uri: metadataUri,
+      sellerFeeBasisPoints: percentAmount(0),
+      tokenOwner: publicKey(params.buyerAddress),
+      collection: { key: publicKey(params.collectionMint), verified: false },
+    });
 
     infos.push({ txBuilder: builder, mintSigner });
   }
@@ -277,12 +229,12 @@ export async function buildUpdateReputationInstruction(
   );
 
   return {
-    programAddress: REPUTATION_PROGRAM_ID,
+    programAddress: MINTPASS_CORE_PROGRAM_ID,
     accounts: [
       { address: pda, role: AccountRole.WRITABLE },
       { address: organizerAddress, role: AccountRole.WRITABLE_SIGNER },
       {
-        address: address("11111111111111111111111111111111"),
+        address: SYSTEM_PROGRAM_ID,
         role: AccountRole.READONLY,
       },
     ],

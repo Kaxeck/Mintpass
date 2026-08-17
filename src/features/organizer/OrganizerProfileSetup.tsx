@@ -1,6 +1,8 @@
 'use client';
 import { useState } from 'react';
 import * as Icons from "lucide-react";
+import { organizerProfileSchema } from "../../lib/validations";
+import { z } from "zod";
 
 export interface OrganizerProfile {
   name: string;
@@ -26,16 +28,13 @@ export default function OrganizerProfileSetup({ onComplete }: Props) {
   const [socialLink, setSocialLink] = useState('');
 
   const [showErrors, setShowErrors] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setShowErrors(true);
 
-    if (!name.trim() || !category || !bio.trim() || !supportEmail.trim() || !internalPhone.trim()) {
-      return;
-    }
-
-    onComplete({
+    const formData = {
       name,
       category,
       bio,
@@ -43,7 +42,21 @@ export default function OrganizerProfileSetup({ onComplete }: Props) {
       internalPhone,
       logoUrl: logoUrl || undefined,
       socialLink: socialLink || undefined
-    });
+    };
+
+    const result = organizerProfileSchema.safeParse(formData);
+
+    if (!result.success) {
+      const formattedErrors: Record<string, string> = {};
+      result.error.issues.forEach(issue => {
+        formattedErrors[issue.path[0] as string] = issue.message;
+      });
+      setErrors(formattedErrors);
+      return;
+    }
+
+    setErrors({});
+    onComplete(result.data);
   };
 
   return (
@@ -70,13 +83,14 @@ export default function OrganizerProfileSetup({ onComplete }: Props) {
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label style={{ fontSize: '12px', color: (showErrors && !name) ? '#B0523E' : '#5F5E5A', display: 'block', marginBottom: '6px' }}>Nombre de Productora / Organizador *</label>
-                <input type="text" placeholder="Ej. Indie Rocks!" value={name} onChange={e => setName(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '13px', borderRadius: '8px', border: (showErrors && !name) ? '1px solid #B0523E' : '1px solid #D3D1C7', outline: 'none', background: '#FFFFFF', color: '#1E1E1E' }} />
+                <label style={{ fontSize: '12px', color: (showErrors && errors.name) ? '#B0523E' : '#5F5E5A', display: 'block', marginBottom: '6px' }}>Nombre de Productora / Organizador *</label>
+                <input type="text" placeholder="Ej. Indie Rocks!" value={name} onChange={e => setName(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '13px', borderRadius: '8px', border: (showErrors && errors.name) ? '1px solid #B0523E' : '1px solid #D3D1C7', outline: 'none', background: '#FFFFFF', color: '#1E1E1E' }} />
+                {showErrors && errors.name && <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#B0523E' }}>{errors.name}</p>}
               </div>
 
               <div>
-                <label style={{ fontSize: '12px', color: (showErrors && !category) ? '#B0523E' : '#5F5E5A', display: 'block', marginBottom: '6px' }}>Categoría *</label>
-                <select value={category} onChange={e => setCategory(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '13px', borderRadius: '8px', border: (showErrors && !category) ? '1px solid #B0523E' : '1px solid #D3D1C7', outline: 'none', background: '#FFFFFF', color: category ? '#1E1E1E' : '#8A8880' }}>
+                <label style={{ fontSize: '12px', color: (showErrors && errors.category) ? '#B0523E' : '#5F5E5A', display: 'block', marginBottom: '6px' }}>Categoría *</label>
+                <select value={category} onChange={e => setCategory(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '13px', borderRadius: '8px', border: (showErrors && errors.category) ? '1px solid #B0523E' : '1px solid #D3D1C7', outline: 'none', background: '#FFFFFF', color: category ? '#1E1E1E' : '#8A8880' }}>
                   <option value="">Selecciona una categoría</option>
                   <option value="Productora / Promotor">Productora / Promotor</option>
                   <option value="Foro / Venue">Foro / Venue</option>
@@ -85,21 +99,25 @@ export default function OrganizerProfileSetup({ onComplete }: Props) {
                   <option value="Comunidad / Colectivo">Comunidad / Colectivo</option>
                   <option value="Otro">Otro</option>
                 </select>
+                {showErrors && errors.category && <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#B0523E' }}>{errors.category}</p>}
               </div>
 
               <div>
-                <label style={{ fontSize: '12px', color: (showErrors && !bio) ? '#B0523E' : '#5F5E5A', display: 'block', marginBottom: '6px' }}>Biografía / Descripción *</label>
-                <textarea placeholder="Cuéntanos sobre ti y el tipo de eventos que organizas..." value={bio} onChange={e => setBio(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '13px', borderRadius: '8px', border: (showErrors && !bio) ? '1px solid #B0523E' : '1px solid #D3D1C7', outline: 'none', background: '#FFFFFF', color: '#1E1E1E', minHeight: '80px', resize: 'vertical' }} />
+                <label style={{ fontSize: '12px', color: (showErrors && errors.bio) ? '#B0523E' : '#5F5E5A', display: 'block', marginBottom: '6px' }}>Biografía / Descripción *</label>
+                <textarea placeholder="Cuéntanos sobre ti y el tipo de eventos que organizas..." value={bio} onChange={e => setBio(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '13px', borderRadius: '8px', border: (showErrors && errors.bio) ? '1px solid #B0523E' : '1px solid #D3D1C7', outline: 'none', background: '#FFFFFF', color: '#1E1E1E', minHeight: '80px', resize: 'vertical' }} />
+                {showErrors && errors.bio && <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#B0523E' }}>{errors.bio}</p>}
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#5F5E5A', display: 'block', marginBottom: '6px' }}>Logo URL (Opcional)</label>
-                  <input type="text" placeholder="https://..." value={logoUrl} onChange={e => setLogoUrl(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '13px', borderRadius: '8px', border: '1px solid #D3D1C7', outline: 'none', background: '#FFFFFF', color: '#1E1E1E' }} />
+                  <label style={{ fontSize: '12px', color: (showErrors && errors.logoUrl) ? '#B0523E' : '#5F5E5A', display: 'block', marginBottom: '6px' }}>Logo URL (Opcional)</label>
+                  <input type="text" placeholder="https://..." value={logoUrl} onChange={e => setLogoUrl(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '13px', borderRadius: '8px', border: (showErrors && errors.logoUrl) ? '1px solid #B0523E' : '1px solid #D3D1C7', outline: 'none', background: '#FFFFFF', color: '#1E1E1E' }} />
+                  {showErrors && errors.logoUrl && <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#B0523E' }}>{errors.logoUrl}</p>}
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#5F5E5A', display: 'block', marginBottom: '6px' }}>Red Social (Opcional)</label>
-                  <input type="text" placeholder="Instagram, X, o Linktree" value={socialLink} onChange={e => setSocialLink(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '13px', borderRadius: '8px', border: '1px solid #D3D1C7', outline: 'none', background: '#FFFFFF', color: '#1E1E1E' }} />
+                  <label style={{ fontSize: '12px', color: (showErrors && errors.socialLink) ? '#B0523E' : '#5F5E5A', display: 'block', marginBottom: '6px' }}>Red Social (Opcional)</label>
+                  <input type="text" placeholder="https://..." value={socialLink} onChange={e => setSocialLink(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '13px', borderRadius: '8px', border: (showErrors && errors.socialLink) ? '1px solid #B0523E' : '1px solid #D3D1C7', outline: 'none', background: '#FFFFFF', color: '#1E1E1E' }} />
+                  {showErrors && errors.socialLink && <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#B0523E' }}>{errors.socialLink}</p>}
                 </div>
               </div>
             </div>
@@ -113,15 +131,15 @@ export default function OrganizerProfileSetup({ onComplete }: Props) {
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label style={{ fontSize: '12px', color: (showErrors && !supportEmail) ? '#B0523E' : '#5F5E5A', display: 'block', marginBottom: '6px' }}>Correo para dudas del evento *</label>
-                <input type="email" placeholder="hola@miproductora.com" value={supportEmail} onChange={e => setSupportEmail(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '13px', borderRadius: '8px', border: (showErrors && !supportEmail) ? '1px solid #B0523E' : '1px solid #D3D1C7', outline: 'none', background: '#FFFFFF', color: '#1E1E1E' }} />
-                <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#8A8880' }}>Tus asistentes podrán contactarte aquí en caso de dudas sobre su boleto.</p>
+                <label style={{ fontSize: '12px', color: (showErrors && errors.supportEmail) ? '#B0523E' : '#5F5E5A', display: 'block', marginBottom: '6px' }}>Correo para dudas del evento *</label>
+                <input type="email" placeholder="hola@miproductora.com" value={supportEmail} onChange={e => setSupportEmail(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '13px', borderRadius: '8px', border: (showErrors && errors.supportEmail) ? '1px solid #B0523E' : '1px solid #D3D1C7', outline: 'none', background: '#FFFFFF', color: '#1E1E1E' }} />
+                {showErrors && errors.supportEmail ? <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#B0523E' }}>{errors.supportEmail}</p> : <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#8A8880' }}>Tus asistentes podrán contactarte aquí en caso de dudas sobre su boleto.</p>}
               </div>
 
               <div>
-                <label style={{ fontSize: '12px', color: (showErrors && !internalPhone) ? '#B0523E' : '#5F5E5A', display: 'block', marginBottom: '6px' }}>Teléfono de contacto (Interno) *</label>
-                <input type="tel" placeholder="+52 ..." value={internalPhone} onChange={e => setInternalPhone(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '13px', borderRadius: '8px', border: (showErrors && !internalPhone) ? '1px solid #B0523E' : '1px solid #D3D1C7', outline: 'none', background: '#FFFFFF', color: '#1E1E1E' }} />
-                <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#8A8880' }}>Se guarda solo en base de datos. Lo usaremos para contactarte por pagos o alertas.</p>
+                <label style={{ fontSize: '12px', color: (showErrors && errors.internalPhone) ? '#B0523E' : '#5F5E5A', display: 'block', marginBottom: '6px' }}>Teléfono de contacto (Interno) *</label>
+                <input type="tel" placeholder="+52 ..." value={internalPhone} onChange={e => setInternalPhone(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '13px', borderRadius: '8px', border: (showErrors && errors.internalPhone) ? '1px solid #B0523E' : '1px solid #D3D1C7', outline: 'none', background: '#FFFFFF', color: '#1E1E1E' }} />
+                {showErrors && errors.internalPhone ? <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#B0523E' }}>{errors.internalPhone}</p> : <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#8A8880' }}>Se guarda solo en base de datos. Lo usaremos para contactarte por pagos o alertas.</p>}
               </div>
             </div>
           </div>

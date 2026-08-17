@@ -6,7 +6,7 @@ import "./StaffScanner.css";
 import { CreatedEvent } from "./CreateEvent";
 import { Scanner } from '@yudiel/react-qr-scanner';
 
-export default function StaffPanel({ event, stats, onCheckIn, onBack, isPwa = false }: { event?: CreatedEvent, stats?: {sold: number, checked: number}, onCheckIn?: () => void, onBack: () => void, isPwa?: boolean }) {
+export default function StaffPanel({ event, stats, onCheckIn, onBack, isPwa = false }: { event?: CreatedEvent, stats?: {sold: number, checked: number}, onCheckIn?: (ticketMint?: string) => void, onBack: () => void, isPwa?: boolean }) {
   // Estados principales del escáner
   const [scanning, setScanning] = useState(true);
   const [torchOn, setTorchOn] = useState(false);
@@ -179,9 +179,8 @@ export default function StaffPanel({ event, stats, onCheckIn, onBack, isPwa = fa
       svg: r.svg
     });
 
-    // Actualizamos estadísticas globales (si es válido)
     if (type === 'valid') {
-       if (onCheckIn) onCheckIn();
+       if (onCheckIn) onCheckIn(mintAddress);
     }
 
     addLog(type, mintAddress);

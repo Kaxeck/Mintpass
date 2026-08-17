@@ -89,7 +89,12 @@ model Event {
   title             String
   description       String?
   coverImageUrl     String?
+  ticketImageUrl    String?
+  galleryUrls       String[]    @default([])
   location          String?
+  countryIso        String?
+  stateIso          String?
+  cityName          String?
   startDate         DateTime?
   endDate           DateTime?
   doorTime          String?

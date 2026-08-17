@@ -5,16 +5,14 @@
  * mediante PDAs (Program Derived Addresses) - reescrito con @solana/kit v5.x.
  */
 
-import { Address, address } from "@solana/addresses";
+import { Address, address, getAddressEncoder } from "@solana/addresses";
 import { getProgramDerivedAddress } from "@solana/addresses";
-import { BorshCoder } from "@coral-xyz/anchor";
+import { BorshCoder, BN } from "@coral-xyz/anchor";
 import { MINTPASS_IDL } from "./anchor";
 import { Instruction as UmiInstruction } from "@metaplex-foundation/umi";
 
-// Program ID del contrato mintpass-event-registry desplegado en Devnet
-const EVENT_REGISTRY_PROGRAM_ID = address(
-  process.env.NEXT_PUBLIC_EVENT_REGISTRY_PROGRAM_ID || "11111111111111111111111111111111"
-);
+if (!process.env.NEXT_PUBLIC_EVENT_REGISTRY_PROGRAM_ID) throw new Error("Missing NEXT_PUBLIC_EVENT_REGISTRY_PROGRAM_ID");
+const EVENT_REGISTRY_PROGRAM_ID = address(process.env.NEXT_PUBLIC_EVENT_REGISTRY_PROGRAM_ID);
 
 /**
  * Interfaz de los datos del evento que se almacenan on-chain
@@ -50,12 +48,13 @@ export async function deriveEventPDA(
   collectionMint: string
 ): Promise<readonly [Address, number]> {
   const collectionAddress = address(collectionMint);
+  const encoder = getAddressEncoder();
   return getProgramDerivedAddress({
     programAddress: EVENT_REGISTRY_PROGRAM_ID,
     seeds: [
       Buffer.from("event"),
-      organizerAddress,
-      collectionAddress,
+      encoder.encode(organizerAddress),
+      encoder.encode(collectionAddress),
     ],
   });
 }
@@ -77,6 +76,8 @@ export async function buildSaveEventInstruction(
 
   const coder = new BorshCoder(MINTPASS_IDL);
 
+  const encoder = getAddressEncoder();
+
   const protocolConfigPda = (await getProgramDerivedAddress({
     programAddress: EVENT_REGISTRY_PROGRAM_ID,
     seeds: [Buffer.from("config")]
@@ -86,8 +87,8 @@ export async function buildSaveEventInstruction(
     programAddress: address("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"), // Metaplex Token Metadata Program
     seeds: [
       Buffer.from("metadata"),
-      address("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"),
-      address(eventData.collectionMint)
+      encoder.encode(address("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s")),
+      encoder.encode(address(eventData.collectionMint))
     ]
   }))[0];
 
@@ -95,13 +96,13 @@ export async function buildSaveEventInstruction(
   const args = {
     name: eventData.name,
     description: eventData.description,
-    eventTimestamp: new (BorshCoder as any).BN(new Date(`${eventData.date}T${eventData.time}`).getTime() / 1000), // convert to i64
+    eventTimestamp: new BN(new Date(`${eventData.date}T${eventData.time}`).getTime() / 1000), // convert to i64
     venue: eventData.venue,
     category: eventData.category,
     zones: eventData.zones.map(z => ({
       name: z.name,
       capacity: z.capacity,
-      price: new (BorshCoder as any).BN(z.price),
+      price: new BN(z.price),
       ticketsSold: 0
     })),
     allowResale: eventData.allowResale,
@@ -139,6 +140,8 @@ export async function buildBuyTicketInstruction(
 ): Promise<{ instruction: UmiInstruction; receiptPda: Address }> {
   const coder = new BorshCoder(MINTPASS_IDL);
 
+  const encoder = getAddressEncoder();
+
   const protocolConfigPda = (await getProgramDerivedAddress({
     programAddress: EVENT_REGISTRY_PROGRAM_ID,
     seeds: [Buffer.from("config")]
@@ -146,22 +149,22 @@ export async function buildBuyTicketInstruction(
 
   const escrowVault = (await getProgramDerivedAddress({
     programAddress: EVENT_REGISTRY_PROGRAM_ID,
-    seeds: [Buffer.from("escrow"), address(eventRecordPda)]
+    seeds: [Buffer.from("escrow"), encoder.encode(eventRecordPda)]
   }))[0];
 
   const escrowState = (await getProgramDerivedAddress({
     programAddress: EVENT_REGISTRY_PROGRAM_ID,
-    seeds: [Buffer.from("escrow_state"), address(eventRecordPda)]
+    seeds: [Buffer.from("escrow_state"), encoder.encode(eventRecordPda)]
   }))[0];
 
   const ticketReceipt = (await getProgramDerivedAddress({
     programAddress: EVENT_REGISTRY_PROGRAM_ID,
-    seeds: [Buffer.from("receipt"), address(ticketMint)]
+    seeds: [Buffer.from("receipt"), encoder.encode(ticketMint)]
   }))[0];
 
   const ticketCounter = (await getProgramDerivedAddress({
     programAddress: EVENT_REGISTRY_PROGRAM_ID,
-    seeds: [Buffer.from("counter"), address(eventRecordPda), address(buyerAddress)]
+    seeds: [Buffer.from("counter"), encoder.encode(eventRecordPda), encoder.encode(buyerAddress)]
   }))[0];
 
   // Token Metadata PDA for ticketMint
@@ -169,8 +172,8 @@ export async function buildBuyTicketInstruction(
     programAddress: address("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"),
     seeds: [
       Buffer.from("metadata"),
-      address("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"),
-      address(ticketMint)
+      encoder.encode(address("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s")),
+      encoder.encode(ticketMint)
     ]
   }))[0];
 
@@ -178,13 +181,14 @@ export async function buildBuyTicketInstruction(
   const tokenAccount = (await getProgramDerivedAddress({
     programAddress: address("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"),
     seeds: [
-      address(buyerAddress),
-      address("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
-      address(ticketMint)
+      encoder.encode(buyerAddress),
+      encoder.encode(address("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")),
+      encoder.encode(ticketMint)
     ]
   }))[0];
 
-  const mintpassTreasury = address(process.env.NEXT_PUBLIC_TREASURY_WALLET || "22222222222222222222222222222222"); // TODO: Use real treasury
+  if (!process.env.NEXT_PUBLIC_TREASURY_WALLET) throw new Error("Missing NEXT_PUBLIC_TREASURY_WALLET");
+  const mintpassTreasury = address(process.env.NEXT_PUBLIC_TREASURY_WALLET);
 
   const payload = coder.instruction.encode("buyTicket", { zoneIndex });
 

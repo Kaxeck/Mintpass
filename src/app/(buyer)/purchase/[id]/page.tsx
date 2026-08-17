@@ -1,72 +1,111 @@
 'use client';
 
+import { Country, State } from 'country-state-city';
 import dynamic from 'next/dynamic';
 const BuyerPurchase = dynamic(() => import("@/features/buyer/BuyerPurchase"), { ssr: false });
-import { useMintpassStore } from "@/store";
-import { EVENTS } from "@/data/events";
 import { EventModel } from "@/types";
 import { useWalletSession } from "@solana/react-hooks";
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { getEventById } from "@/app/actions/events";
+import { getUserTickets, mintTicketInDb } from "@/app/actions/tickets";
 
 export default function BuyerPurchasePage() {
-  const { createdEvents, eventStats, collectionMint, updateStats, ownedTickets, setOwnedTickets, isHydrated } = useMintpassStore();
   const router = useRouter();
   const params = useParams();
   const session = useWalletSession();
   const [mounted, setMounted] = useState(false);
+  const [eventModel, setEventModel] = useState<EventModel | null>(null);
+  const [collectionMint, setCollectionMint] = useState<string>('');
+  const [ownedTicketsCount, setOwnedTicketsCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  const currentWalletPk = session?.account?.address?.toString() || "unconnected";
+  const selectedEventId = params?.id as string;
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  if (!mounted || !isHydrated) return null;
+  useEffect(() => {
+    async function fetchEventData() {
+      if (!selectedEventId) return;
+      setLoading(true);
+      try {
+        const ev = await getEventById(selectedEventId);
+        if (ev) {
+          const dateStr = ev.startDate ? new Date(ev.startDate).toISOString().split('T')[0] : "";
+          const timeStr = ev.startDate ? new Date(ev.startDate).toTimeString().split(' ')[0].substring(0, 5) : "";
+          
+          const countryName = ev.countryIso ? Country.getCountryByCode(ev.countryIso)?.name : undefined;
+          const stateName = (ev.countryIso && ev.stateIso) ? State.getStateByCodeAndCountry(ev.stateIso, ev.countryIso)?.name : undefined;
 
-  const currentWalletPk = session?.account?.address?.toString() || "unconnected";
-  const selectedEventId = Number(params?.id);
+          setEventModel({
+            id: ev.id,
+            name: ev.title,
+            date: `${dateStr} · ${timeStr}`,
+            duration: '3h',
+            venue: ev.location || "",
+            price: ev.ticketPriceSol,
+            total: ev.capacity,
+            limitPerWallet: 0,
+            sold: (ev as any).tickets ? (ev as any).tickets.length : 0,
+            cat: ev.category || "Otro",
+            icon: ev.iconName || 'Ticket',
+            bg: ev.themeColor || '#534AB7', color: '#fff',
+            zones: Array.isArray(ev.zones) ? ev.zones as {name: string; price: number; capacity: number;}[] : [],
+            organizerWallet: ev.organizerPubkey,
+            doorTime: ev.doorTime || undefined,
+            ageRestriction: ev.ageRestriction || undefined,
+            companyName: (ev as any).userProfile?.companyName || undefined,
+            contactEmail: (ev as any).userProfile?.contactEmail || undefined,
+            description: ev.description || undefined,
+            coverImage: ev.coverImageUrl || undefined,
+            ticketImage: ev.ticketImageUrl || undefined,
+            gallery: ev.galleryUrls || [],
+            city: ev.cityName || undefined,
+            state: stateName || ev.stateIso || undefined,
+            country: countryName || ev.countryIso || undefined
+          });
+          setCollectionMint(ev.collectionMint || '');
+        }
 
-  const evCreated = createdEvents.find(e => e.id === selectedEventId);
-  let eventModel: EventModel;
-  
-  if (evCreated) {
-    eventModel = {
-        id: evCreated.id,
-        name: evCreated.name,
-        date: `${evCreated.date} · ${evCreated.time}`,
-        duration: '3h',
-        venue: evCreated.venue,
-        price: evCreated.priceType === 'free' ? 0 : evCreated.price || 0,
-        total: evCreated.aforo || 0,
-        limitPerWallet: evCreated.identityLimit || 0,
-        sold: eventStats[evCreated.id]?.sold || 0,
-        cat: evCreated.category,
-        icon: 'Ticket',
-        bg: '#534AB7', color: '#fff'
-    };
-  } else {
-    const evDummy = EVENTS.find(e => e.id === selectedEventId) || EVENTS[0];
-    eventModel = { ...evDummy, sold: eventStats[evDummy.id]?.sold || evDummy.sold };
-  }
+        if (currentWalletPk !== "unconnected") {
+          const tickets = await getUserTickets(currentWalletPk);
+          const eventTickets = tickets.filter((t: any) => t.eventAddress === ev?.address || t.eventAddress === ev?.id);
+          setOwnedTicketsCount(eventTickets.length);
+        }
+      } catch (e) {
+        console.error("Error fetching event:", e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchEventData();
+  }, [selectedEventId, currentWalletPk]);
+
+  if (!mounted || loading) return null;
+  if (!eventModel) return <div>Evento no encontrado</div>;
 
   return (
     <BuyerPurchase 
       event={eventModel} 
-      collectionMint={evCreated ? evCreated.collectionMint : collectionMint}
-      ownedTicketsCount={ownedTickets.filter(t => t.eventId === eventModel.id && t.owner === currentWalletPk).length}
-      onSuccessMint={(mintInfos, qty) => {
-          updateStats(eventModel.id, 'sold', qty);
-          
+      collectionMint={collectionMint}
+      ownedTicketsCount={ownedTicketsCount}
+      onSuccessMint={async (mintInfos, qty) => {
           const mintsArray = Array.isArray(mintInfos) ? mintInfos : [mintInfos];
           
-          setOwnedTickets(prev => {
-            const next = [...prev];
-            mintsArray.forEach(mintInfo => {
-                next.push({ eventId: eventModel.id, mint: mintInfo, purchaseDate: Date.now(), owner: currentWalletPk });
+          // Save to DB
+          for (const mintInfo of mintsArray) {
+            await mintTicketInDb({
+              mintAddress: mintInfo,
+              eventAddress: eventModel.id,
+              ownerPubkey: currentWalletPk,
+              originalPrice: eventModel.price,
+              pricePaid: eventModel.price
             });
-            return next;
-          });
+          }
 
-          // Navigate to the first ticket minted
           if (mintsArray.length > 0) {
             router.push(`/ticket/${mintsArray[0]}?eventId=${eventModel.id}`);
           } else {

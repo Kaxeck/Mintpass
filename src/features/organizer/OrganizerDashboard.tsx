@@ -382,7 +382,7 @@ export default function OrganizerDashboard({
                         </div>
                         <p className="od-bar-label">{ev.progressLabel}</p>
                         <div className="od-event-actions">
-                          {ev.actions.map((action, idx) => (
+                          {ev.actions.map((action: any, idx: number) => (
                             <button
                               key={idx}
                               className={`od-btn ${idx === ev.primaryAction ? 'od-btn-primary' : ''}`}
@@ -510,7 +510,7 @@ export default function OrganizerDashboard({
                           </div>
                           <p className="od-bar-label">{ev.progressLabel}</p>
                           <div className="od-event-actions">
-                            {ev.actions.map((action, idx) => (
+                            {ev.actions.map((action: any, idx: number) => (
                               <button
                                 key={idx}
                                 className={`od-btn ${idx === ev.primaryAction ? 'od-btn-primary' : ''}`}

@@ -1,5 +1,5 @@
 export interface EventModel {
-  id: number;
+  id: string | number;
   icon: string;
   color: string;
   bg: string;
@@ -11,7 +11,19 @@ export interface EventModel {
   price: number;
   total: number;
   sold: number;
+  zones?: Array<{ name: string; price: number; capacity: number; }>;
   limitPerWallet?: number;
+  doorTime?: string;
+  ageRestriction?: string;
+  contactEmail?: string;
+  companyName?: string;
+  description?: string;
+  coverImage?: string;
+  ticketImage?: string;
+  gallery?: string[];
+  city?: string;
+  state?: string;
+  country?: string;
   coverText?: string;
   coverClass?: string;
   badge?: string;
@@ -24,6 +36,7 @@ export interface EventModel {
   actions?: string[];
   primaryAction?: number;
   meta?: string;
+  organizerWallet?: string;
   coverStyle?: any;
   priceStyle?: any;
 }

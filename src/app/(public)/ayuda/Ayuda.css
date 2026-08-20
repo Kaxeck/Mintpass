@@ -1,0 +1,210 @@
+/* src/styles/Ayuda.css */
+
+.ayuda-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #FFFFFF;
+}
+
+.ayuda-content {
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+  font-family: var(--font-sans);
+  padding: 60px 16px 80px;
+}
+
+.ayuda-header {
+  text-align: center;
+  padding: 0 24px 26px;
+}
+
+.ayuda-title {
+  margin: 0 0 12px;
+  font-size: 20px;
+  font-weight: 500;
+  color: #1E1E1E;
+}
+
+.ayuda-search-bar {
+  max-width: 440px;
+  margin: 0 auto;
+  background: #F7F8F7;
+  border: 0.5px solid #D3D1C7;
+  border-radius: 12px;
+  padding: 6px;
+  display: flex;
+  gap: 6px;
+}
+
+.ayuda-search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #1E1E1E;
+}
+
+.ayuda-search-btn {
+  background: #14F195;
+  color: #1E1E1E;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.ayuda-search-btn:hover {
+  opacity: 0.9;
+}
+
+.ayuda-section {
+  padding: 0 24px 26px;
+}
+
+.ayuda-section-title {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: #5F5E5A;
+}
+
+.ayuda-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.ayuda-card {
+  background: #F7F8F7;
+  border-radius: 10px;
+  padding: 14px;
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+}
+
+.ayuda-card:hover {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+.ayuda-card-special {
+  background: #EEEDFE;
+  border-radius: 10px;
+  padding: 14px;
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+}
+
+.ayuda-card-special:hover {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+.ayuda-card-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: #1E1E1E;
+}
+
+.ayuda-card-title-special {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: #26215C;
+}
+
+.ayuda-card-desc {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: #5F5E5A;
+}
+
+.ayuda-card-desc-special {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: #534AB7;
+}
+
+.ayuda-faq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border: 0.5px solid #D3D1C7;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #D3D1C7;
+}
+
+.ayuda-faq-item {
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #FFFFFF;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.ayuda-faq-item:hover {
+  background-color: #f9fafb;
+}
+
+.ayuda-faq-item:nth-child(even) {
+  background: #F7F8F7;
+}
+
+.ayuda-faq-item:nth-child(even):hover {
+  background-color: #f3f4f6;
+}
+
+.ayuda-faq-text {
+  font-size: 12px;
+  color: #1E1E1E;
+}
+
+.ayuda-contact {
+  margin: 0 24px 24px;
+  background: #1E1E1E;
+  border-radius: 12px;
+  padding: 18px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.ayuda-contact-title {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #FFFFFF;
+}
+
+.ayuda-contact-desc {
+  margin: 0;
+  font-size: 11px;
+  color: #B4B2A9;
+}
+
+.ayuda-contact-btn {
+  background: #14F195;
+  color: #1E1E1E;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.ayuda-contact-btn:hover {
+  opacity: 0.9;
+}

@@ -1,15 +1,19 @@
 'use client';
 import { useState, useEffect } from "react";
 import * as Icons from "lucide-react";
-import WalletButton from "../../components/WalletButton";
+import WalletButton from "../../components/ui/WalletButton";
 import { useWalletSession, useSolanaClient } from "@solana/react-hooks";
 import { type Address, address as getAddress } from "@solana/kit";
 import { getOrganizerReputation } from "../../lib/metaplex";
 import { readAllEventsFromChain, type OnChainEventData } from "../../lib/event-pda";
 import CreateEvent, { type CreatedEvent } from "./CreateEvent";
 import CheckInStaff from "./CheckInStaff";
-import '../../Home.css';
-import '../../styles/OrganizerDashboard.css';
+import OrganizerProfileSetup, { type OrganizerProfile } from "./OrganizerProfileSetup";
+import EventDetails from "./EventDetails";
+import { updateOrganizerProfileInDb } from "../../app/actions/organizer";
+import '../../styles/Home.css';
+import './OrganizerDashboard.css';
+import { useMintpassStore } from "../../store";
 
 import { usePrivy } from "@privy-io/react-auth";
 
@@ -21,21 +25,27 @@ export default function OrganizerDashboard({
   onEventClick,
   onGoToMyTickets,
   onGoToExplore,
+  organizerProfile,
+  onProfileComplete
 }: {
   createdEvents: CreatedEvent[];
-  eventStats?: Record<number, { sold: number; checked: number }>;
+  eventStats?: Record<string, { sold: number; checked: number }>;
   onBack: () => void;
   onCreate: () => void;
-  onEventClick: (id: number) => void;
+  onEventClick: (id: string | number) => void;
   onGoToMyTickets?: () => void;
   onGoToExplore?: () => void;
+  organizerProfile?: OrganizerProfile | null;
+  onProfileComplete?: (profile: OrganizerProfile) => void;
 }) {
   const { authenticated, user, ready } = usePrivy();
+  const { setCreatedEvents } = useMintpassStore();
   const session = useWalletSession();
   const client = useSolanaClient();
   const rpcRaw = client?.runtime?.rpc;
   const [activeTab, setActiveTab] = useState('activos');
   const [activeSection, setActiveSection] = useState('dashboard');
+  const [selectedEventId, setSelectedEventId] = useState<string | number | null>(null);
 
   const SIDEBAR_ITEMS = [
     { id: 'dashboard', label: 'Dashboard', icon: Icons.LayoutDashboard },
@@ -139,9 +149,9 @@ export default function OrganizerDashboard({
     const cat = isToday ? 'activos' : isPast ? 'pasados' : 'proximos';
     const dateStr = eventDate ? eventDate.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' }) : (ev.date || '');
     const metaStr = `${dateStr}${ev.time ? ' · ' + ev.time + ' h' : ''} · ${ev.venue}`;
-    const priceStr = ev.priceType === 'free' ? 'Gratis' : ev.priceType ? `${ev.price} ${ev.priceType.toUpperCase()}` : (ev.price ? `$${ev.price}` : 'Gratis');
+    const priceStr = ev.priceType === 'free' ? 'Gratis' : ev.priceType ? `${ev.price} ${ev.priceType.toUpperCase()}` : (ev.price ? (ev.hasMultipleZones ? `Desde ${ev.price} SOL` : `${ev.price} SOL`) : 'Gratis');
 
-    const sold = eventStats[ev.id]?.sold || 0;
+    const sold = eventStats[ev.id.toString()]?.sold || 0;
     const progress = Math.round((sold / (ev.aforo || 1)) * 100);
 
     return {
@@ -161,6 +171,16 @@ export default function OrganizerDashboard({
     };
   });
 
+  useEffect(() => {
+    if (events.length > 0) {
+      const hasActive = events.some(e => e.cat === 'activos');
+      const hasProximos = events.some(e => e.cat === 'proximos');
+      if (!hasActive && hasProximos && activeTab === 'activos') {
+        setActiveTab('proximos');
+      }
+    }
+  }, [events.length]);
+
   const filteredEvents = events.filter(e => e.cat === activeTab);
 
   const getReputationLevel = (score: number) => {
@@ -174,7 +194,7 @@ export default function OrganizerDashboard({
   const totalAforo = createdEvents.reduce((acc, curr) => acc + (curr.aforo || 0), 0);
   const remainingAforo = totalAforo - totalSold;
   const totalRevenue = createdEvents.reduce((acc, ev) => {
-    const sold = eventStats[ev.id]?.sold || 0;
+    const sold = eventStats[ev.id.toString()]?.sold || 0;
     const price = ev.priceType === 'free' ? 0 : ev.price || 0;
     return acc + (sold * price);
   }, 0);
@@ -220,9 +240,29 @@ export default function OrganizerDashboard({
         </div>
 
         {/* Main Content */}
-        <div style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', height: '100vh' }}>
+        <div style={{ flex: 1, padding: selectedEventId ? 0 : '32px 40px', overflowY: 'auto', height: '100vh', background: '#F7F8F7' }}>
           
-          {activeSection === 'dashboard' ? (
+          {selectedEventId ? (
+            <EventDetails 
+              event={createdEvents.find(e => e.id.toString() === selectedEventId.toString())!} 
+              stats={eventStats[selectedEventId.toString()]} 
+              onBack={() => setSelectedEventId(null)} 
+              onGoToStaff={() => { setSelectedEventId(null); setActiveSection('checkin'); }} 
+            />
+          ) : !organizerProfile ? (
+            <div style={{ margin: '-32px -40px', height: 'calc(100vh)', overflow: 'auto' }}>
+              <OrganizerProfileSetup onComplete={async (profile) => {
+                if (walletAddressStr) {
+                  const res = await updateOrganizerProfileInDb(walletAddressStr, profile);
+                  if (!res.success) {
+                    alert("Error al guardar el perfil: " + res.error);
+                    return;
+                  }
+                }
+                onProfileComplete?.(profile);
+              }} />
+            </div>
+          ) : activeSection === 'dashboard' ? (
             <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
             <div>
@@ -256,114 +296,151 @@ export default function OrganizerDashboard({
             </div>
           </div>
 
-          <div style={{ background: '#F7F8F7', borderRadius: '16px', padding: '20px 24px', marginBottom: '32px' }}>
-            <p style={{ margin: '0 0 16px', fontSize: '14px', fontWeight: 600, color: '#1E1E1E' }}>Ventas últimos 7 días</p>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', height: '100px' }}>
-              <div style={{ flex: 1, background: '#97C459', height: '35%', borderRadius: '4px 4px 0 0' }}></div>
-              <div style={{ flex: 1, background: '#97C459', height: '55%', borderRadius: '4px 4px 0 0' }}></div>
-              <div style={{ flex: 1, background: '#97C459', height: '40%', borderRadius: '4px 4px 0 0' }}></div>
-              <div style={{ flex: 1, background: '#639922', height: '75%', borderRadius: '4px 4px 0 0' }}></div>
-              <div style={{ flex: 1, background: '#97C459', height: '60%', borderRadius: '4px 4px 0 0' }}></div>
-              <div style={{ flex: 1, background: '#97C459', height: '90%', borderRadius: '4px 4px 0 0' }}></div>
-              <div style={{ flex: 1, background: '#3B6D11', height: '100%', borderRadius: '4px 4px 0 0' }}></div>
+          {/* Gráfica de Ventas Últimos 7 Días */}
+          <div className="od-panel-card" style={{ marginBottom: '32px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <p className="od-panel-title">
+                <Icons.TrendingUp size={18} color="#4BAA46" /> Ventas últimos 7 días
+              </p>
+              <span style={{ fontSize: '13px', color: '#5F5E5A', fontWeight: 600 }}>Total: ${totalRevenue.toLocaleString()} SOL</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', height: '110px', padding: '10px 0 0' }}>
+              {Array.from({ length: 7 }).map((_, i) => {
+                const d = new Date();
+                d.setDate(d.getDate() - (6 - i));
+                const dayName = d.toLocaleDateString('es-MX', { weekday: 'short' });
+                const heightPct = totalSold > 0 ? Math.max(15, Math.min(100, Math.round((totalSold * (i + 1) * 15)))) : 6;
+                const barColor = totalSold > 0 ? (i === 6 ? '#14F195' : '#4BAA46') : '#E4E4E7';
+                return (
+                  <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', height: '100%' }}>
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'flex-end' }}>
+                      <div style={{ width: '100%', background: barColor, height: `${heightPct}%`, borderRadius: '6px 6px 0 0', transition: 'height 0.4s ease' }} />
+                    </div>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#5F5E5A', textTransform: 'capitalize' }}>{dayName}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap' }}>
-            <div style={{ flex: '2 1 500px' }}>
-              <div className="section-header" style={{ marginBottom: '20px' }}>
-                <div className="tab-bar" style={{ border: 'none', margin: 0 }}>
-                  <div className={`ttab ${activeTab === 'activos' ? 'on' : ''}`} onClick={() => setActiveTab('activos')}>Activos</div>
-                  <div className={`ttab ${activeTab === 'proximos' ? 'on' : ''}`} onClick={() => setActiveTab('proximos')}>Próximos</div>
-                  <div className={`ttab ${activeTab === 'pasados' ? 'on' : ''}`} onClick={() => setActiveTab('pasados')}>Pasados</div>
-                </div>
-              </div>
-              
-              <div className="od-event-list" id="event-list">
-                {loadingEvents && (
-                  <div style={{ textAlign: 'center', padding: '12px', fontSize: '12px', color: '#5F5E5A' }}>
-                    ⛓️ Consultando eventos en la blockchain de Solana...
-                  </div>
-                )}
-
-                {createdEvents.length === 0 ? (
-                  <div className="od-empty">
-                    <Icons.PlusCircle size={40} color="#4BAA46" style={{ marginBottom: '16px' }} />
-                    <p className="od-empty-title">Aún no has creado ningún evento</p>
-                    <p className="od-empty-sub">Presiona "Crear evento" para lanzar tu primera colección NFT en Solana</p>
-                  </div>
-                ) : filteredEvents.length === 0 ? (
-                  <div className="od-empty">
-                    <p className="od-empty-sub">No hay eventos en esta categoría.</p>
-                  </div>
-                ) : (
-                  filteredEvents.map(ev => {
-                    const EventIcon = (Icons as Record<string, unknown>)[ev.coverText] as typeof Icons.HelpCircle || Icons.HelpCircle;
-                    const isVerifiedOnChain = onChainEvents.some(oc => oc.collectionMint === ev.collectionMint);
-                    return (
-                      <div className="od-event-card" key={ev.id} onClick={() => onEventClick(ev.id)}>
-                        <div className="od-event-thumb" style={ev.coverImage ? { backgroundImage: `url('${ev.coverImage}')` } : undefined}>
-                          {!ev.coverImage && (
-                            <div className={`od-event-thumb-icon ${ev.coverClass}`}>
-                              <EventIcon size={20} />
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="od-event-body">
-                          <p className="od-event-name">
-                            {ev.name}
-                            {isVerifiedOnChain && (
-                              <span className="od-onchain">
-                                <Icons.ShieldCheck size={11} /> On-chain
-                              </span>
-                            )}
-                          </p>
-                          <p className="od-event-meta">{ev.meta}</p>
-                          <div className="od-bar-wrap">
-                            <div className="od-bar" style={{ width: `${ev.progress}%`, background: ev.progressColor }} />
-                          </div>
-                          <p className="od-bar-label">{ev.progressLabel}</p>
-                          <div className="od-event-actions">
-                            {ev.actions.map((action, idx) => (
-                              <button
-                                key={idx}
-                                className={`od-btn ${idx === ev.primaryAction ? 'od-btn-primary' : ''}`}
-                                onClick={(e) => { e.stopPropagation(); if (action === 'Panel staff') { setActiveSection('checkin'); } else { alert(`Acción: ${action}`); } }}
-                              >
-                                {action}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="od-event-right">
-                          <span className={`od-pill ${ev.statusClass}`}>{ev.statusText}</span>
-                          <span className="od-event-price">{ev.price}</span>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
+          {/* Panel Principal: Mis Eventos */}
+          <div className="od-panel-card" style={{ marginBottom: '32px' }}>
+            <div className="od-panel-header">
+              <p className="od-panel-title">
+                <Icons.CalendarDays size={18} color="#4BAA46" /> Mis Eventos
+              </p>
+              <div className="od-tab-bar">
+                <div className={`od-ttab ${activeTab === 'activos' ? 'on' : ''}`} onClick={() => setActiveTab('activos')}>Activos</div>
+                <div className={`od-ttab ${activeTab === 'proximos' ? 'on' : ''}`} onClick={() => setActiveTab('proximos')}>Próximos</div>
+                <div className={`od-ttab ${activeTab === 'pasados' ? 'on' : ''}`} onClick={() => setActiveTab('pasados')}>Pasados</div>
               </div>
             </div>
             
-            <div style={{ flex: '1 1 300px' }}>
-               <p style={{ margin: '0 0 16px', fontSize: '14px', fontWeight: 600, color: '#1E1E1E' }}>Actividad reciente</p>
-               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', background: '#F7F8F7', borderRadius: '16px', padding: '20px' }}>
-                 <div style={{ fontSize: '13px', color: '#1E1E1E', display: 'flex', alignItems: 'flex-start', gap: '10px', lineHeight: 1.4 }}>
-                   <Icons.CircleUser size={16} color="#4BAA46" style={{ marginTop: '2px', flexShrink: 0 }} /> 
-                   <span><strong>12 boletos vendidos</strong> en la última hora para el Festival Sonora Norte</span>
+            <div className="od-event-list" id="event-list">
+              {loadingEvents && (
+                <div style={{ textAlign: 'center', padding: '12px', fontSize: '13px', color: '#5F5E5A' }}>
+                  Sincronizando la información de tus eventos...
+                </div>
+              )}
+
+              {createdEvents.length === 0 ? (
+                <div className="od-empty">
+                  <Icons.PlusCircle size={40} color="#4BAA46" style={{ marginBottom: '16px' }} />
+                  <p className="od-empty-title">Aún no has creado ningún evento</p>
+                  <p className="od-empty-sub">Presiona &quot;Crear evento&quot; para publicar tu primer evento de forma rápida y segura.</p>
+                </div>
+              ) : filteredEvents.length === 0 ? (
+                <div className="od-empty">
+                  <p className="od-empty-sub">No hay eventos registrados en esta pestaña ({activeTab}).</p>
+                </div>
+              ) : (
+                filteredEvents.map(ev => {
+                  const EventIcon = (Icons as Record<string, unknown>)[ev.coverText] as typeof Icons.HelpCircle || Icons.HelpCircle;
+                  const isVerifiedOnChain = onChainEvents.some(oc => oc.collectionMint === ev.collectionMint);
+                  return (
+                    <div className="od-event-card" key={ev.id} onClick={() => setSelectedEventId(ev.id)}>
+                      <div className="od-event-thumb" style={ev.coverImage ? { backgroundImage: `url('${ev.coverImage}')` } : undefined}>
+                        {!ev.coverImage && (
+                          <div className={`od-event-thumb-icon ${ev.coverClass}`}>
+                            <EventIcon size={20} />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="od-event-body">
+                        <p className="od-event-name">
+                          {ev.name}
+                          {isVerifiedOnChain && (
+                            <span className="od-onchain">
+                              <Icons.ShieldCheck size={11} /> Verificado
+                            </span>
+                          )}
+                        </p>
+                        <p className="od-event-meta">{ev.meta}</p>
+                        <div className="od-bar-wrap">
+                          <div className="od-bar" style={{ width: `${ev.progress}%`, background: ev.progressColor }} />
+                        </div>
+                        <p className="od-bar-label">{ev.progressLabel}</p>
+                        <div className="od-event-actions">
+                          {ev.actions.map((action, idx) => (
+                            <button
+                              key={idx}
+                              className={`od-btn ${idx === ev.primaryAction ? 'od-btn-primary' : ''}`}
+                              onClick={(e) => { e.stopPropagation(); if (action === 'Panel staff') { setActiveSection('checkin'); } else { alert(`Acción: ${action}`); } }}
+                            >
+                              {action}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="od-event-right">
+                        <span className={`od-pill ${ev.statusClass}`}>{ev.statusText}</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+          
+          {/* Actividad Reciente a todo lo ancho (Full Width) */}
+          <div className="od-panel-card" style={{ width: '100%', marginBottom: '32px' }}>
+             <div className="od-panel-header">
+               <p className="od-panel-title">
+                 <Icons.Activity size={18} color="#534AB7" /> Actividad Reciente
+               </p>
+             </div>
+             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px' }}>
+               {createdEvents.length === 0 ? (
+                 <div style={{ fontSize: '13px', color: '#5F5E5A', textAlign: 'center', padding: '16px 0', gridColumn: '1 / -1' }}>
+                   No hay actividad reciente registrada.
                  </div>
-                 <div style={{ fontSize: '13px', color: '#1E1E1E', display: 'flex', alignItems: 'flex-start', gap: '10px', lineHeight: 1.4 }}>
-                   <Icons.ShieldAlert size={16} color="#D85A30" style={{ marginTop: '2px', flexShrink: 0 }} /> 
-                   <span><strong>2 intentos de reventa</strong> fuera de reglas bloqueados por contrato inteligente</span>
-                 </div>
-                 <div style={{ fontSize: '13px', color: '#1E1E1E', display: 'flex', alignItems: 'flex-start', gap: '10px', lineHeight: 1.4 }}>
-                   <Icons.Star size={16} color="#EF9F27" style={{ marginTop: '2px', flexShrink: 0 }} /> 
-                   <span><strong>34 asistentes recurrentes</strong> elegibles para recompensas automáticas</span>
-                 </div>
-               </div>
+               ) : (
+                 <>
+                   <div style={{ background: '#F8F9F8', borderRadius: '12px', padding: '16px', border: '1px solid #E8E6E0', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                     <Icons.CircleCheck size={20} color="#4BAA46" style={{ marginTop: '2px', flexShrink: 0 }} /> 
+                     <div>
+                       <p style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: 700, color: '#1E1E1E' }}>Eventos Activos</p>
+                       <p style={{ margin: 0, fontSize: '13px', color: '#5F5E5A', lineHeight: 1.4 }}><strong>{createdEvents.length} evento(s)</strong> publicado(s) y listo(s) para venta.</p>
+                     </div>
+                   </div>
+                   <div style={{ background: '#F8F9F8', borderRadius: '12px', padding: '16px', border: '1px solid #E8E6E0', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                     <Icons.Ticket size={20} color="#1D9E75" style={{ marginTop: '2px', flexShrink: 0 }} /> 
+                     <div>
+                       <p style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: 700, color: '#1E1E1E' }}>Entradas Emitidas</p>
+                       <p style={{ margin: 0, fontSize: '13px', color: '#5F5E5A', lineHeight: 1.4 }}><strong>{totalSold} entrada(s)</strong> generada(s) hasta el momento.</p>
+                     </div>
+                   </div>
+                   <div style={{ background: '#F8F9F8', borderRadius: '12px', padding: '16px', border: '1px solid #E8E6E0', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                     <Icons.ShieldCheck size={20} color="#534AB7" style={{ marginTop: '2px', flexShrink: 0 }} /> 
+                     <div>
+                       <p style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: 700, color: '#1E1E1E' }}>Seguridad de Pagos</p>
+                       <p style={{ margin: 0, fontSize: '13px', color: '#5F5E5A', lineHeight: 1.4 }}>Bóveda de ingresos activa y protegida para tu tranquilidad.</p>
+                     </div>
+                   </div>
+                 </>
+               )}
              </div>
           </div>
           </>
@@ -379,11 +456,11 @@ export default function OrganizerDashboard({
                 </button>
               </div>
 
-              <div className="section-header" style={{ marginBottom: '20px' }}>
-                <div className="tab-bar" style={{ border: 'none', margin: 0 }}>
-                  <div className={`ttab ${activeTab === 'activos' ? 'on' : ''}`} onClick={() => setActiveTab('activos')}>Activos</div>
-                  <div className={`ttab ${activeTab === 'proximos' ? 'on' : ''}`} onClick={() => setActiveTab('proximos')}>Próximos</div>
-                  <div className={`ttab ${activeTab === 'pasados' ? 'on' : ''}`} onClick={() => setActiveTab('pasados')}>Pasados</div>
+              <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div className="od-tab-bar">
+                  <div className={`od-ttab ${activeTab === 'activos' ? 'on' : ''}`} onClick={() => setActiveTab('activos')}>Activos</div>
+                  <div className={`od-ttab ${activeTab === 'proximos' ? 'on' : ''}`} onClick={() => setActiveTab('proximos')}>Próximos</div>
+                  <div className={`od-ttab ${activeTab === 'pasados' ? 'on' : ''}`} onClick={() => setActiveTab('pasados')}>Pasados</div>
                 </div>
               </div>
               
@@ -398,7 +475,7 @@ export default function OrganizerDashboard({
                   <div className="od-empty">
                     <Icons.PlusCircle size={40} color="#4BAA46" style={{ marginBottom: '16px' }} />
                     <p className="od-empty-title">Aún no has creado ningún evento</p>
-                    <p className="od-empty-sub">Presiona "Crear evento" para lanzar tu primera colección NFT en Solana</p>
+                    <p className="od-empty-sub">Presiona &quot;Crear evento&quot; para lanzar tu primera colección NFT en Solana</p>
                   </div>
                 ) : filteredEvents.length === 0 ? (
                   <div className="od-empty">
@@ -409,7 +486,7 @@ export default function OrganizerDashboard({
                     const EventIcon = (Icons as Record<string, unknown>)[ev.coverText] as typeof Icons.HelpCircle || Icons.HelpCircle;
                     const isVerifiedOnChain = onChainEvents.some(oc => oc.collectionMint === ev.collectionMint);
                     return (
-                      <div className="od-event-card" key={ev.id} onClick={() => onEventClick(ev.id)}>
+                      <div className="od-event-card" key={ev.id} onClick={() => setSelectedEventId(ev.id)}>
                         <div className="od-event-thumb" style={ev.coverImage ? { backgroundImage: `url('${ev.coverImage}')` } : undefined}>
                           {!ev.coverImage && (
                             <div className={`od-event-thumb-icon ${ev.coverClass}`}>
@@ -447,7 +524,6 @@ export default function OrganizerDashboard({
 
                         <div className="od-event-right">
                           <span className={`od-pill ${ev.statusClass}`}>{ev.statusText}</span>
-                          <span className="od-event-price">{ev.price}</span>
                         </div>
                       </div>
                     );
@@ -457,7 +533,7 @@ export default function OrganizerDashboard({
             </>
           ) : activeSection === 'crear_evento' ? (
             <div style={{ margin: '-32px -40px', height: 'calc(100vh - 64px)', overflow: 'auto' }}>
-              <CreateEvent onBack={() => setActiveSection('eventos')} onSuccess={(ev) => { setActiveSection('eventos'); window.location.reload(); }} />
+              <CreateEvent onBack={() => setActiveSection('eventos')} onSuccess={(ev) => { setCreatedEvents(prev => [ev, ...prev]); setActiveSection('eventos'); }} />
             </div>
           ) : activeSection === 'checkin' ? (
             <div style={{ margin: '-32px -40px', height: 'calc(100vh - 64px)', overflow: 'auto', background: '#F7F8F7' }}>

@@ -2,14 +2,14 @@
 import { useState, useEffect } from "react";
 import * as Icons from "lucide-react";
 import QRCode from "react-qr-code";
-import { useUmi } from "../../providers";
+import { useUmi } from "../../components/providers";
 import { mutateToPoap } from "../../lib/metaplex";
-import AlertModal, { AlertModalProps } from "../../components/AlertModal";
-import "../../Home.css";
-import "../../styles/MyTicket.css";
+import AlertModal, { AlertModalProps } from "../../components/ui/AlertModal";
+import "../../styles/Home.css";
+import "./MyTicket.css";
 
-import { LandingNavBar } from "../../components/LandingNavBar";
-import { LandingFooter } from "../../components/LandingFooter";
+import { LandingNavBar } from "../../components/layout/LandingNavBar";
+import { LandingFooter } from "../../components/layout/LandingFooter";
 
 const PERIOD = 30; // 30 segundos de vigencia del código QR
 
@@ -50,26 +50,22 @@ export default function MyTicket({ event, ticketMint, onBack }: { event: any, ti
     } catch { return false; }
   });
 
-  // Mock Data Integration
-  const isMock1 = ticketMint === 'mock1';
-  const isMock2 = ticketMint === 'mock2';
-
   const ticketData = {
-    name: isMock1 ? "Festival Sonora Norte" : isMock2 ? "Noche de jazz" : (event?.name || "Evento Desconocido"),
-    date: isMock1 ? "Sáb 15 ago · 20:00 · Parque Metropolitano, León" : isMock2 ? "Dom 16 ago · 21:00 · Foro Indie Rocks, CDMX" : `${event?.date || ''} · ${event?.time || ''} · ${event?.venue || ''}`,
-    zone: isMock1 ? "VIP" : isMock2 ? "General" : "General",
-    folio: isMock1 ? "#0842" : isMock2 ? "#1109" : "#0001",
-    gate: isMock1 ? "Puerta 4" : undefined,
-    row: isMock1 ? "F" : undefined,
-    seat: isMock1 ? "24" : undefined,
-    isSoulbound: isMock2 ? true : (event?.isSoulbound || false),
-    allowResale: isMock2 ? false : (event?.allowResale !== undefined ? event.allowResale : true),
-    resaleCapLimit: isMock1 ? 1200 : event?.resaleCapLimit,
-    allowRefunds: isMock1 ? true : (event?.allowRefunds || false),
-    refundTimeLimit: isMock1 ? 3 : event?.refundTimeLimit,
-    organizer: isMock1 ? "Codexia Live" : isMock2 ? "Jazz Club CDMX" : "Organizador Independiente",
-    reputation: isMock1 ? 92 : isMock2 ? 85 : 100,
-    eventsCompleted: isMock1 ? 14 : isMock2 ? 4 : 1
+    name: event?.name || "Evento Desconocido",
+    date: `${event?.date || ''} · ${event?.time || ''} · ${event?.venue || ''}`,
+    zone: "General",
+    folio: "#0001",
+    gate: undefined,
+    row: undefined,
+    seat: undefined,
+    isSoulbound: event?.isSoulbound || false,
+    allowResale: event?.allowResale !== undefined ? event.allowResale : true,
+    resaleCapLimit: event?.resaleCapLimit,
+    allowRefunds: event?.allowRefunds || false,
+    refundTimeLimit: event?.refundTimeLimit,
+    organizer: "Organizador Independiente",
+    reputation: 100,
+    eventsCompleted: 1
   };
 
   const handleClaimPoap = () => {
@@ -83,7 +79,7 @@ export default function MyTicket({ event, ticketMint, onBack }: { event: any, ti
         try {
           await mutateToPoap(umi, {
             mintAddress: ticketMint,
-            collectionMint: event?.collectionMint || "mock-collection",
+            collectionMint: event?.collectionMint || "",
             eventData: {
               name: ticketData.name,
               date: ticketData.date,

@@ -2,16 +2,20 @@
 import { useState, useEffect } from "react";
 import * as Icons from "lucide-react";
 import { EventModel } from '../../types';
-import { useUmi } from "../../providers";
+import { useUmi } from "../../components/providers";
 import { mintTicket, getOrganizerReputation } from "../../lib/metaplex";
+import { buildBuyTicketInstruction, deriveEventPDA } from "../../lib/event-pda";
+import { address } from "@solana/addresses";
+import { transactionBuilder } from "@metaplex-foundation/umi";
 import { useWalletSession, useSolanaClient } from "@solana/react-hooks";
 import { type Address } from "@solana/kit";
-import WalletButton from "../../components/WalletButton";
-import AlertModal, { AlertModalProps } from "../../components/AlertModal";
-import { LandingNavBar } from "../../components/LandingNavBar";
-import { LandingFooter } from "../../components/LandingFooter";
-import "../../Home.css";
-import "../../styles/BuyerPurchase.css";
+import { usePrivy } from "@privy-io/react-auth";
+import WalletButton from "../../components/ui/WalletButton";
+import AlertModal, { AlertModalProps } from "../../components/ui/AlertModal";
+import { LandingNavBar } from "../../components/layout/LandingNavBar";
+import { LandingFooter } from "../../components/layout/LandingFooter";
+import "../../styles/Home.css";
+import "./BuyerPurchase.css";
 
 export default function BuyerPurchase({
   event,
@@ -31,16 +35,18 @@ export default function BuyerPurchase({
   const umi = useUmi();
   const session = useWalletSession();
   const client = useSolanaClient();
+  const { authenticated, user } = usePrivy();
   const rpcRaw = client?.runtime?.rpc;
 
   const [screen, setScreen] = useState<'buy' | 'checkout' | 'wallet-checkout' | 'processing' | 'success'>('buy');
   const [paymentMethod, setPaymentMethod] = useState<'tarjeta' | 'oxxo' | 'wallet'>('wallet');
   const [qty, setQty] = useState(1);
   const [progressStep, setProgressStep] = useState(0);
-  const [orgReputation, setOrgReputation] = useState<number | null>(null);
+  const [selectedZoneIndex, setSelectedZoneIndex] = useState(0);
 
-  const walletAddress: Address | null = session?.account?.address ?? null;
-  const walletConnected = !!walletAddress;
+  const walletAddressStr = user?.wallet?.address || session?.account?.address?.toString();
+  const walletAddress: Address | null = walletAddressStr ? (walletAddressStr as Address) : null;
+  const walletConnected = authenticated || !!walletAddressStr;
 
   const [alertConfig, setAlertConfig] = useState<AlertModalProps>({
     isOpen: false, title: '', message: '', type: 'info',
@@ -52,29 +58,6 @@ export default function BuyerPurchase({
   };
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
-
-  // Consulta la reputación del organizador desde la blockchain
-  useEffect(() => {
-    async function fetchOrgRep() {
-      if (!rpcRaw) return;
-      try {
-        const wrapper = {
-          async getAccountInfo(address: Address) {
-            const result = await (rpcRaw.getAccountInfo as any)(address, { encoding: 'base64' }).send();
-            if (!result.value) return null;
-            const decoded = Buffer.from(result.value.data[0], 'base64');
-            return { data: new Uint8Array(decoded) };
-          }
-        };
-        const score = await getOrganizerReputation(wrapper, walletAddress as Address);
-        setOrgReputation(score);
-      } catch (e) {
-        console.warn('No se pudo consultar la reputación del organizador:', e);
-        setOrgReputation(0);
-      }
-    }
-    if (walletAddress) fetchOrgRep();
-  }, [rpcRaw, walletAddress]);
 
   const available = event.total - event.sold;
 
@@ -96,8 +79,11 @@ export default function BuyerPurchase({
       ? 'bg-gradient-to-r from-[#FAC775] to-[#F0997B]'
       : 'bg-gradient-to-r from-[#1D9E75] to-[#5DCAA5]';
 
+  const activePrice = event.zones && event.zones.length > 0 ? event.zones[selectedZoneIndex].price : event.price;
+  const activeAvailable = event.zones && event.zones.length > 0 ? event.zones[selectedZoneIndex].capacity : available;
+
   const changeQty = (delta: number) => {
-    setQty(prev => Math.max(1, Math.min(maxAllowed, Math.min(available, prev + delta))));
+    setQty(prev => Math.max(1, Math.min(maxAllowed, Math.min(activeAvailable, prev + delta))));
   };
 
   const startPurchase = async () => {
@@ -118,10 +104,25 @@ export default function BuyerPurchase({
     }, 900);
 
     try {
-      const ticketMints = await mintTicket(umi, {
+      if (!event.organizerWallet) {
+        throw new Error("El evento no tiene configurada la wallet del organizador.");
+      }
+      const organizerAddr = address(event.organizerWallet);
+      const [eventRecordPda] = await deriveEventPDA(organizerAddr, collectionMint);
+      
+      const { EVENT_REGISTRY_PROGRAM_ID } = await import("../../lib/anchor");
+      const { getProgramDerivedAddress, getAddressEncoder } = await import("@solana/addresses");
+      const encoder = getAddressEncoder();
+      
+      const escrowStatePda = (await getProgramDerivedAddress({
+        programAddress: EVENT_REGISTRY_PROGRAM_ID,
+        seeds: [Buffer.from("escrow_state"), encoder.encode(eventRecordPda)]
+      }))[0];
+
+      const ticketMintInfos = await mintTicket(umi, {
         collectionMint,
         buyerAddress: walletAddress!,
-        priceSol: qty * event.price,
+        priceSol: qty * activePrice,
         qty: qty,
         eventData: {
           name: event.name,
@@ -129,11 +130,32 @@ export default function BuyerPurchase({
           venue: event.venue,
           ticketNumber: event.sold + 1,
           imageUrl: "https://images.unsplash.com/photo-1541532713592-79a0317b6b77?q=80&w=800&auto=format&fit=crop"
-        }
+        },
+        escrowStatePda
       });
+
+      const successfulMints: string[] = [];
+
+      for (const info of ticketMintInfos) {
+        const { instruction } = await buildBuyTicketInstruction(
+          address(walletAddress!),
+          eventRecordPda,
+          organizerAddr,
+          address(info.mintSigner.publicKey),
+          selectedZoneIndex
+        );
+        let finalTx = info.txBuilder.add({
+          instruction: instruction,
+          signers: [umi.identity],
+          bytesCreatedOnChain: 0
+        });
+        await finalTx.sendAndConfirm(umi);
+        successfulMints.push(info.mintSigner.publicKey.toString());
+      }
+
       clearInterval(interval);
       setProgressStep(4);
-      onSuccessMint(ticketMints, qty);
+      onSuccessMint(successfulMints, qty);
       setTimeout(() => setScreen('success'), 600);
     } catch (e: unknown) {
       console.error(e);
@@ -144,16 +166,7 @@ export default function BuyerPurchase({
     }
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const EventIcon = (Icons as any)[event.icon] || Icons.HelpCircle;
-
-  const reputationLabel = () => {
-    if (orgReputation === null) return <span className="text-[#AFA9EC]">Consultando...</span>;
-    if (orgReputation >= 50) return <span className="text-[#5DCAA5] font-bold">⭐ Excelente ({orgReputation} pts)</span>;
-    if (orgReputation >= 20) return <span className="text-[#EF9F27] font-bold">👍 Buena ({orgReputation} pts)</span>;
-    if (orgReputation > 0) return <span className="text-[#AFA9EC] font-bold">🆕 Nueva ({orgReputation} pts)</span>;
-    return <span className="text-[#666] font-bold">Sin historial</span>;
-  };
 
   return (
     <div className="lp-container relative">
@@ -187,69 +200,86 @@ export default function BuyerPurchase({
               {/* LEFT COLUMN */}
               <div className="bp-left-col">
                 <div className="bp-images">
-                  <div className="bp-img-main" style={{ background: event.bg }}>
-                    <div style={{ position: 'absolute', inset: 0, backgroundImage: 'url("https://images.unsplash.com/photo-1541532713592-79a0317b6b77?q=80&w=800&auto=format&fit=crop")', backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.8, mixBlendMode: 'overlay' }}></div>
-                    <EventIcon size={64} color="#ffffff" style={{ position: 'relative', zIndex: 10, opacity: 0.9 }} />
+                  <div className="bp-img-main" style={{ background: event.bg, borderRadius: event.gallery && event.gallery.length > 0 ? '16px 0 0 16px' : '16px' }}>
+                    <div style={{ position: 'absolute', inset: 0, backgroundImage: `url("${event.coverImage || 'https://images.unsplash.com/photo-1541532713592-79a0317b6b77?q=80&w=800&auto=format&fit=crop'}")`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: event.coverImage ? 1 : 0.8, mixBlendMode: event.coverImage ? 'normal' : 'overlay' }}></div>
+                    {!event.coverImage && <EventIcon size={64} color="#ffffff" style={{ position: 'relative', zIndex: 10, opacity: 0.9 }} />}
                   </div>
-                  <div className="bp-img-col">
-                    <div className="bp-img-sub" style={{ background: '#2C2C2A', borderRadius: '0 16px 0 0', backgroundImage: 'url("https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?q=80&w=400&auto=format&fit=crop")' }}></div>
-                    <div className="bp-img-sub" style={{ background: '#3A3A38', borderRadius: '0 0 16px 0', backgroundImage: 'url("https://images.unsplash.com/photo-1470229722913-7c092bce42f1?q=80&w=400&auto=format&fit=crop")' }}></div>
-                  </div>
+                  {event.gallery && event.gallery.length > 0 && (
+                    <div className="bp-img-col">
+                      {event.gallery.slice(0, 2).map((url, idx) => (
+                        <div key={idx} className="bp-img-sub" style={{ background: '#2C2C2A', borderRadius: event.gallery!.length === 1 ? '0 16px 16px 0' : (idx === 0 ? '0 16px 0 0' : '0 0 16px 0'), backgroundImage: `url("${url}")`, backgroundPosition: 'center', backgroundSize: 'cover', height: event.gallery!.length === 1 ? '100%' : undefined }}></div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
-                <p className="bp-h3">Sobre el evento</p>
-                <p className="bp-p">
-                  Asegura tu entrada oficial. Este evento utiliza la infraestructura de Mintpass sobre Solana para garantizar boletos verificables, previniendo la reventa no autorizada y ofreciendo una experiencia rápida y segura.
-                </p>
+                {event.description && (
+                  <>
+                    <p className="bp-h3">Sobre el evento</p>
+                    <p className="bp-p whitespace-pre-wrap">{event.description}</p>
+                  </>
+                )}
 
-                <p className="bp-h3">Ubicación</p>
-                <div className="bp-info-row">
-                  <div className="bp-info-icon">
-                    <Icons.MapPin size={24} color="#D3D1C7" />
-                  </div>
-                  <div>
-                    <p className="bp-info-title">{event.venue}</p>
-                    <p className="bp-info-sub">📍 Dirección del venue no especificada.</p>
-                  </div>
-                </div>
+                {(event.venue || event.city || event.state || event.country) && (
+                  <>
+                    <p className="bp-h3">Ubicación</p>
+                    <div className="bp-info-row">
+                      <div className="bp-info-icon">
+                        <Icons.MapPin size={24} color="#D3D1C7" />
+                      </div>
+                      <div>
+                        <p className="bp-info-title">{event.venue || "Ubicación por definir"}</p>
+                        <p className="bp-info-sub">{[event.city, event.state, event.country].filter(Boolean).join(', ')}</p>
+                      </div>
+                    </div>
+                  </>
+                )}
 
-                <p className="bp-h3">Detalles Adicionales</p>
-                <div className="bp-info-row" style={{ marginBottom: '12px' }}>
-                  <div className="bp-info-icon">
-                    <Icons.Clock size={20} color="#D3D1C7" />
+                {(event.doorTime || event.ageRestriction || event.contactEmail) && (
+                  <p className="bp-h3">Detalles Adicionales</p>
+                )}
+                {event.doorTime && (
+                  <div className="bp-info-row" style={{ marginBottom: '12px' }}>
+                    <div className="bp-info-icon">
+                      <Icons.Clock size={20} color="#D3D1C7" />
+                    </div>
+                    <div>
+                      <p className="bp-info-title">Apertura de puertas</p>
+                      <p className="bp-info-sub">{event.doorTime}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="bp-info-title">Apertura de puertas</p>
-                    <p className="bp-info-sub">Las puertas abren 2 horas antes del evento.</p>
+                )}
+                {event.ageRestriction && (
+                  <div className="bp-info-row">
+                    <div className="bp-info-icon">
+                      <Icons.UserCheck size={20} color="#D3D1C7" />
+                    </div>
+                    <div>
+                      <p className="bp-info-title">Clasificación</p>
+                      <p className="bp-info-sub">{event.ageRestriction}</p>
+                    </div>
                   </div>
-                </div>
-                <div className="bp-info-row">
-                  <div className="bp-info-icon">
-                    <Icons.UserCheck size={20} color="#D3D1C7" />
-                  </div>
-                  <div>
-                    <p className="bp-info-title">Clasificación</p>
-                    <p className="bp-info-sub">Todas las edades</p>
-                  </div>
-                </div>
+                )}
                 <div className="bp-info-row" style={{ marginTop: '12px' }}>
                   <div className="bp-info-icon">
                     <Icons.PhoneCall size={20} color="#D3D1C7" />
                   </div>
                   <div>
                     <p className="bp-info-title">Contacto de Soporte</p>
-                    <p className="bp-info-sub">ayuda@mintpass.app</p>
+                    <p className="bp-info-sub">mintpass.sol@gmail.com</p>
                   </div>
                 </div>
 
+                <p className="bp-h3" style={{ marginTop: '32px' }}>Organizado por</p>
                 <div className="bp-org-card">
                   <div className="bp-org-avatar">
                     <Icons.User size={20} color="#FFFFFF" />
                   </div>
                   <div>
-                    <p className="bp-info-title">Organizador</p>
-                    <p className="bp-info-sub" style={{ margin: '2px 0 0', fontSize: '12px' }}>
-                      {reputationLabel()}
+                    <p className="bp-info-title">{event.companyName || "Organizador Oficial"}</p>
+                    <p className="bp-info-sub" style={{ margin: '2px 0 0', fontSize: '12px', color: '#14F195', fontWeight: 600 }}>
+                      <Icons.ShieldCheck size={12} style={{ display: 'inline', marginRight: '4px' }} />
+                      Verificado por Mintpass
                     </p>
                   </div>
                 </div>
@@ -263,36 +293,37 @@ export default function BuyerPurchase({
                     
                     <div className="bp-stage-label">ESCENARIO</div>
 
-                    {/* Mock Zone VIP */}
-                    <div className="bp-zone-item disabled">
-                      <div>
-                        <p className="bp-zone-title">VIP</p>
-                        <p className="bp-zone-sub" style={{ color: '#E24B4A' }}>Agotado</p>
-                      </div>
-                      <p className="bp-zone-price">$1,200</p>
-                    </div>
-
-                    {/* Mock Zone Preferente */}
-                    <div className="bp-zone-item disabled">
-                      <div>
-                        <p className="bp-zone-title">Preferente</p>
-                        <p className="bp-zone-sub" style={{ color: '#E24B4A' }}>Agotado</p>
-                      </div>
-                      <p className="bp-zone-price">$850</p>
-                    </div>
-
-                    {/* Real Zone General */}
-                    <div className="bp-zone-item active">
-                      <div>
-                        <p className="bp-zone-title">Acceso General</p>
-                        <p className="bp-zone-sub" style={{ color: available > 0 ? '#27500A' : '#E24B4A' }}>
-                          {available > 0 ? `${available} disponibles` : 'Agotado'}
+                    {event.zones && event.zones.length > 0 ? (
+                      event.zones.map((zone, idx) => {
+                        const isAvailable = zone.capacity > 0;
+                        const isSelected = selectedZoneIndex === idx;
+                        return (
+                          <div key={idx} className={`bp-zone-item ${isAvailable ? (isSelected ? 'active' : '') : 'disabled'}`} onClick={() => isAvailable && setSelectedZoneIndex(idx)} style={{ cursor: isAvailable ? 'pointer' : 'not-allowed', border: isSelected ? '2px solid #14F195' : '1px solid #EAEAEA', transition: 'all 0.2s', opacity: isAvailable ? 1 : 0.6 }}>
+                            <div>
+                              <p className="bp-zone-title">{zone.name}</p>
+                              <p className="bp-zone-sub" style={{ color: isAvailable ? '#27500A' : '#E24B4A' }}>
+                                {isAvailable ? `${zone.capacity} lugares totales` : 'Agotado'}
+                              </p>
+                            </div>
+                            <p className="bp-zone-price">
+                              {zone.price === 0 ? 'Gratis' : `${zone.price} SOL`}
+                            </p>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="bp-zone-item active" style={{ border: '2px solid #14F195' }}>
+                        <div>
+                          <p className="bp-zone-title">Acceso General</p>
+                          <p className="bp-zone-sub" style={{ color: available > 0 ? '#27500A' : '#E24B4A' }}>
+                            {available > 0 ? `${available} disponibles` : 'Agotado'}
+                          </p>
+                        </div>
+                        <p className="bp-zone-price">
+                          {event.price === 0 ? 'Gratis' : `${event.price} SOL`}
                         </p>
                       </div>
-                      <p className="bp-zone-price">
-                        {event.price === 0 ? 'Gratis' : `${event.price} SOL`}
-                      </p>
-                    </div>
+                    )}
 
                     {available > 0 && (
                       <div className="bp-qty-box">
@@ -308,10 +339,10 @@ export default function BuyerPurchase({
                       </div>
                     )}
 
-                    {event.price > 0 && available > 0 && (
+                    {activePrice > 0 && activeAvailable > 0 && (
                       <div className="bp-total-row">
                         <span style={{ fontSize: '14px', color: '#5F5E5A', fontWeight: 500 }}>Total ({qty} {qty === 1 ? 'boleto' : 'boletos'})</span>
-                        <span style={{ fontSize: '18px', fontWeight: 600, color: '#1E1E1E' }}>{(qty * event.price * 1.05).toFixed(3)} SOL</span>
+                        <span style={{ fontSize: '18px', fontWeight: 600, color: '#1E1E1E' }}>{(qty * activePrice * 1.05).toFixed(3)} SOL</span>
                       </div>
                     )}
 
@@ -346,13 +377,16 @@ export default function BuyerPurchase({
 
                     <div className="bp-summary-box">
                       <div className="bp-summary-row" style={{ fontWeight: 500 }}>
-                        <span>{qty} boleto{qty > 1 ? 's' : ''} general</span><span>{(qty * event.price).toFixed(3)} SOL</span>
+                        <span>{qty} boleto{qty > 1 ? 's' : ''} general</span>
+                        <span className="bp-text-dark font-mono font-medium">{(qty * activePrice).toFixed(3)} SOL</span>
                       </div>
-                      <div className="bp-summary-row" style={{ color: '#5F5E5A' }}>
-                        <span>Servicio (5%)</span><span>{event.price === 0 ? '0.00' : (qty * event.price * 0.05).toFixed(3)} SOL</span>
+                      <div className="flex justify-between items-center text-[13px] text-gray-500 mb-2">
+                        <span>Fee de Plataforma (5%)</span>
+                        <span>{(qty * activePrice * 0.05).toFixed(3)} SOL</span>
                       </div>
-                      <div className="bp-summary-total">
-                        <span>Total</span><span>{event.price === 0 ? '0.00' : (qty * event.price * 1.05).toFixed(3)} SOL</span>
+                      <div className="flex justify-between items-center text-[15px] font-bold text-gray-900 border-t border-gray-200 pt-3 mt-3">
+                        <span>Total a Pagar</span>
+                        <span>{(qty * activePrice * 1.05).toFixed(3)} SOL</span>
                       </div>
                     </div>
 
@@ -419,40 +453,45 @@ export default function BuyerPurchase({
                     <div className="bp-summary-box">
                       <p style={{ margin: '0 0 10px', fontSize: '12px', color: '#5F5E5A' }}>Resumen de la transacción</p>
                       <div className="bp-summary-row">
-                        <span>Precio del boleto</span><span>{(qty * event.price).toFixed(3)} SOL</span>
+                        <span>Boletos ({qty})</span><span>{(qty * activePrice).toFixed(3)} SOL</span>
                       </div>
                       <div className="bp-summary-row">
-                        <span>Comisión de red</span><span>0.0001 SOL</span>
+                        <span>Cargo de servicio Mintpass (5%)</span><span>{(qty * activePrice * 0.05).toFixed(3)} SOL</span>
+                      </div>
+                      <div className="bp-summary-row" style={{ color: '#8A8880', fontSize: '12px' }}>
+                        <span>Fee de red Solana</span><span>Calculado por la wallet</span>
                       </div>
                       <div className="bp-summary-row" style={{ color: '#3C3489' }}>
-                        <span>Price cap aplicado por el contrato</span><span>✓ dentro del límite</span>
+                        <span>Límite de reventa (Price Cap)</span><span>Activo</span>
                       </div>
                       <div className="bp-summary-total">
-                        <span>Total a firmar</span><span>{(qty * event.price + 0.0001).toFixed(4)} SOL</span>
+                        <span>Total a pagar</span><span>{(qty * activePrice * 1.05).toFixed(4)} SOL</span>
                       </div>
                     </div>
 
                     <div className="bp-alert-box">
-                      <Icons.Lock style={{ fontSize: '20px', color: '#3C3489' }} />
-                      <p style={{ margin: 0, fontSize: '11px', color: '#3C3489' }}>El NFT llega ya congelado a tu wallet en la misma transacción</p>
+                      <Icons.ShieldCheck style={{ fontSize: '20px', color: '#3C3489' }} />
+                      <p style={{ margin: 0, fontSize: '11px', color: '#3C3489', lineHeight: 1.4 }}>
+                        Transacción transparente sin intermediarios usando <b>Privy</b>. Tu boleto es verificable on-chain.
+                      </p>
                     </div>
 
                     <div style={{ margin: '4px 18px 6px' }}>
                       <button 
                         onClick={() => {
                           if (!walletConnected) {
-                            showAlert("Conecta tu wallet", "Por favor conecta tu wallet usando el botón en la barra superior antes de firmar.", "info");
+                            showAlert("Conecta tu cuenta", "Por favor conecta tu cuenta mediante Privy usando el botón superior antes de continuar.", "info");
                           } else {
                             startPurchase();
                           }
                         }}
                         className="bp-btn-primary"
                       >
-                        Firmar y confirmar
+                        Autorizar transacción
                       </button>
                     </div>
                     <div style={{ margin: '0 18px 20px', textAlign: 'center', fontSize: '11px', color: '#5F5E5A' }}>
-                      Independiente de MercadoPago, Stripe y Crossmint
+                      Pagos directos P2P. Independiente de pasarelas bancarias.
                     </div>
                   </div>
                 )}

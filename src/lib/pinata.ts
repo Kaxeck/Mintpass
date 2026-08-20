@@ -5,90 +5,82 @@ export interface NFTMetadata {
   attributes: Array<{ trait_type: string; value: string }>;
 }
 
+function getPinataHeaders(): Record<string, string> {
+  const jwt = process.env.PINATA_JWT || process.env.NEXT_PUBLIC_PINATA_JWT;
+  if (jwt && jwt.trim()) {
+    return {
+      Authorization: `Bearer ${jwt.trim()}`
+    };
+  }
+
+  const apiKey = process.env.PINATA_API_KEY || process.env.NEXT_PUBLIC_PINATA_API_KEY;
+  const secretKey = process.env.PINATA_SECRET_KEY || process.env.NEXT_PUBLIC_PINATA_SECRET_KEY;
+
+  if (apiKey && secretKey && apiKey.trim() && secretKey.trim()) {
+    return {
+      pinata_api_key: apiKey.trim(),
+      pinata_secret_api_key: secretKey.trim()
+    };
+  }
+
+  throw new Error("El servicio de almacenamiento IPFS (Pinata) no se encuentra configurado.");
+}
+
 export async function uploadEventImage(file: File): Promise<string> {
   const url = "https://api.pinata.cloud/pinning/pinFileToIPFS";
-  
-  const apiKey = process.env.PINATA_API_KEY;
-  const secretKey = process.env.PINATA_SECRET_KEY;
-
-  if (!apiKey || !secretKey) {
-    console.warn("⚠️ API Keys de Pinata ausentes: Usando imagen predefinida de prueba.");
-    return "https://raw.githubusercontent.com/solana-developers/professional-education/main/assets/sample-nft.png"; // or similar placeholder
-  }
+  const headers = getPinataHeaders();
 
   const formData = new FormData();
   formData.append("file", file);
 
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        pinata_api_key: apiKey,
-        pinata_secret_api_key: secretKey,
-      },
-      body: formData,
-    });
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
 
-    if (!response.ok) {
-      throw new Error(`Fallo en la comunicación con Pinata: ${response.statusText}`);
-    }
-
-    interface PinataResponse {
-      IpfsHash: string;
-      PinSize: number;
-      Timestamp: string;
-    }
-
-    const data = (await response.json()) as PinataResponse;
-    return `https://gateway.pinata.cloud/ipfs/${data.IpfsHash}`;
-  } catch (error) {
-    console.error("Error en uploadEventImage:", error);
-    // Lanzamos un error explícito en español como fue solicitado
-    throw new Error("Ocurrió un error al subir la imagen a Pinata");
+  if (!response.ok) {
+    throw new Error(`Error en la pasarela de archivos IPFS: ${response.statusText}`);
   }
+
+  interface PinataResponse {
+    IpfsHash: string;
+    PinSize: number;
+    Timestamp: string;
+  }
+
+  const data = (await response.json()) as PinataResponse;
+  return `https://gateway.pinata.cloud/ipfs/${data.IpfsHash}`;
 }
+
 export async function uploadMetadata(metadata: NFTMetadata): Promise<string> {
-  const apiKey = process.env.PINATA_API_KEY;
-  const secretKey = process.env.PINATA_SECRET_KEY;
-
-  // Si no hay API Keys en el .env, no bloqueamos la experiencia y devolvemos un JSON de prueba real
-  if (!apiKey || !secretKey) {
-    console.warn("⚠️ API Keys de Pinata ausentes: Usando metadatos predefinidos de prueba para evitar que la UI falle y Phantom pueda leer un formato (Modo Demo).");
-    return "https://raw.githubusercontent.com/solana-developers/professional-education/main/assets/sample-nft.json";
-  }
-
+  const headers = getPinataHeaders();
   const url = "https://api.pinata.cloud/pinning/pinJSONToIPFS";
   
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        pinata_api_key: apiKey,
-        pinata_secret_api_key: secretKey,
-      },
-      body: JSON.stringify({
-        pinataContent: metadata,
-        pinataMetadata: {
-          name: `mintpass_metadata_${Date.now()}.json`
-        }
-      }),
-    });
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...headers,
+    },
+    body: JSON.stringify({
+      pinataContent: metadata,
+      pinataMetadata: {
+        name: `mintpass_metadata_${Date.now()}.json`
+      }
+    }),
+  });
 
-    if (!response.ok) {
-      throw new Error(`Fallo en la comunicación con Pinata: ${response.statusText}`);
-    }
-
-    interface PinataResponse {
-      IpfsHash: string;
-      PinSize: number;
-      Timestamp: string;
-    }
-
-    const data = (await response.json()) as PinataResponse;
-    return `https://gateway.pinata.cloud/ipfs/${data.IpfsHash}`;
-  } catch (error) {
-    console.error("Error en uploadMetadata:", error);
-    throw new Error("Ocurrió un error al subir los metadatos a Pinata");
+  if (!response.ok) {
+    throw new Error(`Error al almacenar metadatos en IPFS: ${response.statusText}`);
   }
+
+  interface PinataResponse {
+    IpfsHash: string;
+    PinSize: number;
+    Timestamp: string;
+  }
+
+  const data = (await response.json()) as PinataResponse;
+  return `https://gateway.pinata.cloud/ipfs/${data.IpfsHash}`;
 }

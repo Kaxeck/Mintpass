@@ -8,7 +8,7 @@ import { Address, address } from "@solana/kit";
 import { AccountRole, type Instruction } from "@solana/instructions";
 
 export const CHECKIN_PROGRAM_ID = address(
-  process.env.NEXT_PUBLIC_CHECKIN_PROGRAM_ID as string
+  process.env.NEXT_PUBLIC_CHECKIN_PROGRAM_ID || "FTZot8vUVk4Ez7FTdakSqnNoEabysQbBW7GuAdr2EwFM"
 );
 
 export interface ScanResult {

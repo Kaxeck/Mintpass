@@ -160,7 +160,7 @@ export async function getOrganizerEventStats(pubkey: string) {
     const stats: Record<string, { sold: number; checked: number }> = {};
     for (const ev of events) {
       const sold = ev.tickets.length;
-      const checked = ev.tickets.filter(t => t.isCheckedIn).length;
+      const checked = ev.tickets.filter((t: any) => t.isCheckedIn).length;
       stats[ev.id] = { sold, checked };
     }
 

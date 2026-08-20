@@ -57,7 +57,7 @@ export default function CheckInStaff({ events, onGoToScanner }: { events: Create
             </div>
           ) : (
             <div className="event-grid">
-              {events.map(ev => {
+              {events.map((ev: any) => {
                 const activeCount = links.filter(l => l.eventId === ev.id && l.status === 'active').length;
                 
                 const categoryIcons: Record<string, string> = {

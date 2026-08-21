@@ -138,7 +138,10 @@ export default function OrganizerProfileSetup({ onComplete }: Props) {
 
               <div>
                 <label style={{ fontSize: '12px', color: (showErrors && errors.internalPhone) ? '#B0523E' : '#5F5E5A', display: 'block', marginBottom: '6px' }}>Teléfono de contacto (Interno) *</label>
-                <input type="tel" placeholder="+52 ..." value={internalPhone} onChange={e => setInternalPhone(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '13px', borderRadius: '8px', border: (showErrors && errors.internalPhone) ? '1px solid #B0523E' : '1px solid #D3D1C7', outline: 'none', background: '#FFFFFF', color: '#1E1E1E' }} />
+                <input type="tel" placeholder="+52 ..." maxLength={15} value={internalPhone} onChange={e => {
+                  const val = e.target.value.replace(/[^\d+ ]/g, '');
+                  setInternalPhone(val);
+                }} style={{ width: '100%', padding: '10px 12px', fontSize: '13px', borderRadius: '8px', border: (showErrors && errors.internalPhone) ? '1px solid #B0523E' : '1px solid #D3D1C7', outline: 'none', background: '#FFFFFF', color: '#1E1E1E' }} />
                 {showErrors && errors.internalPhone ? <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#B0523E' }}>{errors.internalPhone}</p> : <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#8A8880' }}>Se guarda solo en base de datos. Lo usaremos para contactarte por pagos o alertas.</p>}
               </div>
             </div>

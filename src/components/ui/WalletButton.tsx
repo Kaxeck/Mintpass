@@ -9,9 +9,11 @@ import { useWalletConnection } from "@solana/react-hooks";
 interface WalletButtonProps {
   className?: string;
   style?: React.CSSProperties;
+  theme?: 'light' | 'dark';
+  dropdownPosition?: 'top' | 'bottom';
 }
 
-export default function WalletButton({ className, style }: WalletButtonProps) {
+export default function WalletButton({ className, style, theme = 'light', dropdownPosition = 'bottom' }: WalletButtonProps) {
   const { login, logout, authenticated, ready, user } = usePrivy();
   const { disconnect } = useWalletConnection();
   const [showDropdown, setShowDropdown] = useState(false);
@@ -30,10 +32,12 @@ export default function WalletButton({ className, style }: WalletButtonProps) {
     }
   }
 
+  const isDark = theme === 'dark';
+
   if (!ready) {
     return (
       <div className={className} style={{ ...style, opacity: 0.5 }}>
-        <span style={{ fontSize: 13, color: '#8A8880' }}>Cargando...</span>
+        <span style={{ fontSize: 13, color: isDark ? '#B4B2A9' : '#8A8880' }}>Cargando...</span>
       </div>
     );
   }
@@ -67,11 +71,10 @@ export default function WalletButton({ className, style }: WalletButtonProps) {
         {showDropdown && (
           <div style={{
             position: 'absolute',
-            top: '100%',
+            ...(dropdownPosition === 'top' ? { bottom: '100%', marginBottom: 8 } : { top: '100%', marginTop: 8 }),
             right: 0,
-            marginTop: 8,
-            background: '#FFFFFF',
-            border: '1px solid #D3D1C7',
+            background: isDark ? '#2C2C2A' : '#FFFFFF',
+            border: isDark ? '1px solid #3A3A38' : '1px solid #D3D1C7',
             borderRadius: 12,
             padding: 8,
             minWidth: 160,
@@ -88,7 +91,7 @@ export default function WalletButton({ className, style }: WalletButtonProps) {
                 width: '100%',
                 background: 'transparent',
                 border: 'none',
-                color: '#B0523E',
+                color: isDark ? '#E24B4A' : '#B0523E',
                 fontSize: 13,
                 fontWeight: 500,
                 cursor: 'pointer',
@@ -100,7 +103,7 @@ export default function WalletButton({ className, style }: WalletButtonProps) {
                 gap: '8px',
                 transition: 'background 0.2s'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.background = '#F7F8F7'}
+              onMouseEnter={(e) => e.currentTarget.style.background = isDark ? '#3A3A38' : '#F7F8F7'}
               onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
             >
               <LogOut size={16} /> Cerrar sesión

@@ -246,7 +246,7 @@ export default function OrganizerDashboard({
             </div>
           </div>
           <div style={{ padding: '24px 24px 0', borderTop: '0.5px solid #3A3A38' }}>
-            <WalletButton style={{ width: '100%', border: '0.5px solid #3A3A38', borderRadius: '12px', padding: '10px', color: '#FFF', background: 'transparent', fontSize: '13px', fontFamily: 'inherit' }} />
+            <WalletButton dropdownPosition="top" style={{ width: '100%', border: '0.5px solid #3A3A38', borderRadius: '12px', padding: '10px', color: '#FFF', background: 'transparent', fontSize: '13px', fontFamily: 'inherit' }} />
           </div>
         </div>
 
@@ -263,12 +263,14 @@ export default function OrganizerDashboard({
           ) : !organizerProfile ? (
             <div style={{ margin: '-32px -40px', height: 'calc(100vh)', overflow: 'auto' }}>
               <OrganizerProfileSetup onComplete={async (profile) => {
-                if (walletAddressStr) {
-                  const res = await updateOrganizerProfileInDb(walletAddressStr, profile);
-                  if (!res.success) {
-                    alert("Error al guardar el perfil: " + res.error);
-                    return;
-                  }
+                if (!walletAddressStr) {
+                  alert("Aún no se ha detectado tu wallet de Solana. Si iniciaste con correo, espera unos segundos a que se asigne, o conecta una wallet directamente (ej. Phantom).");
+                  return;
+                }
+                const res = await updateOrganizerProfileInDb(walletAddressStr, profile);
+                if (!res.success) {
+                  alert("Error al guardar el perfil: " + res.error);
+                  return;
                 }
                 onProfileComplete?.(profile);
               }} />

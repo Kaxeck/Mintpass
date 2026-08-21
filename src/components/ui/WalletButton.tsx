@@ -2,7 +2,7 @@
 
 import { usePrivy } from "@privy-io/react-auth";
 import { useState } from "react";
-import { Wallet } from "lucide-react";
+import { Wallet, LogOut } from "lucide-react";
 
 import { useWalletConnection } from "@solana/react-hooks";
 
@@ -16,11 +16,15 @@ export default function WalletButton({ className, style }: WalletButtonProps) {
   const { disconnect } = useWalletConnection();
   const [showDropdown, setShowDropdown] = useState(false);
 
-  // Intentar obtener una dirección para mostrar (wallet o email)
+  // Intentar obtener la dirección de Solana
+  const privySolanaWallet = (user?.linkedAccounts?.find(
+    (account: any) => account.type === 'wallet' && account.chainType === 'solana'
+  ) as any)?.address;
+
   let displayValue = null;
   if (user) {
-    if (user.wallet?.address) {
-      displayValue = `${user.wallet.address.slice(0, 4)}...${user.wallet.address.slice(-4)}`;
+    if (privySolanaWallet) {
+      displayValue = `${privySolanaWallet.slice(0, 4)}...${privySolanaWallet.slice(-4)}`;
     } else if (user.email?.address) {
       displayValue = user.email.address;
     }
@@ -29,7 +33,7 @@ export default function WalletButton({ className, style }: WalletButtonProps) {
   if (!ready) {
     return (
       <div className={className} style={{ ...style, opacity: 0.5 }}>
-        <span style={{ fontSize: 12, color: '#AFA9EC' }}>Cargando...</span>
+        <span style={{ fontSize: 13, color: '#8A8880' }}>Cargando...</span>
       </div>
     );
   }
@@ -52,8 +56,8 @@ export default function WalletButton({ className, style }: WalletButtonProps) {
             width: 8,
             height: 8,
             borderRadius: '50%',
-            background: '#5DCAA5',
-            boxShadow: '0 0 8px rgba(93, 202, 165, 0.5)',
+            background: '#14F195',
+            boxShadow: '0 0 8px rgba(20, 241, 149, 0.4)',
           }} />
           <span style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {displayValue}
@@ -66,12 +70,13 @@ export default function WalletButton({ className, style }: WalletButtonProps) {
             top: '100%',
             right: 0,
             marginTop: 8,
-            background: '#12122a',
-            border: '0.5px solid #2a2a4a',
+            background: '#FFFFFF',
+            border: '1px solid #D3D1C7',
             borderRadius: 12,
             padding: 8,
             minWidth: 160,
             zIndex: 100,
+            boxShadow: '0 10px 30px rgba(0,0,0,0.08)'
           }}>
             <button
               onClick={() => { 
@@ -83,15 +88,22 @@ export default function WalletButton({ className, style }: WalletButtonProps) {
                 width: '100%',
                 background: 'transparent',
                 border: 'none',
-                color: '#E24B4A',
-                fontSize: 12,
+                color: '#B0523E',
+                fontSize: 13,
+                fontWeight: 500,
                 cursor: 'pointer',
-                padding: '8px 12px',
+                padding: '10px 12px',
                 borderRadius: 8,
                 textAlign: 'left',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'background 0.2s'
               }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#F7F8F7'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
             >
-              Cerrar sesión
+              <LogOut size={16} /> Cerrar sesión
             </button>
           </div>
         )}

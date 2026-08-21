@@ -75,8 +75,18 @@ export default function OrganizerDashboard({
   const [loadingEvents, setLoadingEvents] = useState(false);
 
   // Determinar la wallet conectada usando Privy o el adaptador de solana
-  const walletAddressStr = user?.wallet?.address || session?.account?.address?.toString() || null;
-  const walletAddress: Address | null = walletAddressStr ? getAddress(walletAddressStr) : null;
+  const privySolanaWallet = (user?.linkedAccounts?.find(
+    (account: any) => account.type === 'wallet' && account.chainType === 'solana'
+  ) as any)?.address;
+  const walletAddressStr = privySolanaWallet || session?.account?.address?.toString() || null;
+  let walletAddress: Address | null = null;
+  if (walletAddressStr) {
+    try {
+      walletAddress = getAddress(walletAddressStr);
+    } catch (e) {
+      console.warn("No es una dirección de Solana válida (quizá es EVM):", walletAddressStr);
+    }
+  }
   const isConnected = authenticated || !!walletAddressStr;
 
   // Consultar reputación on-chain

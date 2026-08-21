@@ -54,8 +54,18 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
   const session = useWalletSession();
   const { user, login } = usePrivy();
 
-  const walletAddressStr = user?.wallet?.address || session?.account?.address?.toString() || null;
-  const walletAddress: Address | null = walletAddressStr ? getAddress(walletAddressStr) : null;
+  const privySolanaWallet = (user?.linkedAccounts?.find(
+    (account: any) => account.type === 'wallet' && account.chainType === 'solana'
+  ) as any)?.address;
+  const walletAddressStr = privySolanaWallet || session?.account?.address?.toString() || null;
+  let walletAddress: Address | null = null;
+  if (walletAddressStr) {
+    try {
+      walletAddress = getAddress(walletAddressStr);
+    } catch (e) {
+      console.warn("Invalid Solana address (EVM?):", walletAddressStr);
+    }
+  }
 
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');

@@ -211,10 +211,8 @@ export default function OrganizerDashboard({
   }, 0);
 
   const upcomingEvent = createdEvents.length > 0 ? createdEvents[0] : null;
-  const headerName = upcomingEvent ? upcomingEvent.name : "Bienvenido a tu Dashboard";
-  const headerDate = upcomingEvent 
-    ? (upcomingEvent.date ? new Date(upcomingEvent.date + 'T12:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) + (upcomingEvent.venue ? ' · ' + upcomingEvent.venue : '') : '') 
-    : "Resumen general de actividad";
+  const headerName = "Dashboard General";
+  const headerDate = organizerProfile?.name ? `¡Hola de nuevo, ${organizerProfile.name}!` : "Resumen general de actividad";
 
   return (
     <div style={{ background: '#FFFFFF', height: '100vh', width: '100vw', display: 'flex', fontFamily: 'var(--font-sans)', overflow: 'hidden' }}>

@@ -18,12 +18,16 @@ export function LandingNavBar({ onGoToExplore, onGoToMyTickets, onGoToOrganizer 
   const { organizerProfile, setOrganizerProfile } = useMintpassStore();
   const router = useRouter();
   const [loadingProfile, setLoadingProfile] = useState(false);
+  const [lastCheckedWallet, setLastCheckedWallet] = useState<string | null>(null);
 
-  const walletAddressStr = user?.wallet?.address || session?.account?.address?.toString() || null;
+  const privySolanaWallet = (user?.linkedAccounts?.find(
+    (account: any) => account.type === 'wallet' && account.chainType === 'solana'
+  ) as any)?.address;
+  const walletAddressStr = privySolanaWallet || session?.account?.address?.toString() || null;
   const isConnected = authenticated || !!walletAddressStr;
 
   useEffect(() => {
-    if (isConnected && walletAddressStr && !organizerProfile && !loadingProfile) {
+    if (isConnected && walletAddressStr && !loadingProfile && lastCheckedWallet !== walletAddressStr) {
       setLoadingProfile(true);
       getOrganizerProfile(walletAddressStr).then(profile => {
         if (profile) {
@@ -37,9 +41,10 @@ export function LandingNavBar({ onGoToExplore, onGoToMyTickets, onGoToOrganizer 
             socialLink: profile.socialLinks ? (JSON.parse(profile.socialLinks as string)[0] || undefined) : undefined
           });
         }
+        setLastCheckedWallet(walletAddressStr);
       }).finally(() => setLoadingProfile(false));
     }
-  }, [isConnected, walletAddressStr, organizerProfile, loadingProfile, setOrganizerProfile]);
+  }, [isConnected, walletAddressStr, loadingProfile, lastCheckedWallet, setOrganizerProfile]);
 
   return (
     <header className="lp-nav">

@@ -25,7 +25,10 @@ export default function DashboardPage() {
   const { user, ready } = usePrivy();
   const session = useWalletSession();
   
-  const walletAddress = user?.wallet?.address || session?.account?.address?.toString() || null;
+  const privySolanaWallet = (user?.linkedAccounts?.find(
+    (account: any) => account.type === 'wallet' && account.chainType === 'solana'
+  ) as any)?.address;
+  const walletAddress = privySolanaWallet || session?.account?.address?.toString() || null;
 
   useEffect(() => {
     setMounted(true);

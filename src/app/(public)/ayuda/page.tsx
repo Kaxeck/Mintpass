@@ -2,7 +2,8 @@
 import { LandingNavBar } from "@/components/layout/LandingNavBar";
 import { LandingFooter } from "@/components/layout/LandingFooter";
 import { Plus } from "lucide-react";
-import "../../../styles/Home.css";
+import "../../../styles/landing.css";
+import "../../../styles/layout.css";
 import "./Ayuda.css";
 
 export default function AyudaPage() {

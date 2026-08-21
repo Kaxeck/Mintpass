@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import WalletMultiButton from '../ui/WalletButton';
 import { usePrivy } from "@privy-io/react-auth";
 import { useWalletSession } from "@solana/react-hooks";
 import { useMintpassStore } from "@/store";
 import { useRouter } from "next/navigation";
+import { getOrganizerProfile } from "@/app/actions/organizer";
 
 interface LandingNavBarProps {
   onGoToExplore?: () => void;
@@ -14,18 +15,38 @@ interface LandingNavBarProps {
 export function LandingNavBar({ onGoToExplore, onGoToMyTickets, onGoToOrganizer }: LandingNavBarProps) {
   const { authenticated, user } = usePrivy();
   const session = useWalletSession();
-  const { organizerProfile } = useMintpassStore();
+  const { organizerProfile, setOrganizerProfile } = useMintpassStore();
   const router = useRouter();
+  const [loadingProfile, setLoadingProfile] = useState(false);
 
   const walletAddressStr = user?.wallet?.address || session?.account?.address?.toString() || null;
   const isConnected = authenticated || !!walletAddressStr;
 
+  useEffect(() => {
+    if (isConnected && walletAddressStr && !organizerProfile && !loadingProfile) {
+      setLoadingProfile(true);
+      getOrganizerProfile(walletAddressStr).then(profile => {
+        if (profile) {
+          setOrganizerProfile({
+            name: profile.companyName || profile.name || "",
+            category: profile.organizerCategory || "",
+            bio: profile.bio || "",
+            supportEmail: profile.contactEmail || profile.email || "",
+            internalPhone: profile.contactPhone || "",
+            logoUrl: profile.logoUrl || undefined,
+            socialLink: profile.socialLinks ? (JSON.parse(profile.socialLinks as string)[0] || undefined) : undefined
+          });
+        }
+      }).finally(() => setLoadingProfile(false));
+    }
+  }, [isConnected, walletAddressStr, organizerProfile, loadingProfile, setOrganizerProfile]);
+
   return (
     <header className="lp-nav">
-      <div className="lp-nav-inner" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', maxWidth: '1100px', margin: '0 auto' }}>
-        <span className="lp-nav-brand" style={{ cursor: 'pointer' }} onClick={() => router.push('/')}>
+      <div className="lp-nav-inner">
+        <span className="lp-nav-brand" onClick={() => router.push('/')}>
           <img src="/icon.png" alt="Logo" />
-          <span>Mint<span style={{ color: '#4BAA46' }}>pass</span></span>
+          <span>Mint<span className="lp-brand-accent">pass</span></span>
         </span>
         <div className="lp-nav-right">
           <nav className="lp-nav-links">
@@ -53,7 +74,7 @@ export function LandingNavBar({ onGoToExplore, onGoToMyTickets, onGoToOrganizer 
             )}
             
           </nav>
-          <WalletMultiButton style={{ border: '0.5px solid #333333', borderRadius: '8px', padding: '6px 14px', color: '#FFFFFF', background: 'transparent', fontSize: '13px', fontFamily: 'inherit', height: 'auto', lineHeight: 1 }} />
+          <WalletMultiButton className="lp-wallet-btn" />
         </div>
       </div>
     </header>

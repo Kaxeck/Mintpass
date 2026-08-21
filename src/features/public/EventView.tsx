@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { LandingNavBar } from '../../components/layout/LandingNavBar';
 import { LandingFooter } from '../../components/layout/LandingFooter';
 import * as Icons from 'lucide-react';
-import '../../styles/Home.css';
+import "../../styles/landing.css";
+import "../../styles/layout.css";
 import { Country, State, City } from 'country-state-city';
 
 

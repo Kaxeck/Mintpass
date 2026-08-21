@@ -14,7 +14,7 @@ import WalletButton from "../../components/ui/WalletButton";
 import AlertModal, { AlertModalProps } from "../../components/ui/AlertModal";
 import { LandingNavBar } from "../../components/layout/LandingNavBar";
 import { LandingFooter } from "../../components/layout/LandingFooter";
-import "../../styles/Home.css";
+import "../../styles/buyer.css";
 import "./BuyerPurchase.css";
 
 export default function BuyerPurchase({

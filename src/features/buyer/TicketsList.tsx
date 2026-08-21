@@ -6,7 +6,7 @@ import { useWalletSession } from "@solana/react-hooks";
 import { usePrivy } from "@privy-io/react-auth";
 import { LandingNavBar } from "../../components/layout/LandingNavBar";
 import { LandingFooter } from "../../components/layout/LandingFooter";
-import "../../styles/Home.css";
+import "../../styles/buyer.css";
 import "./TicketsList.css";
 
 export interface OwnedTicket {

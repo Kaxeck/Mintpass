@@ -5,7 +5,7 @@ import QRCode from "react-qr-code";
 import { useUmi } from "../../components/providers";
 import { mutateToPoap } from "../../lib/metaplex";
 import AlertModal, { AlertModalProps } from "../../components/ui/AlertModal";
-import "../../styles/Home.css";
+import "../../styles/buyer.css";
 import "./MyTicket.css";
 
 import { LandingNavBar } from "../../components/layout/LandingNavBar";

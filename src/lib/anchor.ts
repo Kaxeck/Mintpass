@@ -65,6 +65,23 @@ export const MINTPASS_IDL: any = {
       args: [
         { name: "zoneIndex", type: "u8" }
       ]
+    },
+    {
+      "name": "perform_checkin",
+      "discriminator": [120, 48, 197, 249, 18, 126, 237, 107],
+      "accounts": [
+        { "name": "protocolConfig", "isMut": false, "isSigner": false },
+        { "name": "mintpassAuthority", "isMut": true, "isSigner": true },
+        { "name": "ticketMint", "isMut": false, "isSigner": false },
+        { "name": "tokenAccount", "isMut": false, "isSigner": false },
+        { "name": "ticketReceipt", "isMut": true, "isSigner": false },
+        { "name": "eventRecord", "isMut": false, "isSigner": false },
+        { "name": "ticketMetadata", "isMut": false, "isSigner": false },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "staffId", "type": "string" }
+      ]
     }
   ],
   types: [
@@ -110,6 +127,33 @@ export function buildCreateEventInstruction(
       { address: eventRecord, role: AccountRole.WRITABLE },
       { address: address("config_pda_here"), role: AccountRole.READONLY }, // We need the correct PDA
       { address: address("11111111111111111111111111111111"), role: AccountRole.READONLY } // System program
+    ],
+    data: new Uint8Array(data)
+  };
+}
+
+export function buildPerformCheckinInstruction(
+  protocolConfig: Address,
+  mintpassAuthority: Address,
+  ticketMint: Address,
+  tokenAccount: Address,
+  ticketReceipt: Address,
+  eventRecord: Address,
+  ticketMetadata: Address,
+  staffId: string
+): Instruction {
+  const data = coder.instruction.encode("perform_checkin", { staffId });
+  return {
+    programAddress: EVENT_REGISTRY_PROGRAM_ID,
+    accounts: [
+      { address: protocolConfig, role: AccountRole.READONLY },
+      { address: mintpassAuthority, role: AccountRole.WRITABLE_SIGNER },
+      { address: ticketMint, role: AccountRole.READONLY },
+      { address: tokenAccount, role: AccountRole.READONLY },
+      { address: ticketReceipt, role: AccountRole.WRITABLE },
+      { address: eventRecord, role: AccountRole.READONLY },
+      { address: ticketMetadata, role: AccountRole.READONLY },
+      { address: address("11111111111111111111111111111111"), role: AccountRole.READONLY }
     ],
     data: new Uint8Array(data)
   };

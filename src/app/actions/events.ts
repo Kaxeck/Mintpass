@@ -10,7 +10,7 @@ export async function createEventInDb(eventData: any) {
 
     // 1. Ensure the UserProfile exists for the organizer
     const organizerPubkey = validatedData.organizerWallet;
-    
+
     if (!organizerPubkey) {
       throw new Error("Organizer wallet is required");
     }
@@ -33,7 +33,7 @@ export async function createEventInDb(eventData: any) {
         collectionMint: validatedData.collectionMint,
         address: validatedData.eventRecordPda,
         organizerPubkey: organizerPubkey,
-        status: "PUBLISHED",
+        status: "PENDING_ON_CHAIN",
         coverImageUrl: validatedData.coverImage,
         ticketImageUrl: validatedData.ticketImage,
         galleryUrls: validatedData.gallery || [],
@@ -131,11 +131,11 @@ export async function getEventByStaffToken(token: string) {
         event: true
       }
     });
-    
+
     if (!staffLink || !staffLink.event) {
       return null;
     }
-    
+
     return staffLink.event;
   } catch (error) {
     console.error("Error validating staff token:", error);

@@ -63,7 +63,10 @@ export async function getPublishedEvents() {
   try {
     const events = await prisma.event.findMany({
       where: {
-        status: "PUBLISHED"
+        status: "PUBLISHED",
+        startDate: {
+          gte: new Date() // Only show future events
+        }
       },
       orderBy: {
         lastUpdatedAt: "desc"

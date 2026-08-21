@@ -11,7 +11,8 @@ import CheckInStaff from "./CheckInStaff";
 import OrganizerProfileSetup, { type OrganizerProfile } from "./OrganizerProfileSetup";
 import EventDetails from "./EventDetails";
 import { updateOrganizerProfileInDb } from "../../app/actions/organizer";
-import '../../styles/Home.css';
+import '../../styles/dashboard.css';
+import '../../styles/layout.css';
 import './OrganizerDashboard.css';
 import { useMintpassStore } from "../../store";
 

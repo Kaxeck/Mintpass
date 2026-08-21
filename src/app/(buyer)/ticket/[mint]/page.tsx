@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 const MyTicket = dynamic(() => import("@/features/buyer/MyTicket"), { ssr: false });
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getEventById } from "@/app/actions/events";
+import { getTicketWithEvent } from "@/app/actions/tickets";
 
 export default function MyTicketPage() {
   const router = useRouter();
@@ -12,6 +12,7 @@ export default function MyTicketPage() {
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
   const [eventModel, setEventModel] = useState<any>(null);
+  const [qrSecret, setQrSecret] = useState<string>("fallback_secret");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,15 +23,16 @@ export default function MyTicketPage() {
   const selectedEventId = searchParams?.get("eventId") as string;
   
   useEffect(() => {
-    async function fetchEvent() {
-      if (!selectedEventId) {
+    async function fetchEventAndTicket() {
+      if (!ticketMint) {
         setLoading(false);
         return;
       }
       setLoading(true);
       try {
-        const ev = await getEventById(selectedEventId);
-        if (ev) {
+        const ticketWithEvent = await getTicketWithEvent(ticketMint);
+        if (ticketWithEvent && ticketWithEvent.event) {
+          const ev = ticketWithEvent.event;
           setEventModel({
             id: ev.id,
             name: ev.title,
@@ -48,6 +50,7 @@ export default function MyTicketPage() {
             isSoulbound: true,
             createdAt: new Date(ev.lastUpdatedAt).getTime()
           });
+          setQrSecret(ticketWithEvent.qrSecret || "fallback_secret");
         }
       } catch (e) {
         console.error("Error fetching event for ticket view:", e);
@@ -55,8 +58,8 @@ export default function MyTicketPage() {
         setLoading(false);
       }
     }
-    fetchEvent();
-  }, [selectedEventId]);
+    fetchEventAndTicket();
+  }, [ticketMint]);
 
   if (!mounted || loading) return null;
 
@@ -71,6 +74,7 @@ export default function MyTicketPage() {
     <MyTicket 
       event={eventModel} 
       ticketMint={ticketMint || (process.env.NEXT_PUBLIC_EVENT_COLLECTION_MINT as string)}
+      qrSecret={qrSecret}
       onBack={() => router.push('/tickets')} 
     />
   );

@@ -71,7 +71,7 @@ export default function Home({
   }, [countryIso, stateIso]);
 
   // Convertimos los eventos creados on-chain al mismo formato que los eventos demo
-  const onChainAsEvents = createdEvents.map(ev => {
+  const onChainAsEvents = createdEvents.map((ev: any) => {
     const style = catMap[ev.cat || ev.category || 'Otro'] || catMap['Otro'];
     const dateObj = ev.date && ev.date.includes('-') ? new Date(ev.date + 'T12:00') : null;
     const dateStr = dateObj

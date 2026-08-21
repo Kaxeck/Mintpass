@@ -1,7 +1,8 @@
 'use client';
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import * as Icons from "lucide-react";
 import { CreatedEvent } from "./CreateEvent";
+import { getStaffLinksByEvents, createStaffLink, revokeStaffLink } from "../../app/actions/staff";
 import './CheckInStaff.css';
 
 export default function CheckInStaff({ events, onGoToScanner }: { events: CreatedEvent[], onGoToScanner: (token: string) => void }) {
@@ -9,19 +10,57 @@ export default function CheckInStaff({ events, onGoToScanner }: { events: Create
   const [selectedEventId, setSelectedEventId] = useState<string | number | null>(null);
   const [links, setLinks] = useState<{ id: string, name: string, token: string, createdAt: number, status: 'active' | 'revoked', eventId: string | number }[]>([]);
   const [copied, setCopied] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const generateLink = () => {
-    if (!selectedEventId) return;
-    const newToken = Math.random().toString(36).substring(2, 10).toUpperCase();
-    const newLink = {
-      id: Date.now().toString(),
-      name: `Guardia ${links.filter(l => l.eventId === selectedEventId).length + 1}`,
-      token: newToken,
-      createdAt: Date.now(),
-      status: 'active' as const,
-      eventId: selectedEventId
+  const activeEvents = events.filter(ev => {
+    if (!ev.date) return true;
+    const dateStr = ev.date;
+    const timeStr = ev.time || "23:59";
+    const eventDateTime = new Date(`${dateStr}T${timeStr}`);
+    if (isNaN(eventDateTime.getTime())) return true;
+    return eventDateTime >= new Date();
+  });
+
+  useEffect(() => {
+    const fetchLinks = async () => {
+      const eventIds = activeEvents.map(ev => ev.id.toString());
+      if (eventIds.length > 0) {
+        const res = await getStaffLinksByEvents(eventIds);
+        if (res.success && res.links) {
+          const mapped = res.links.map((l: any) => ({
+            id: l.id,
+            name: l.name,
+            token: l.token,
+            createdAt: new Date(l.createdAt).getTime(),
+            status: l.status.toLowerCase() as 'active' | 'revoked',
+            eventId: l.eventId
+          }));
+          setLinks(mapped);
+        }
+      }
     };
-    setLinks([newLink, ...links]);
+    fetchLinks();
+  }, [activeEvents.length]); // Solo recargar si cambia la cantidad de eventos
+
+  const generateLink = async () => {
+    if (!selectedEventId || loading) return;
+    setLoading(true);
+    const newToken = Math.random().toString(36).substring(2, 10).toUpperCase();
+    const newName = `Guardia ${links.filter(l => l.eventId === selectedEventId).length + 1}`;
+    
+    const res = await createStaffLink(selectedEventId.toString(), newName, newToken);
+    if (res.success && res.link) {
+      const newLink = {
+        id: res.link.id,
+        name: res.link.name,
+        token: res.link.token,
+        createdAt: new Date(res.link.createdAt).getTime(),
+        status: res.link.status.toLowerCase() as 'active' | 'revoked',
+        eventId: res.link.eventId
+      };
+      setLinks([newLink, ...links]);
+    }
+    setLoading(false);
   };
 
   const handleCopy = (token: string) => {
@@ -31,11 +70,19 @@ export default function CheckInStaff({ events, onGoToScanner }: { events: Create
     setTimeout(() => setCopied(null), 2000);
   };
 
-  const revokeLink = (id: string) => {
-    setLinks(links.map(l => l.id === id ? { ...l, status: 'revoked' } : l));
+  const handleRevokeLink = async (id: string) => {
+    if (loading) return;
+    setLoading(true);
+    const res = await revokeStaffLink(id);
+    if (res.success) {
+      setLinks(links.map(l => l.id === id ? { ...l, status: 'revoked' } : l));
+    }
+    setLoading(false);
   };
 
   const currentEventLinks = links.filter(l => l.eventId === selectedEventId);
+
+
 
   return (
     <div className="checkin-staff">
@@ -49,7 +96,7 @@ export default function CheckInStaff({ events, onGoToScanner }: { events: Create
             </p>
           </div>
 
-          {events.length === 0 ? (
+          {activeEvents.length === 0 ? (
             <div className="empty-state">
               <Icons.CalendarPlus size={36} color="var(--border)" style={{ marginBottom: '14px' }} />
               <p className="title">Todavía no tienes eventos</p>
@@ -57,7 +104,7 @@ export default function CheckInStaff({ events, onGoToScanner }: { events: Create
             </div>
           ) : (
             <div className="event-grid">
-              {events.map(ev => {
+              {activeEvents.map((ev: any) => {
                 const activeCount = links.filter(l => l.eventId === ev.id && l.status === 'active').length;
                 
                 const categoryIcons: Record<string, string> = {
@@ -123,8 +170,8 @@ export default function CheckInStaff({ events, onGoToScanner }: { events: Create
             <div>
               <div className="links-header">
                 <p>Enlaces mágicos</p>
-                <button onClick={generateLink} className="btn-create-link">
-                  <Icons.Link size={15} /> Crear enlace
+                <button onClick={generateLink} className="btn-create-link" disabled={loading}>
+                  <Icons.Link size={15} /> {loading ? 'Creando...' : 'Crear enlace'}
                 </button>
               </div>
 
@@ -157,7 +204,7 @@ export default function CheckInStaff({ events, onGoToScanner }: { events: Create
                               <button onClick={() => handleCopy(link.token)} className="btn-copy">
                                 {copied === link.token ? 'Copiado ✓' : 'Copiar URL'}
                               </button>
-                              <button onClick={() => revokeLink(link.id)} className="btn-revoke" title="Revocar acceso">
+                              <button onClick={() => handleRevokeLink(link.id)} className="btn-revoke" title="Revocar acceso" disabled={loading}>
                                 <Icons.Trash2 size={15} />
                               </button>
                             </>

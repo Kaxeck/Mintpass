@@ -13,6 +13,7 @@ enum Role {
 }
 
 enum TicketStatus {
+  PENDING_ON_CHAIN
   VALID
   CHECKED_IN
   REFUNDED
@@ -22,6 +23,7 @@ enum TicketStatus {
 }
 
 enum EventStatus {
+  PENDING_ON_CHAIN
   DRAFT
   PUBLISHED
   CLOSED
@@ -141,6 +143,8 @@ model Ticket {
   metadataUri         String?
   lastSyncedSlot      BigInt
   lastUpdatedAt       DateTime     @updatedAt
+  
+  qrSecret            String       @default(uuid())
 
   event               Event             @relation(fields: [eventAddress], references: [address])
   owner               UserProfile       @relation(fields: [ownerPubkey], references: [walletPubkey])

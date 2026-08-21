@@ -47,7 +47,7 @@ export default function DashboardPage() {
           getOrganizerEventStats(walletAddress)
         ]);
         
-        const formattedEvents = events.map(ev => ({
+        const formattedEvents = events.map((ev: any) => ({
           id: ev.id,
           address: ev.address || undefined,
           name: ev.title,

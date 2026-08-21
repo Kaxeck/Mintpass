@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 export default async function ExplorePage() {
   const dbEvents = await getPublishedEvents();
   
-  const formattedEvents = dbEvents.map(ev => {
+  const formattedEvents = dbEvents.map((ev: any) => {
     let dateStr = "";
     let timeStr = "";
     if (ev.startDate) {

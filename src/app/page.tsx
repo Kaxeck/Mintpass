@@ -8,7 +8,7 @@ export default async function HomePage() {
   const dbEvents = await getPublishedEvents();
   
   // Map Prisma Event to the expected format of the frontend
-  const formattedEvents = dbEvents.map(ev => {
+  const formattedEvents = dbEvents.map((ev: any) => {
     let dateStr = "";
     let timeStr = "";
     if (ev.startDate) {

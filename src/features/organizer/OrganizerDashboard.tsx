@@ -107,7 +107,7 @@ export default function OrganizerDashboard({
         setOnChainEvents([]);
         return;
       }
-      const knownMints = createdEvents.map(ev => ev.collectionMint).filter(m => m && m.length >= 32 && m.length <= 44 && !m.startsWith('mock'));
+      const knownMints = createdEvents.map((ev: any) => ev.collectionMint).filter((m: any) => m && m.length >= 32 && m.length <= 44 && !m.startsWith('mock'));
       if (knownMints.length === 0) {
         setLoadingEvents(false);
         return;
@@ -141,7 +141,7 @@ export default function OrganizerDashboard({
     'Feria y mercado': '#EF9F27', 'Teatro y danza': '#E879A8', 'Otro': '#534AB7'
   };
 
-  const events = createdEvents.map(ev => {
+  const events = createdEvents.map((ev: any) => {
     const rawDate = ev.date ? new Date(ev.date + 'T12:00') : null;
     const eventDate = rawDate && !isNaN(rawDate.getTime()) ? rawDate : null;
     const isToday = eventDate && eventDate.toDateString() === new Date().toDateString();
@@ -354,7 +354,7 @@ export default function OrganizerDashboard({
                   <p className="od-empty-sub">No hay eventos registrados en esta pestaña ({activeTab}).</p>
                 </div>
               ) : (
-                filteredEvents.map(ev => {
+                filteredEvents.map((ev: any) => {
                   const EventIcon = (Icons as Record<string, unknown>)[ev.coverText] as typeof Icons.HelpCircle || Icons.HelpCircle;
                   const isVerifiedOnChain = onChainEvents.some(oc => oc.collectionMint === ev.collectionMint);
                   return (
@@ -382,7 +382,7 @@ export default function OrganizerDashboard({
                         </div>
                         <p className="od-bar-label">{ev.progressLabel}</p>
                         <div className="od-event-actions">
-                          {ev.actions.map((action, idx) => (
+                          {ev.actions.map((action: any, idx: number) => (
                             <button
                               key={idx}
                               className={`od-btn ${idx === ev.primaryAction ? 'od-btn-primary' : ''}`}
@@ -482,7 +482,7 @@ export default function OrganizerDashboard({
                     <p className="od-empty-sub">No hay eventos en esta categoría.</p>
                   </div>
                 ) : (
-                  filteredEvents.map(ev => {
+                  filteredEvents.map((ev: any) => {
                     const EventIcon = (Icons as Record<string, unknown>)[ev.coverText] as typeof Icons.HelpCircle || Icons.HelpCircle;
                     const isVerifiedOnChain = onChainEvents.some(oc => oc.collectionMint === ev.collectionMint);
                     return (
@@ -510,7 +510,7 @@ export default function OrganizerDashboard({
                           </div>
                           <p className="od-bar-label">{ev.progressLabel}</p>
                           <div className="od-event-actions">
-                            {ev.actions.map((action, idx) => (
+                            {ev.actions.map((action: any, idx: number) => (
                               <button
                                 key={idx}
                                 className={`od-btn ${idx === ev.primaryAction ? 'od-btn-primary' : ''}`}

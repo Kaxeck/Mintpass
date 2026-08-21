@@ -39,7 +39,7 @@ export default function BuyerPurchase({
   const rpcRaw = client?.runtime?.rpc;
 
   const [screen, setScreen] = useState<'buy' | 'checkout' | 'wallet-checkout' | 'processing' | 'success'>('buy');
-  const [paymentMethod, setPaymentMethod] = useState<'tarjeta' | 'oxxo' | 'wallet'>('wallet');
+  const [paymentMethod, setPaymentMethod] = useState<'tarjeta' | 'blink' | 'wallet'>('wallet');
   const [qty, setQty] = useState(1);
   const [progressStep, setProgressStep] = useState(0);
   const [selectedZoneIndex, setSelectedZoneIndex] = useState(0);
@@ -397,8 +397,8 @@ export default function BuyerPurchase({
                         className={`bp-wallet-opt ${paymentMethod === 'tarjeta' ? 'selected' : ''}`}
                       >MercadoPago</div>
                       <div 
-                        onClick={() => setPaymentMethod('oxxo')} 
-                        className={`bp-wallet-opt ${paymentMethod === 'oxxo' ? 'selected' : ''}`}
+                        onClick={() => setPaymentMethod('blink')} 
+                        className={`bp-wallet-opt ${paymentMethod === 'blink' ? 'selected' : ''}`}
                       >Blink</div>
                       <div 
                         onClick={() => setPaymentMethod('wallet')} 

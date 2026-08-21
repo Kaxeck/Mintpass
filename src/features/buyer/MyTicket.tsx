@@ -13,11 +13,14 @@ import { LandingFooter } from "../../components/layout/LandingFooter";
 
 const PERIOD = 30; // 30 segundos de vigencia del código QR
 
-export default function MyTicket({ event, ticketMint, onBack }: { event: any, ticketMint: string, onBack: () => void }) {
+export default function MyTicket({ event, ticketMint, qrSecret, onBack }: { event: any, ticketMint: string, qrSecret: string, onBack: () => void }) {
   const [secs, setSecs] = useState(PERIOD);
   const [rotations, setRotations] = useState(0);
   const [flash, setFlash] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [cryptoPayload, setCryptoPayload] = useState("");
+  const [isQrActive, setIsQrActive] = useState(false);
+  const [timeToUnlock, setTimeToUnlock] = useState("");
   
   const umi = useUmi();
   const [isMutating, setIsMutating] = useState(false);
@@ -125,31 +128,64 @@ export default function MyTicket({ event, ticketMint, onBack }: { event: any, ti
     );
   };
 
+  async function generateHash(message: string) {
+    const msgBuffer = new TextEncoder().encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
   useEffect(() => {
     window.scrollTo(0, 0); 
-    const interval = setInterval(() => {
+    let currentPayloadTs = Date.now();
+
+    const generatePayload = async (ts: number) => {
+      const hash = await generateHash(`${ticketMint}${ts}${qrSecret}`);
+      setCryptoPayload(JSON.stringify({ mint: ticketMint, timestamp: ts, hash }));
+    };
+    
+    // Initial generation
+    generatePayload(currentPayloadTs);
+
+    const interval = setInterval(async () => {
+      // 1. Time lock logic
+      const eventDate = new Date(`${event?.date}T${event?.time}`);
+      const now = new Date();
+      if (!isNaN(eventDate.getTime())) {
+        const diffMs = eventDate.getTime() - now.getTime();
+        const diffHours = diffMs / (1000 * 60 * 60);
+        if (diffHours > 1) {
+          setIsQrActive(false);
+          const hours = Math.floor(diffMs / (1000 * 60 * 60));
+          const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+          setTimeToUnlock(`${hours}h ${mins}m`);
+        } else {
+          setIsQrActive(true);
+        }
+      } else {
+        setIsQrActive(true);
+      }
+
+      // 2. TOTP logic
       setSecs(prev => {
         if (prev <= 1) {
           setFlash(true);
           setTimeout(() => setFlash(false), 200);
           setRotations(r => r + 1);
+          currentPayloadTs = Date.now();
+          generatePayload(currentPayloadTs);
           return PERIOD; 
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [event?.date, event?.time, ticketMint, qrSecret]);
 
   const handleShare = () => {
     setCopied(true);
     setTimeout(() => setCopied(false), 1600);
   };
-
-  const cryptoPayload = JSON.stringify({ 
-    mint: ticketMint, 
-    rot: rotations 
-  });
 
   const shortMint = ticketMint.length > 10 ? `${ticketMint.slice(0,4)}…${ticketMint.slice(-4)}` : ticketMint;
 
@@ -179,7 +215,7 @@ export default function MyTicket({ event, ticketMint, onBack }: { event: any, ti
                    <span className="mt-badge-status">Activo</span>
                 )}
 
-                <div className={`mt-qr-ring ${isCheckedIn ? 'used' : ''} ${poapClaimed ? 'poap' : ''}`}>
+                <div className={`mt-qr-ring ${isCheckedIn ? 'used' : ''} ${poapClaimed ? 'poap' : ''} ${!isQrActive && !poapClaimed && !isCheckedIn ? 'locked' : ''}`}>
                   <div className="mt-qr-box">
                     {poapClaimed ? (
                       <Icons.Medal size={64} color="#F59E0B" />
@@ -188,16 +224,27 @@ export default function MyTicket({ event, ticketMint, onBack }: { event: any, ti
                         {isMutating ? <Icons.Loader size={32} color="#14F195" className="animate-spin" /> : <Icons.Gift size={42} color="#14F195" />}
                         <span style={{fontSize: '10px', color: '#1E1E1E', fontWeight: 600}}>Reclamar POAP</span>
                       </button>
+                    ) : !isQrActive ? (
+                      <div style={{display:'flex', flexDirection:'column', alignItems:'center', color:'#A1A1AA'}}>
+                        <Icons.Lock size={48} strokeWidth={1.5} />
+                        <span style={{fontSize:'12px', marginTop:'8px', fontWeight:500, color:'#5F5E5A'}}>Bloqueado temporalmente</span>
+                      </div>
                     ) : (
                       <QRCode value={cryptoPayload} size={120} bgColor="#ffffff" fgColor="#111111" />
                     )}
-                    {!isCheckedIn && !poapClaimed && <div className={`mt-flash ${flash ? 'show' : ''}`}></div>}
+                    {!isCheckedIn && !poapClaimed && isQrActive && <div className={`mt-flash ${flash ? 'show' : ''}`}></div>}
                   </div>
                 </div>
 
                 {!isCheckedIn && !poapClaimed && (
                   <>
-                    <p className="mt-timer">Se renueva en <span>{secs}s</span></p>
+                    {isQrActive ? (
+                      <p className="mt-timer">Se renueva en <span>{secs}s</span></p>
+                    ) : (
+                      <p className="mt-timer" style={{color: '#B45309', background: '#FEF3C7', padding: '4px 8px', borderRadius: '4px'}}>
+                        Se revelará en {timeToUnlock}
+                      </p>
+                    )}
                     <p className="mt-warning">Imposible de capturar en pantalla o reenviar</p>
                   </>
                 )}

@@ -3,6 +3,8 @@
 import prisma from "@/lib/prisma";
 import { organizerProfileSchema } from "@/lib/validations";
 
+import { revalidatePath } from 'next/cache';
+
 export async function updateOrganizerProfileInDb(walletAddress: string, profileData: any) {
   try {
     const validatedData = organizerProfileSchema.parse(profileData);
@@ -32,6 +34,9 @@ export async function updateOrganizerProfileInDb(walletAddress: string, profileD
         role: "ORGANIZER",
       }
     });
+
+    revalidatePath('/');
+    revalidatePath('/dashboard');
 
     return { success: true };
   } catch (error: any) {

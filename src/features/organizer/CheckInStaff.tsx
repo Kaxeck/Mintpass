@@ -13,12 +13,18 @@ export default function CheckInStaff({ events, onGoToScanner }: { events: Create
   const [loading, setLoading] = useState(false);
 
   const activeEvents = events.filter(ev => {
+    // Si ya se retiraron los fondos o se canceló, ya no se admiten check-ins
+    if (ev.status === 'CLOSED' || ev.status === 'CANCELLED') return false;
+
     if (!ev.date) return true;
     const dateStr = ev.date;
-    const timeStr = ev.time || "23:59";
+    const timeStr = ev.time || "00:00";
     const eventDateTime = new Date(`${dateStr}T${timeStr}`);
     if (isNaN(eventDateTime.getTime())) return true;
-    return eventDateTime >= new Date();
+    
+    // El evento deja de aparecer en staff 48 horas después de su hora de inicio (si el organizador olvidó finalizarlo)
+    const fortyEightHoursMs = 48 * 60 * 60 * 1000;
+    return (new Date().getTime() - eventDateTime.getTime()) < fortyEightHoursMs;
   });
 
   useEffect(() => {

@@ -3,8 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useWalletSession } from "@solana/react-hooks";
-import { usePrivy } from "@privy-io/react-auth";
+import { useActiveSolanaWallet } from "@/hooks/useActiveSolanaWallet";
 import { getEventsByOrganizer, getOrganizerEventStats } from "@/app/actions/events";
 import { getOrganizerProfile } from "@/app/actions/organizer";
 import { type OrganizerProfile } from "@/features/organizer/OrganizerProfileSetup";
@@ -22,13 +21,7 @@ export default function DashboardPage() {
   const [organizerProfile, setOrganizerProfile] = useState<OrganizerProfile | null>(null);
   const [loading, setLoading] = useState(true);
   
-  const { user, ready } = usePrivy();
-  const session = useWalletSession();
-  
-  const privySolanaWallet = (user?.linkedAccounts?.find(
-    (account: any) => account.type === 'wallet' && account.chainType === 'solana'
-  ) as any)?.address;
-  const walletAddress = privySolanaWallet || session?.account?.address?.toString() || null;
+  const { walletAddress, ready } = useActiveSolanaWallet();
 
   useEffect(() => {
     setMounted(true);
@@ -53,6 +46,7 @@ export default function DashboardPage() {
         const formattedEvents = events.map((ev: any) => ({
           id: ev.id,
           address: ev.address || undefined,
+          escrowVault: ev.escrowVault || undefined,
           status: ev.status,
           name: ev.title,
           category: ev.category || "Otro",

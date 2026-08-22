@@ -102,7 +102,7 @@ export async function buildSaveEventInstruction(
     zones: eventData.zones.map(z => ({
       name: z.name,
       capacity: z.capacity,
-      price: new BN(z.price),
+      price: new BN(Math.round((Number(z.price) || 0) * 1_000_000_000)),
       ticketsSold: 0
     })),
     allowResale: eventData.allowResale,
@@ -238,9 +238,36 @@ export async function readEventFromChain(
       return null;
     }
 
-    const payload = Buffer.from(accountInfo.data).toString("utf8");
-    const parsed = JSON.parse(payload);
-    return parsed.data || null;
+    const coder = new BorshCoder(MINTPASS_IDL);
+    const decoded = coder.accounts.decode("EventRecord", Buffer.from(accountInfo.data));
+    if (!decoded) return null;
+
+    const eventDate = decoded.eventTimestamp ? new Date(Number(decoded.eventTimestamp) * 1000) : new Date();
+    const dateStr = eventDate.toISOString().split("T")[0];
+    const timeStr = eventDate.toTimeString().split(" ")[0].slice(0, 5);
+
+    return {
+      name: decoded.name || "",
+      description: decoded.description || "",
+      date: dateStr,
+      time: timeStr,
+      venue: decoded.venue || "",
+      category: decoded.category || "",
+      zones: Array.isArray(decoded.zones) ? decoded.zones.map((z: any) => ({
+        name: z.name,
+        capacity: Number(z.capacity) || 0,
+        price: (Number(z.price) || 0) / 1_000_000_000, // Lamports -> SOL
+        ticketsSold: Number(z.ticketsSold) || 0
+      })) : [],
+      allowResale: Boolean(decoded.allowResale),
+      resaleCapLimit: Number(decoded.resaleCapLimit) || 0,
+      isSoulbound: Boolean(decoded.isSoulbound),
+      allowRefunds: Boolean(decoded.allowRefunds),
+      refundTimeLimit: Number(decoded.refundTimeLimit) || 0,
+      identityLimit: Number(decoded.identityLimit) || 0,
+      collectionMint: decoded.collectionMint ? decoded.collectionMint.toString() : collectionMint,
+      createdAt: Number(decoded.createdAt) ? Number(decoded.createdAt) * 1000 : Date.now()
+    };
   } catch (e) {
     console.error("Error leyendo evento de la blockchain:", e);
     return null;

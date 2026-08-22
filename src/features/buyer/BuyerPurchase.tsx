@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import * as Icons from "lucide-react";
 import { EventModel } from '../../types';
 import { useUmi } from "../../components/providers";
@@ -7,9 +7,8 @@ import { mintTicket, getOrganizerReputation } from "../../lib/metaplex";
 import { buildBuyTicketInstruction, deriveEventPDA } from "../../lib/event-pda";
 import { address } from "@solana/addresses";
 import { transactionBuilder } from "@metaplex-foundation/umi";
-import { useWalletSession, useSolanaClient } from "@solana/react-hooks";
-import { type Address } from "@solana/kit";
-import { usePrivy } from "@privy-io/react-auth";
+import { type Address, createSolanaRpc } from "@solana/kit";
+import { useActiveSolanaWallet } from "../../hooks/useActiveSolanaWallet";
 import WalletButton from "../../components/ui/WalletButton";
 import AlertModal, { AlertModalProps } from "../../components/ui/AlertModal";
 import { LandingNavBar } from "../../components/layout/LandingNavBar";
@@ -23,7 +22,7 @@ export default function BuyerPurchase({
   ownedTicketsCount = 0,
   onSuccessMint,
   onBack,
-  onGoToMyTicket
+  onGoToMyTicket,
 }: {
   event: EventModel;
   collectionMint: string;
@@ -33,10 +32,9 @@ export default function BuyerPurchase({
   onGoToMyTicket: () => void;
 }) {
   const umi = useUmi();
-  const session = useWalletSession();
-  const client = useSolanaClient();
-  const { authenticated, user } = usePrivy();
-  const rpcRaw = client?.runtime?.rpc;
+  const { walletAddress: walletAddressStr, authenticated, user } = useActiveSolanaWallet();
+  const devnetUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com";
+  const rpcRaw = useMemo(() => createSolanaRpc(devnetUrl), [devnetUrl]);
 
   const [screen, setScreen] = useState<'buy' | 'checkout' | 'wallet-checkout' | 'processing' | 'success'>('buy');
   const [paymentMethod, setPaymentMethod] = useState<'tarjeta' | 'blink' | 'wallet'>('wallet');
@@ -44,7 +42,6 @@ export default function BuyerPurchase({
   const [progressStep, setProgressStep] = useState(0);
   const [selectedZoneIndex, setSelectedZoneIndex] = useState(0);
 
-  const walletAddressStr = user?.wallet?.address || session?.account?.address?.toString();
   const walletAddress: Address | null = walletAddressStr ? (walletAddressStr as Address) : null;
   const walletConnected = authenticated || !!walletAddressStr;
 

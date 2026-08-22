@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import WalletMultiButton from '../ui/WalletButton';
-import { usePrivy } from "@privy-io/react-auth";
-import { useWalletSession } from "@solana/react-hooks";
+import { useActiveSolanaWallet } from "@/hooks/useActiveSolanaWallet";
 import { useMintpassStore } from "@/store";
 import { useRouter } from "next/navigation";
 import { getOrganizerProfile } from "@/app/actions/organizer";
@@ -13,17 +12,12 @@ interface LandingNavBarProps {
 }
 
 export function LandingNavBar({ onGoToExplore, onGoToMyTickets, onGoToOrganizer }: LandingNavBarProps) {
-  const { authenticated, user } = usePrivy();
-  const session = useWalletSession();
+  const { walletAddress: walletAddressStr, authenticated } = useActiveSolanaWallet();
   const { organizerProfile, setOrganizerProfile } = useMintpassStore();
   const router = useRouter();
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [lastCheckedWallet, setLastCheckedWallet] = useState<string | null>(null);
 
-  const privySolanaWallet = (user?.linkedAccounts?.find(
-    (account: any) => account.type === 'wallet' && account.chainType === 'solana'
-  ) as any)?.address;
-  const walletAddressStr = privySolanaWallet || session?.account?.address?.toString() || null;
   const isConnected = authenticated || !!walletAddressStr;
 
   useEffect(() => {

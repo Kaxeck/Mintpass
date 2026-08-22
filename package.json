@@ -27,7 +27,6 @@
     "@solana/client": "^1.7.0",
     "@solana/instructions": "^6.10.0",
     "@solana/kit": "^5.5.1",
-    "@solana/react-hooks": "^1.4.1",
     "@solana/sysvars": "^7.0.0",
     "@solana/web3.js": "^1.95.3",
     "@yudiel/react-qr-scanner": "^2.6.0",

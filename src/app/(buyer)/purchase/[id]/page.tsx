@@ -4,7 +4,7 @@ import { Country, State } from 'country-state-city';
 import dynamic from 'next/dynamic';
 const BuyerPurchase = dynamic(() => import("@/features/buyer/BuyerPurchase"), { ssr: false });
 import { EventModel } from "@/types";
-import { useWalletSession } from "@solana/react-hooks";
+import { useActiveSolanaWallet } from "@/hooks/useActiveSolanaWallet";
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getEventById } from "@/app/actions/events";
@@ -13,14 +13,14 @@ import { getUserTickets, mintTicketInDb } from "@/app/actions/tickets";
 export default function BuyerPurchasePage() {
   const router = useRouter();
   const params = useParams();
-  const session = useWalletSession();
+  const { walletAddress, ready } = useActiveSolanaWallet();
   const [mounted, setMounted] = useState(false);
   const [eventModel, setEventModel] = useState<EventModel | null>(null);
   const [collectionMint, setCollectionMint] = useState<string>('');
   const [ownedTicketsCount, setOwnedTicketsCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const currentWalletPk = session?.account?.address?.toString() || "unconnected";
+  const currentWalletPk = walletAddress || "unconnected";
   const selectedEventId = params?.id as string;
 
   useEffect(() => {

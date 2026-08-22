@@ -1,11 +1,9 @@
 'use client';
 
-import { usePrivy } from "@privy-io/react-auth";
+import { useActiveSolanaWallet } from "@/hooks/useActiveSolanaWallet";
 import { useState } from "react";
-import { Wallet, LogOut } from "lucide-react";
+import { Wallet, LogOut, CheckCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-
-import { useWalletConnection } from "@solana/react-hooks";
 
 interface WalletButtonProps {
   className?: string;
@@ -15,22 +13,22 @@ interface WalletButtonProps {
 }
 
 export default function WalletButton({ className, style, theme = 'light', dropdownPosition = 'bottom' }: WalletButtonProps) {
-  const { login, logout, authenticated, ready, user } = usePrivy();
-  const { disconnect } = useWalletConnection();
+  const { walletAddress, isExternal, walletClientType, login, logout, authenticated, ready, user } = useActiveSolanaWallet();
   const [showDropdown, setShowDropdown] = useState(false);
   const router = useRouter();
 
-  // Intentar obtener la dirección de Solana
-  const privySolanaWallet = (user?.linkedAccounts?.find(
-    (account: any) => account.type === 'wallet' && account.chainType === 'solana'
-  ) as any)?.address;
-
-  let displayValue = null;
+  let displayValue = 'Conectado';
   if (user) {
-    if (privySolanaWallet) {
-      displayValue = `${privySolanaWallet.slice(0, 4)}...${privySolanaWallet.slice(-4)}`;
+    if (walletAddress) {
+      displayValue = `${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`;
     } else if (user.email?.address) {
       displayValue = user.email.address;
+    } else if (user.google?.email) {
+      displayValue = user.google.email;
+    } else if (user.twitter?.username) {
+      displayValue = `@${user.twitter.username}`;
+    } else if (user.id) {
+      displayValue = `${user.id.slice(0, 6)}...`;
     }
   }
 
@@ -44,7 +42,7 @@ export default function WalletButton({ className, style, theme = 'light', dropdo
     );
   }
 
-  if (authenticated && displayValue) {
+  if (authenticated) {
     return (
       <div style={{ position: 'relative' }}>
         <button
@@ -79,14 +77,40 @@ export default function WalletButton({ className, style, theme = 'light', dropdo
             border: isDark ? '1px solid #3A3A38' : '1px solid #D3D1C7',
             borderRadius: 12,
             padding: 8,
-            minWidth: 160,
+            minWidth: 200,
             zIndex: 100,
-            boxShadow: '0 10px 30px rgba(0,0,0,0.08)'
+            boxShadow: '0 10px 30px rgba(0,0,0,0.12)'
           }}>
+            {walletAddress && (
+              <div style={{
+                padding: '8px 10px',
+                marginBottom: 6,
+                borderBottom: isDark ? '1px solid #3A3A38' : '1px solid #ECEAE2',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 4 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: isDark ? '#9B9990' : '#73726C', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    {isExternal ? (walletClientType ? walletClientType.toUpperCase() : 'WALLET EXTERNA') : 'WALLET PRIVY'}
+                  </span>
+                  <span style={{
+                    fontSize: 10,
+                    fontWeight: 600,
+                    padding: '2px 6px',
+                    borderRadius: 6,
+                    background: isExternal ? 'rgba(20, 241, 149, 0.15)' : 'rgba(255, 255, 255, 0.1)',
+                    color: isExternal ? '#14F195' : (isDark ? '#D3D1C7' : '#5C5B56')
+                  }}>
+                    {isExternal ? 'Conectada' : 'Embebida'}
+                  </span>
+                </div>
+                <div style={{ fontSize: 12, fontFamily: 'monospace', color: isDark ? '#F5F5F3' : '#1A1A18', wordBreak: 'break-all' }}>
+                  {walletAddress.slice(0, 8)}...{walletAddress.slice(-8)}
+                </div>
+              </div>
+            )}
+
             <button
               onClick={async () => { 
                 setShowDropdown(false); 
-                if (disconnect) await disconnect();
                 await logout(); 
                 router.push('/');
               }}
@@ -98,7 +122,7 @@ export default function WalletButton({ className, style, theme = 'light', dropdo
                 fontSize: 13,
                 fontWeight: 500,
                 cursor: 'pointer',
-                padding: '10px 12px',
+                padding: '8px 10px',
                 borderRadius: 8,
                 textAlign: 'left',
                 display: 'flex',

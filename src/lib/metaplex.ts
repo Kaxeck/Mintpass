@@ -71,7 +71,7 @@ async function deriveReputationPDA(organizerAddress: Address): Promise<readonly 
 // ═══════════════════════════════════════════════════════════════════
 // CREATE EVENT COLLECTION (via Metaplex Core)
 // ═══════════════════════════════════════════════════════════════════
-export async function createEventCollection(
+export async function createEventCollectionBuilder(
   umi: Umi,
   eventData: {
     name: string;
@@ -79,7 +79,7 @@ export async function createEventCollection(
     imageUrl: string;
     organizerWallet: string;
   }
-): Promise<string> {
+): Promise<{ builder: any; collectionMint: string }> {
   const { createNft } = await import("@metaplex-foundation/mpl-token-metadata");
   const { generateSigner, percentAmount } = await import("@metaplex-foundation/umi");
 
@@ -95,15 +95,29 @@ export async function createEventCollection(
 
   const collectionSigner = generateSigner(umi);
 
-  await createNft(umi, {
+  const builder = createNft(umi, {
     mint: collectionSigner,
     name: eventData.name,
     uri: metadataUri,
     sellerFeeBasisPoints: percentAmount(0),
     isCollection: true,
-  }).sendAndConfirm(umi);
+  });
 
-  return collectionSigner.publicKey.toString();
+  return { builder, collectionMint: collectionSigner.publicKey.toString() };
+}
+
+export async function createEventCollection(
+  umi: Umi,
+  eventData: {
+    name: string;
+    description: string;
+    imageUrl: string;
+    organizerWallet: string;
+  }
+): Promise<string> {
+  const { builder, collectionMint } = await createEventCollectionBuilder(umi, eventData);
+  await builder.sendAndConfirm(umi);
+  return collectionMint;
 }
 
 // ═══════════════════════════════════════════════════════════════════

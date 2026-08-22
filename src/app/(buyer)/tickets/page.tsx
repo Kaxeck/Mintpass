@@ -2,8 +2,7 @@
 
 import dynamic from 'next/dynamic';
 const TicketsList = dynamic(() => import("@/features/buyer/TicketsList"), { ssr: false });
-import { useWalletSession } from "@solana/react-hooks";
-import { usePrivy } from "@privy-io/react-auth";
+import { useActiveSolanaWallet } from "@/hooks/useActiveSolanaWallet";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Connection, PublicKey } from "@solana/web3.js";
@@ -11,8 +10,7 @@ import { fetchUserTickets, fetchEventRecord } from "@/lib/anchor";
 
 export default function TicketsListPage() {
   const router = useRouter();
-  const session = useWalletSession();
-  const { user } = usePrivy();
+  const { walletAddress } = useActiveSolanaWallet();
   const [mounted, setMounted] = useState(false);
   const [tickets, setTickets] = useState<any[]>([]);
   const [events, setEvents] = useState<any>({});
@@ -24,7 +22,6 @@ export default function TicketsListPage() {
 
   useEffect(() => {
     async function loadTickets() {
-      const walletAddress = user?.wallet?.address || session?.account?.address?.toString();
       if (!walletAddress) {
         setLoading(false);
         return;
@@ -61,7 +58,7 @@ export default function TicketsListPage() {
     if (mounted) {
       loadTickets();
     }
-  }, [mounted, user, session]);
+  }, [mounted, walletAddress]);
 
   if (!mounted) return null;
 

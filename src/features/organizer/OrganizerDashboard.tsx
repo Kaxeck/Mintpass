@@ -1,9 +1,8 @@
 'use client';
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import * as Icons from "lucide-react";
 import WalletButton from "../../components/ui/WalletButton";
-import { useWalletSession, useSolanaClient } from "@solana/react-hooks";
-import { type Address, address as getAddress } from "@solana/kit";
+import { type Address, address as getAddress, createSolanaRpc } from "@solana/kit";
 import { getOrganizerReputation } from "../../lib/metaplex";
 import { readAllEventsFromChain, type OnChainEventData } from "../../lib/event-pda";
 import CreateEvent, { type CreatedEvent } from "./CreateEvent";
@@ -16,7 +15,7 @@ import '../../styles/layout.css';
 import './OrganizerDashboard.css';
 import { useMintpassStore } from "../../store";
 
-import { usePrivy } from "@privy-io/react-auth";
+import { useActiveSolanaWallet } from "../../hooks/useActiveSolanaWallet";
 
 export default function OrganizerDashboard({
   createdEvents,
@@ -39,14 +38,33 @@ export default function OrganizerDashboard({
   organizerProfile?: OrganizerProfile | null;
   onProfileComplete?: (profile: OrganizerProfile) => void;
 }) {
-  const { authenticated, user, ready } = usePrivy();
+  const { walletAddress: walletAddressStr, authenticated, user, ready } = useActiveSolanaWallet();
   const { setCreatedEvents } = useMintpassStore();
-  const session = useWalletSession();
-  const client = useSolanaClient();
-  const rpcRaw = client?.runtime?.rpc;
+  const devnetUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com";
+  const rpcRaw = useMemo(() => createSolanaRpc(devnetUrl), [devnetUrl]);
   const [activeTab, setActiveTab] = useState('activos');
   const [activeSection, setActiveSection] = useState('dashboard');
   const [selectedEventId, setSelectedEventId] = useState<string | number | null>(null);
+  const [showStaffModal, setShowStaffModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // Generamos un Keypair temporal solo para peticiones de lectura RPC si se requiere
+  const dummyPayer = typeof window !== 'undefined' ? {
+    address: getAddress("11111111111111111111111111111111"),
+    signTransaction: async (tx: any) => tx,
+    signAllTransactions: async (txs: any[]) => txs,
+    signMessage: async (msg: Uint8Array) => msg,
+    signTransactions: async (txs: any[]) => txs,
+    keyPair: {
+      publicKey: new Uint8Array(32),
+      privateKey: new Uint8Array(64),
+    },
+    sign: async () => {
+      const decoded = new Uint8Array(64);
+      return { data: new Uint8Array(decoded) };
+    }
+  } : null;
 
   const SIDEBAR_ITEMS = [
     { id: 'dashboard', label: 'Dashboard', icon: Icons.LayoutDashboard },
@@ -74,17 +92,12 @@ export default function OrganizerDashboard({
   const [onChainEvents, setOnChainEvents] = useState<OnChainEventData[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
 
-  // Determinar la wallet conectada usando Privy o el adaptador de solana
-  const privySolanaWallet = (user?.linkedAccounts?.find(
-    (account: any) => account.type === 'wallet' && account.chainType === 'solana'
-  ) as any)?.address;
-  const walletAddressStr = privySolanaWallet || session?.account?.address?.toString() || null;
   let walletAddress: Address | null = null;
   if (walletAddressStr) {
     try {
       walletAddress = getAddress(walletAddressStr);
     } catch (e) {
-      console.warn("No es una dirección de Solana válida (quizá es EVM):", walletAddressStr);
+      console.warn("No es una dirección de Solana válida:", walletAddressStr);
     }
   }
   const isConnected = authenticated || !!walletAddressStr;
@@ -109,7 +122,7 @@ export default function OrganizerDashboard({
       }
     }
     fetchReputation();
-  }, [walletAddress, client]);
+  }, [walletAddress, rpcRaw]);
 
   // Leer eventos desde las PDAs on-chain
   useEffect(() => {
@@ -137,7 +150,7 @@ export default function OrganizerDashboard({
       }
     }
     fetchOnChainEvents();
-  }, [walletAddress, client, createdEvents]);
+  }, [walletAddress, rpcRaw, createdEvents]);
 
   const categoryIcons: Record<string, string> = {
     'Música / Concierto': 'Music', 'Arte y cultura': 'Palette', 'Deporte': 'Activity',
@@ -190,7 +203,7 @@ export default function OrganizerDashboard({
       statusClass,
       statusText,
       price: priceStr,
-      actions: ev.status === 'CANCELLED' ? ['Ver detalles'] : ['Panel staff', 'Ver QR Blink', 'Compartir'],
+      actions: ev.status === 'CANCELLED' ? ['Ver detalles'] : (isPast || ev.status === 'CLOSED') ? ['Ver detalles', 'Reportes'] : ['Panel staff', 'Ver QR Blink', 'Compartir'],
       primaryAction: ev.status === 'CANCELLED' ? -1 : 0,
       collectionMint: ev.collectionMint
     };
@@ -280,6 +293,7 @@ export default function OrganizerDashboard({
             <EventDetails 
               event={createdEvents.find(e => e.id.toString() === selectedEventId.toString())!} 
               stats={eventStats[selectedEventId.toString()]} 
+              isVerified={onChainEvents.some(oc => oc.collectionMint === createdEvents.find(e => e.id.toString() === selectedEventId.toString())?.collectionMint)}
               onBack={() => setSelectedEventId(null)} 
               onGoToStaff={() => { setSelectedEventId(null); setActiveSection('checkin'); }} 
             />
@@ -423,7 +437,13 @@ export default function OrganizerDashboard({
                             <button
                               key={idx}
                               className={`od-btn ${idx === ev.primaryAction ? 'od-btn-primary' : ''}`}
-                              onClick={(e) => { e.stopPropagation(); if (action === 'Panel staff') { setActiveSection('checkin'); } else { alert(`Acción: ${action}`); } }}
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                if (action === 'Panel staff') { setActiveSection('checkin'); } 
+                                else if (action === 'Ver detalles') { setSelectedEventId(ev.id); }
+                                else if (action === 'Reportes') { setActiveSection('reportes'); }
+                                else { alert(`Acción: ${action}`); } 
+                              }}
                             >
                               {action}
                             </button>
@@ -552,7 +572,13 @@ export default function OrganizerDashboard({
                               <button
                                 key={idx}
                                 className={`od-btn ${idx === ev.primaryAction ? 'od-btn-primary' : ''}`}
-                                onClick={(e) => { e.stopPropagation(); if (action === 'Panel staff') { setActiveSection('checkin'); } else { alert(`Acción: ${action}`); } }}
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                if (action === 'Panel staff') { setActiveSection('checkin'); } 
+                                else if (action === 'Ver detalles') { setSelectedEventId(ev.id); }
+                                else if (action === 'Reportes') { setActiveSection('reportes'); }
+                                else { alert(`Acción: ${action}`); } 
+                              }}
                               >
                                 {action}
                               </button>

@@ -42,6 +42,8 @@ export interface CreatedEvent {
   createdAt: number;
   ageRestriction?: string;
   doorTime?: string;
+  status?: string;
+  escrowVault?: string;
   // Para compatibilidad hacia atrás temporal con vistas de listado
   aforo?: number;
   priceType?: string;
@@ -223,11 +225,25 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
       };
 
       let eventRecordPdaStr = "";
+      let escrowVaultStr = "";
       try {
         // Guardar metadata en PDA on-chain via Anchor (usando UMI)
         const { instruction, pda } = await buildSaveEventInstruction(walletAddress, eventDataOnChain);
         eventRecordPdaStr = pda.toString();
         console.log("PDA para guardar evento:", pda);
+
+        const { EVENT_REGISTRY_PROGRAM_ID } = await import("../../lib/anchor");
+        const { getProgramDerivedAddress, getAddressEncoder } = await import("@solana/addresses");
+        const encoder = getAddressEncoder();
+        const [escrowState] = await getProgramDerivedAddress({
+          programAddress: EVENT_REGISTRY_PROGRAM_ID,
+          seeds: [Buffer.from("escrow_state"), encoder.encode(pda)]
+        });
+        const [escrowVault] = await getProgramDerivedAddress({
+          programAddress: EVENT_REGISTRY_PROGRAM_ID,
+          seeds: [Buffer.from("escrow_vault"), encoder.encode(escrowState)]
+        });
+        escrowVaultStr = escrowVault.toString();
         
         let txBuilder = transactionBuilder().add({
           instruction: instruction,
@@ -249,7 +265,9 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
       try {
         const dbResult = await createEventInDb({
           organizerWallet: walletAddress,
+          organizerEmail: user?.email?.address,
           eventRecordPda: eventRecordPdaStr,
+          escrowVault: escrowVaultStr,
           ...eventDataOnChain,
           description: desc, // Se guarda la descripción real solo en la BD off-chain
           gallery: gallery.filter(url => url.trim() !== '') // Solo guardamos URLs válidas en BD
@@ -269,6 +287,8 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
         setCreatedEventData({
           id: Date.now(),
           organizerWallet: walletAddress,
+          address: eventRecordPdaStr,
+          escrowVault: escrowVaultStr,
           ...eventDataOnChain
         });
       }, 500);
@@ -348,9 +368,19 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
           <h2 style={{ margin: '0 0 8px', fontSize: '24px', fontWeight: 700, color: '#1E1E1E' }}>¡Contrato desplegado con éxito!</h2>
           <p style={{ margin: '0 0 24px', fontSize: '15px', color: '#5F5E5A', lineHeight: 1.5 }}>Tu evento <strong>{createdEventData.name}</strong> se ha registrado en la blockchain de Solana y ya está listo para emitir entradas.</p>
           
-          <div style={{ background: '#F8F9F8', border: '1px solid #D3D1C7', borderRadius: '12px', padding: '16px', marginBottom: '24px', textAlign: 'left' }}>
-            <p style={{ margin: '0 0 4px', fontSize: '12px', fontWeight: 600, color: '#5F5E5A' }}>Dirección de la Colección (Contrato)</p>
-            <p style={{ margin: 0, fontSize: '13px', fontFamily: 'monospace', color: '#1E1E1E', wordBreak: 'break-all' }}>{createdEventData.collectionMint}</p>
+          <div style={{ background: '#F8F9F8', border: '1px solid #D3D1C7', borderRadius: '12px', padding: '16px', marginBottom: '24px', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div>
+              <p style={{ margin: '0 0 4px', fontSize: '12px', fontWeight: 600, color: '#5F5E5A' }}>Colección de Boletos (NFT)</p>
+              <p style={{ margin: 0, fontSize: '13px', fontFamily: 'monospace', color: '#1E1E1E', wordBreak: 'break-all' }}>{createdEventData.collectionMint}</p>
+            </div>
+            <div>
+              <p style={{ margin: '0 0 4px', fontSize: '12px', fontWeight: 600, color: '#5F5E5A' }}>Contrato del Evento</p>
+              <p style={{ margin: 0, fontSize: '13px', fontFamily: 'monospace', color: '#1E1E1E', wordBreak: 'break-all' }}>{createdEventData.address}</p>
+            </div>
+            <div>
+              <p style={{ margin: '0 0 4px', fontSize: '12px', fontWeight: 600, color: '#5F5E5A' }}>Bóveda de Fondos (Escrow)</p>
+              <p style={{ margin: 0, fontSize: '13px', fontFamily: 'monospace', color: '#1E1E1E', wordBreak: 'break-all' }}>{createdEventData.escrowVault}</p>
+            </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: '#EAF3DE', padding: '16px', borderRadius: '12px', marginBottom: '32px', textAlign: 'left' }}>

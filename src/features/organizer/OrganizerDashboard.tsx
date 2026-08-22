@@ -157,13 +157,27 @@ export default function OrganizerDashboard({
     const eventDate = rawDate && !isNaN(rawDate.getTime()) ? rawDate : null;
     const isToday = eventDate && eventDate.toDateString() === new Date().toDateString();
     const isPast = eventDate && eventDate < new Date();
-    const cat = isToday ? 'activos' : isPast ? 'pasados' : 'proximos';
+    
+    // Asignar categoría (pestaña)
+    let cat = isToday ? 'activos' : isPast ? 'pasados' : 'proximos';
+    if (ev.status === 'CANCELLED') {
+      cat = 'cancelados';
+    }
+
     const dateStr = eventDate ? eventDate.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' }) : (ev.date || '');
     const metaStr = `${dateStr}${ev.time ? ' · ' + ev.time + ' h' : ''} · ${ev.venue}`;
     const priceStr = ev.priceType === 'free' ? 'Gratis' : ev.priceType ? `${ev.price} ${ev.priceType.toUpperCase()}` : (ev.price ? (ev.hasMultipleZones ? `Desde ${ev.price} SOL` : `${ev.price} SOL`) : 'Gratis');
 
     const sold = eventStats[ev.id.toString()]?.sold || 0;
     const progress = Math.round((sold / (ev.aforo || 1)) * 100);
+
+    let statusText = isToday ? 'En curso' : isPast ? 'Terminado' : 'Próximo';
+    let statusClass = isToday ? 'od-pill-active' : isPast ? 'od-pill-past' : 'od-pill-soon';
+    
+    if (ev.status === 'CANCELLED') {
+      statusText = 'Cancelado';
+      statusClass = 'od-pill-cancelled';
+    }
 
     return {
       id: ev.id, cat, name: ev.name, meta: metaStr,
@@ -173,11 +187,11 @@ export default function OrganizerDashboard({
       progress,
       progressColor: categoryProgressColors[ev.category] || '#534AB7',
       progressLabel: `${sold} / ${ev.aforo} entradas vendidas`,
-      statusClass: isToday ? 'od-pill-active' : isPast ? 'od-pill-past' : 'od-pill-soon',
-      statusText: isToday ? 'En curso' : isPast ? 'Terminado' : 'Próximo',
+      statusClass,
+      statusText,
       price: priceStr,
-      actions: ['Panel staff', 'Ver QR Blink', 'Compartir'],
-      primaryAction: 0,
+      actions: ev.status === 'CANCELLED' ? ['Ver detalles'] : ['Panel staff', 'Ver QR Blink', 'Compartir'],
+      primaryAction: ev.status === 'CANCELLED' ? -1 : 0,
       collectionMint: ev.collectionMint
     };
   });
@@ -201,8 +215,19 @@ export default function OrganizerDashboard({
     return { label: 'Sin historial', color: '#666', icon: '—' };
   };
 
-  const totalSold = Object.values(eventStats).reduce((acc, curr) => acc + curr.sold, 0);
-  const totalAforo = createdEvents.reduce((acc, curr) => acc + (curr.aforo || 0), 0);
+  // Filtrar eventos que no están cancelados ni pasados para las estadísticas de aforo activo
+  const activeStatsEvents = createdEvents.filter(ev => {
+    if (ev.status === 'CANCELLED') return false;
+    const rawDate = ev.date ? new Date(ev.date + 'T12:00') : null;
+    const eventDate = rawDate && !isNaN(rawDate.getTime()) ? rawDate : null;
+    const isPast = eventDate && eventDate < new Date();
+    // Considerar como activo si no ha pasado o si es hoy
+    const isToday = eventDate && eventDate.toDateString() === new Date().toDateString();
+    return !isPast || isToday;
+  });
+
+  const totalSold = activeStatsEvents.reduce((acc, ev) => acc + (eventStats[ev.id.toString()]?.sold || 0), 0);
+  const totalAforo = activeStatsEvents.reduce((acc, ev) => acc + (ev.aforo || 0), 0);
   const remainingAforo = totalAforo - totalSold;
   const totalRevenue = createdEvents.reduce((acc, ev) => {
     const sold = eventStats[ev.id.toString()]?.sold || 0;
@@ -344,6 +369,7 @@ export default function OrganizerDashboard({
                 <div className={`od-ttab ${activeTab === 'activos' ? 'on' : ''}`} onClick={() => setActiveTab('activos')}>Activos</div>
                 <div className={`od-ttab ${activeTab === 'proximos' ? 'on' : ''}`} onClick={() => setActiveTab('proximos')}>Próximos</div>
                 <div className={`od-ttab ${activeTab === 'pasados' ? 'on' : ''}`} onClick={() => setActiveTab('pasados')}>Pasados</div>
+                <div className={`od-ttab ${activeTab === 'cancelados' ? 'on' : ''}`} onClick={() => setActiveTab('cancelados')}>Cancelados</div>
               </div>
             </div>
             
@@ -472,6 +498,7 @@ export default function OrganizerDashboard({
                   <div className={`od-ttab ${activeTab === 'activos' ? 'on' : ''}`} onClick={() => setActiveTab('activos')}>Activos</div>
                   <div className={`od-ttab ${activeTab === 'proximos' ? 'on' : ''}`} onClick={() => setActiveTab('proximos')}>Próximos</div>
                   <div className={`od-ttab ${activeTab === 'pasados' ? 'on' : ''}`} onClick={() => setActiveTab('pasados')}>Pasados</div>
+                  <div className={`od-ttab ${activeTab === 'cancelados' ? 'on' : ''}`} onClick={() => setActiveTab('cancelados')}>Cancelados</div>
                 </div>
               </div>
               

@@ -65,7 +65,9 @@ export default function BuyerPurchasePage() {
             gallery: ev.galleryUrls || [],
             city: ev.cityName || undefined,
             state: stateName || ev.stateIso || undefined,
-            country: countryName || ev.countryIso || undefined
+            country: countryName || ev.countryIso || undefined,
+            status: ev.status,
+            isEventPast: ev.startDate ? new Date(ev.startDate).getTime() < Date.now() : false
           });
           setCollectionMint(ev.collectionMint || '');
         }

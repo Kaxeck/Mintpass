@@ -82,6 +82,19 @@ export const MINTPASS_IDL: any = {
       "args": [
         { "name": "staffId", "type": "string" }
       ]
+    },
+    {
+      "name": "finishEventSuccessfully",
+      "discriminator": [186, 47, 169, 208, 158, 115, 229, 217],
+      "accounts": [
+        { "name": "protocolConfig", "isMut": false, "isSigner": false },
+        { "name": "authority", "isMut": true, "isSigner": true },
+        { "name": "organizer", "isMut": false, "isSigner": false },
+        { "name": "collectionMint", "isMut": false, "isSigner": false },
+        { "name": "eventRecord", "isMut": true, "isSigner": false },
+        { "name": "reputation", "isMut": true, "isSigner": false }
+      ],
+      "args": []
     }
   ],
   types: [
@@ -166,7 +179,17 @@ const FETCH_IDL: any = {
   instructions: [],
   accounts: [
     {
-      name: "ticketReceipt",
+      name: "TicketReceipt",
+      discriminator: [33, 39, 194, 207, 210, 208, 161, 103]
+    },
+    {
+      name: "EventRecord",
+      discriminator: [150, 209, 156, 235, 9, 198, 56, 184]
+    }
+  ],
+  types: [
+    {
+      name: "TicketReceipt",
       type: {
         kind: "struct",
         fields: [
@@ -187,7 +210,7 @@ const FETCH_IDL: any = {
       }
     },
     {
-      name: "eventRecord",
+      name: "EventRecord",
       type: {
         kind: "struct",
         fields: [
@@ -211,9 +234,7 @@ const FETCH_IDL: any = {
           { name: "closedAt", type: "i64" }
         ]
       }
-    }
-  ],
-  types: [
+    },
     {
       name: "TicketStatus",
       type: {

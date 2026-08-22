@@ -3,6 +3,7 @@
 import { usePrivy } from "@privy-io/react-auth";
 import { useState } from "react";
 import { Wallet, LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { useWalletConnection } from "@solana/react-hooks";
 
@@ -17,6 +18,7 @@ export default function WalletButton({ className, style, theme = 'light', dropdo
   const { login, logout, authenticated, ready, user } = usePrivy();
   const { disconnect } = useWalletConnection();
   const [showDropdown, setShowDropdown] = useState(false);
+  const router = useRouter();
 
   // Intentar obtener la dirección de Solana
   const privySolanaWallet = (user?.linkedAccounts?.find(
@@ -82,10 +84,11 @@ export default function WalletButton({ className, style, theme = 'light', dropdo
             boxShadow: '0 10px 30px rgba(0,0,0,0.08)'
           }}>
             <button
-              onClick={() => { 
-                logout(); 
-                if (disconnect) disconnect();
+              onClick={async () => { 
                 setShowDropdown(false); 
+                if (disconnect) await disconnect();
+                await logout(); 
+                router.push('/');
               }}
               style={{
                 width: '100%',

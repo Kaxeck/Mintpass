@@ -61,8 +61,8 @@ export default function DashboardPage() {
           organizerWallet: ev.organizerPubkey,
           description: ev.description || "",
           zones: typeof ev.zones === 'string' ? JSON.parse(ev.zones) : (ev.zones as any[] || []),
-          allowResale: false,
-          isSoulbound: true,
+          allowResale: ev.allowResale || false,
+          isSoulbound: ev.isSoulbound !== undefined ? ev.isSoulbound : true,
           createdAt: new Date(ev.lastUpdatedAt).getTime()
         }));
 

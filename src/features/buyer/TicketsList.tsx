@@ -2,10 +2,9 @@
 import { useState } from 'react';
 import * as Icons from "lucide-react";
 import WalletMultiButton from "../../components/ui/WalletButton";
-import { useWalletSession } from "@solana/react-hooks";
-import { usePrivy } from "@privy-io/react-auth";
 import { LandingNavBar } from "../../components/layout/LandingNavBar";
 import { LandingFooter } from "../../components/layout/LandingFooter";
+import { useActiveSolanaWallet } from "../../hooks/useActiveSolanaWallet";
 import "../../styles/buyer.css";
 import "./TicketsList.css";
 
@@ -28,9 +27,8 @@ export default function TicketsList({
   onBack: () => void, 
   onTicketClick: (mint: string) => void 
 }) {
-  const session = useWalletSession();
-  const { authenticated, user } = usePrivy();
-  const walletConnected = authenticated || !!user?.wallet?.address || !!session?.account?.address;
+  const { authenticated, walletAddress } = useActiveSolanaWallet();
+  const walletConnected = authenticated || !!walletAddress;
   const [activeTab, setActiveTab] = useState<'proximos' | 'pasados'>('proximos');
 
   return (

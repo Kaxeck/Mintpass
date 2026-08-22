@@ -97,6 +97,16 @@ export const MINTPASS_IDL: any = {
       "args": []
     }
   ],
+  accounts: [
+    {
+      name: "TicketReceipt",
+      discriminator: [33, 39, 194, 207, 210, 208, 161, 103]
+    },
+    {
+      name: "EventRecord",
+      discriminator: [150, 209, 156, 235, 9, 198, 56, 184]
+    }
+  ],
   types: [
     {
       name: "Zone",
@@ -107,6 +117,67 @@ export const MINTPASS_IDL: any = {
           { name: "capacity", type: "u32" },
           { name: "price", type: "u64" },
           { name: "ticketsSold", type: "u32" }
+        ]
+      }
+    },
+    {
+      name: "TicketReceipt",
+      type: {
+        kind: "struct",
+        fields: [
+          { name: "originalBuyer", type: "pubkey" },
+          { name: "buyer", type: "pubkey" },
+          { name: "ticketMint", type: "pubkey" },
+          { name: "originalPrice", type: "u64" },
+          { name: "pricePaid", type: "u64" },
+          { name: "resalePrice", type: "u64" },
+          { name: "status", type: { defined: { name: "TicketStatus" } } },
+          { name: "zoneIndex", type: "u8" },
+          { name: "eventRecord", type: "pubkey" },
+          { name: "isCheckedIn", type: "bool" },
+          { name: "checkinTimestamp", type: "i64" },
+          { name: "checkinStaffId", type: "string" },
+          { name: "resaleCount", type: "u8" }
+        ]
+      }
+    },
+    {
+      name: "EventRecord",
+      type: {
+        kind: "struct",
+        fields: [
+          { name: "organizer", type: "pubkey" },
+          { name: "collectionMint", type: "pubkey" },
+          { name: "name", type: "string" },
+          { name: "description", type: "string" },
+          { name: "eventTimestamp", type: "i64" },
+          { name: "venue", type: "string" },
+          { name: "category", type: "string" },
+          { name: "zones", type: { vec: { defined: { name: "Zone" } } } },
+          { name: "allowResale", type: "bool" },
+          { name: "resaleCapLimit", type: "u16" },
+          { name: "isSoulbound", type: "bool" },
+          { name: "allowRefunds", type: "bool" },
+          { name: "refundTimeLimit", type: "u16" },
+          { name: "identityLimit", type: "u16" },
+          { name: "isActive", type: "bool" },
+          { name: "wasCancelled", type: "bool" },
+          { name: "createdAt", type: "i64" },
+          { name: "closedAt", type: "i64" }
+        ]
+      }
+    },
+    {
+      name: "TicketStatus",
+      type: {
+        kind: "enum",
+        variants: [
+          { name: "Valid" },
+          { name: "Used" },
+          { name: "Listed" },
+          { name: "Resold" },
+          { name: "CheckedIn" },
+          { name: "Cancelled" }
         ]
       }
     }
@@ -193,15 +264,15 @@ const FETCH_IDL: any = {
       type: {
         kind: "struct",
         fields: [
-          { name: "originalBuyer", type: "publicKey" },
-          { name: "buyer", type: "publicKey" },
-          { name: "ticketMint", type: "publicKey" },
+          { name: "originalBuyer", type: "pubkey" },
+          { name: "buyer", type: "pubkey" },
+          { name: "ticketMint", type: "pubkey" },
           { name: "originalPrice", type: "u64" },
           { name: "pricePaid", type: "u64" },
           { name: "resalePrice", type: "u64" },
           { name: "status", type: { defined: { name: "TicketStatus" } } },
           { name: "zoneIndex", type: "u8" },
-          { name: "eventRecord", type: "publicKey" },
+          { name: "eventRecord", type: "pubkey" },
           { name: "isCheckedIn", type: "bool" },
           { name: "checkinTimestamp", type: "i64" },
           { name: "checkinStaffId", type: "string" },
@@ -214,8 +285,8 @@ const FETCH_IDL: any = {
       type: {
         kind: "struct",
         fields: [
-          { name: "organizer", type: "publicKey" },
-          { name: "collectionMint", type: "publicKey" },
+          { name: "organizer", type: "pubkey" },
+          { name: "collectionMint", type: "pubkey" },
           { name: "name", type: "string" },
           { name: "description", type: "string" },
           { name: "eventTimestamp", type: "i64" },

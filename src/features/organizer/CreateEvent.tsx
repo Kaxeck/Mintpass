@@ -1,14 +1,13 @@
 'use client';
-import { useState, Fragment, useMemo } from 'react';
+import { useState, Fragment, useMemo, useEffect } from 'react';
 import { Country, State, City } from 'country-state-city';
 import * as Icons from "lucide-react";
 import PageNav from "../../components/layout/PageNav";
 import { useUmi } from "../../components/providers";
-import { createEventCollection } from "../../lib/metaplex";
+import { createEventCollectionBuilder } from "../../lib/metaplex";
 import { buildSaveEventInstruction } from "../../lib/event-pda";
 import { transactionBuilder } from "@metaplex-foundation/umi";
-import { useWalletSession } from "@solana/react-hooks";
-import { usePrivy } from "@privy-io/react-auth";
+import { useActiveSolanaWallet } from "../../hooks/useActiveSolanaWallet";
 import { type Address, address as getAddress } from "@solana/kit";
 import AlertModal, { AlertModalProps } from "../../components/ui/AlertModal";
 import { createEventInDb } from "../../app/actions/events";
@@ -53,19 +52,14 @@ export interface CreatedEvent {
 
 export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void, onSuccess: (event: CreatedEvent) => void }) {
   const umi = useUmi();
-  const session = useWalletSession();
-  const { user, login } = usePrivy();
+  const { walletAddress: walletAddressStr, user, login } = useActiveSolanaWallet();
 
-  const privySolanaWallet = (user?.linkedAccounts?.find(
-    (account: any) => account.type === 'wallet' && account.chainType === 'solana'
-  ) as any)?.address;
-  const walletAddressStr = privySolanaWallet || session?.account?.address?.toString() || null;
   let walletAddress: Address | null = null;
   if (walletAddressStr) {
     try {
       walletAddress = getAddress(walletAddressStr);
     } catch (e) {
-      console.warn("Invalid Solana address (EVM?):", walletAddressStr);
+      console.warn("Invalid Solana address:", walletAddressStr);
     }
   }
 
@@ -81,7 +75,7 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
   const [lineup, setLineup] = useState(''); // Comma separated
 
   const [zones, setZones] = useState<{ id: string; name: string; capacity: number; price: number; position?: string; gate?: string; isNumbered?: boolean }[]>([
-    { id: '1', name: 'General', capacity: 100, price: 500, position: 'general', isNumbered: false }
+    { id: '1', name: 'General', capacity: 100, price: 0.05, position: 'general', isNumbered: false }
   ]);
 
   const [allowResale, setAllowResale] = useState(false);
@@ -124,6 +118,46 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
   });
 
   const [createdEventData, setCreatedEventData] = useState<CreatedEvent | null>(null);
+  const [dynamicSolFee, setDynamicSolFee] = useState<string>('0.01965');
+  const [walletBalanceSol, setWalletBalanceSol] = useState<string | null>(null);
+
+  // Consulta dinámica en tiempo real del costo exacto de almacenamiento on-chain (Rent-Exemption) y saldo de la wallet
+  useEffect(() => {
+    async function fetchDynamicRentAndBalance() {
+      if (!umi) return;
+      try {
+        // Cuentas creadas para la Colección NFT de Metaplex:
+        // 1) Mint (82b)
+        // 2) Associated Token Account (165b)
+        // 3) Master Edition V2 (468b)
+        // 4) Metadata Account con Collection Details (~1596b)
+        const [mintRent, ataRent, meRent, metaRent] = await Promise.all([
+          umi.rpc.getRent(82),
+          umi.rpc.getRent(165),
+          umi.rpc.getRent(468),
+          umi.rpc.getRent(1596)
+        ]);
+
+        const totalLamports = Number(mintRent.basisPoints) + Number(ataRent.basisPoints) + Number(meRent.basisPoints) + Number(metaRent.basisPoints);
+        const totalSol = (totalLamports / 1_000_000_000).toFixed(5);
+        setDynamicSolFee(totalSol);
+
+        if (walletAddress) {
+          try {
+            const { publicKey } = await import("@metaplex-foundation/umi");
+            const balance = await umi.rpc.getBalance(publicKey(walletAddress));
+            const balSol = (Number(balance.basisPoints) / 1_000_000_000).toFixed(3);
+            setWalletBalanceSol(balSol);
+          } catch (balErr) {
+            console.warn("No se pudo consultar el saldo de la wallet:", balErr);
+          }
+        }
+      } catch (e) {
+        console.warn("No se pudo obtener la renta dinámica de Solana, usando aproximación:", e);
+      }
+    }
+    fetchDynamicRentAndBalance();
+  }, [umi, walletAddress, wizardStep]);
 
   const showAlert = (title: string, message: string, type: AlertModalProps['type']) => {
     setAlertConfig(prev => ({ ...prev, isOpen: true, title, message, type }));
@@ -165,7 +199,7 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
     });
     setErrors(newErrors);
 
-    const step1Fields = ['name', 'category', 'date', 'time', 'venue', 'city', 'state', 'country', 'ageRestriction', 'coverImage', 'ticketImage'];
+    const step1Fields = ['name', 'description', 'category', 'date', 'time', 'doorTime', 'venue', 'city', 'state', 'country', 'ageRestriction', 'coverImage', 'ticketImage'];
     const step2Fields = ['zones'];
     const step3Fields = ['resaleCapLimit', 'identityLimit'];
 
@@ -178,6 +212,8 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
 
   const handleCreate = async () => {
     if (!validateStepData(3)) {
+      setShowErrors(true);
+      showAlert("Campos Incompletos", "Por favor completa todos los campos obligatorios antes de publicar el evento.", "warning");
       return;
     }
     
@@ -187,11 +223,23 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
       return;
     }
 
+    try {
+      const { Connection, PublicKey } = await import('@solana/web3.js');
+      const connection = new Connection("https://api.devnet.solana.com");
+      const balance = await connection.getBalance(new PublicKey(walletAddress));
+      if (balance === 0) {
+        showAlert("Saldo Insuficiente en Devnet", `La wallet conectada (${walletAddress}) tiene 0 SOL en la red Devnet.\n\nPor favor, usa un Faucet para enviar fondos a esta dirección exacta antes de continuar.`, "warning");
+        return;
+      }
+    } catch (e) {
+      console.warn("No se pudo verificar el saldo previamente:", e);
+    }
+
     setIsCreating(true);
 
     try {
-      // Crear la colección NFT on-chain via UMI
-      const collectionAddr = await createEventCollection(umi, {
+      // 1. Preparar el builder de la Colección NFT on-chain via UMI
+      const { builder: collectionBuilder, collectionMint: collectionAddr } = await createEventCollectionBuilder(umi, {
         name: name || "Evento Mintpass",
         description: desc || "Un evento seguro con tickets NFT dinámicos.",
         imageUrl: coverImage || ticketImage || "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=800&auto=format&fit=crop",
@@ -227,7 +275,7 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
       let eventRecordPdaStr = "";
       let escrowVaultStr = "";
       try {
-        // Guardar metadata en PDA on-chain via Anchor (usando UMI)
+        // 2. Construir la instrucción de Anchor para registrar el evento
         const { instruction, pda } = await buildSaveEventInstruction(walletAddress, eventDataOnChain);
         eventRecordPdaStr = pda.toString();
         console.log("PDA para guardar evento:", pda);
@@ -245,14 +293,15 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
         });
         escrowVaultStr = escrowVault.toString();
         
-        let txBuilder = transactionBuilder().add({
+        // 3. Unir la creación de la colección y el registro del evento en UNA SOLA TRANSACCIÓN ATÓMICA
+        const fullTxBuilder = collectionBuilder.add({
           instruction: instruction,
           signers: [umi.identity],
           bytesCreatedOnChain: 0
         });
 
-        await txBuilder.sendAndConfirm(umi);
-        console.log("Evento guardado exitosamente on-chain en Anchor.");
+        await fullTxBuilder.sendAndConfirm(umi);
+        console.log("Colección y Evento creados exitosamente en una sola transacción on-chain.");
       } catch (pdaError: unknown) {
         const msg = pdaError instanceof Error ? pdaError.message : String(pdaError);
         console.error("Error crítico: No se pudo guardar metadata en PDA on-chain:", msg);
@@ -353,10 +402,8 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
   const minPrice = zones.length > 0 ? Math.min(...zones.map(z => z.price)) : 0;
   const displayPrice = minPrice === 0 ? 'Gratis' : `Desde $${minPrice}`;
 
-  // Tarifa base en USD ($5.00 USD) y cálculo dinámico de SOL (basado en SOL/USD)
-  const feeInUsd = 5.00;
-  const solPriceUsd = 160; // Tipo de cambio estimado en tiempo real de SOL
-  const estimatedSolFee = (feeInUsd / solPriceUsd).toFixed(3); // ~0.031 SOL
+  // Costo real on-chain obtenido dinámicamente desde el RPC de Solana
+  const estimatedSolFee = dynamicSolFee;
 
   if (createdEventData) {
     return (
@@ -447,8 +494,8 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
                 <input type="text" placeholder="Ej. Noche de Jazz — Roma Norte" maxLength={60} value={name} onChange={(e) => setName(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '14px', borderRadius: '8px', border: (showErrors && errors.name) ? '1px solid #B0523E' : '1px solid #D3D1C7', outline: 'none', background: '#FFFFFF', color: '#1E1E1E' }} />
               </div>
               <div>
-                <label style={{ fontSize: '13px', fontWeight: 600, color: '#1E1E1E', display: 'block', marginBottom: '6px' }}>Descripción</label>
-                <textarea placeholder="Cuéntale a tu público de qué se trata..." maxLength={200} value={desc} onChange={(e) => setDesc(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '14px', borderRadius: '8px', border: '1px solid #D3D1C7', outline: 'none', minHeight: '85px', resize: 'vertical', background: '#FFFFFF', color: '#1E1E1E' }} />
+                <label style={{ fontSize: '13px', fontWeight: 600, color: (showErrors && errors.description) ? '#B0523E' : '#1E1E1E', display: 'block', marginBottom: '6px' }}>Descripción *</label>
+                <textarea placeholder="Cuéntale a tu público de qué se trata..." maxLength={200} value={desc} onChange={(e) => setDesc(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '14px', borderRadius: '8px', border: (showErrors && errors.description) ? '1px solid #B0523E' : '1px solid #D3D1C7', outline: 'none', minHeight: '85px', resize: 'vertical', background: '#FFFFFF', color: '#1E1E1E' }} />
               </div>
               <div>
                 <label style={{ fontSize: '13px', fontWeight: 600, color: (showErrors && errors.category) ? '#B0523E' : '#1E1E1E', display: 'block', marginBottom: '6px' }}>Categoría *</label>
@@ -627,7 +674,7 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
 
               <div style={{ display: 'flex', gap: '14px' }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: '13px', color: '#1E1E1E', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Apertura de puertas (Ingreso)</label>
+                  <label style={{ fontSize: '13px', color: (showErrors && errors.doorTime) ? '#B0523E' : '#1E1E1E', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Apertura de puertas (Ingreso) *</label>
                   <div 
                     onClick={(e) => {
                       const input = e.currentTarget.querySelector('input');
@@ -639,7 +686,7 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
                       gap: '8px',
                       padding: '10px 12px',
                       background: '#FFFFFF',
-                      border: '1px solid #D3D1C7',
+                      border: (showErrors && errors.doorTime) ? '1px solid #B0523E' : '1px solid #D3D1C7',
                       borderRadius: '8px',
                       cursor: 'pointer'
                     }}
@@ -681,12 +728,45 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
                   <input type="text" value={zone.name} onChange={e => { const z = [...zones]; z[idx] = { ...z[idx], name: e.target.value }; setZones(z); }} style={{ width: '100%', border: '1px solid #D3D1C7', borderRadius: '6px', padding: '8px 10px', fontSize: '13px', color: '#1E1E1E', background: '#FFFFFF', outline: 'none' }} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <p style={{ margin: '0 0 4px', fontSize: '12px', color: '#5F5E5A', fontWeight: 600 }}>Precio (SOL)</p>
-                  <input type="number" step="0.01" value={zone.price === 0 && idx === zones.length - 1 && zone.name === '' ? '' : zone.price} onChange={e => { const z = [...zones]; z[idx] = { ...z[idx], price: parseFloat(e.target.value)||0 }; setZones(z); }} style={{ width: '100%', border: '1px solid #D3D1C7', borderRadius: '6px', padding: '8px 10px', fontSize: '13px', color: '#1E1E1E', background: '#FFFFFF', outline: 'none' }} />
+                  <p style={{ margin: '0 0 4px', fontSize: '12px', color: '#5F5E5A', fontWeight: 600 }}>Precio por boleto (SOL) *</p>
+                  <input 
+                    type="number" 
+                    step="any"
+                    min="0"
+                    placeholder="0.05"
+                    value={zone.price === 0 && idx === zones.length - 1 && zone.name === '' ? '' : zone.price} 
+                    onWheel={e => e.currentTarget.blur()}
+                    onChange={e => { 
+                      const val = e.target.value;
+                      const parsed = val === '' ? 0 : parseFloat(val);
+                      const z = [...zones]; 
+                      z[idx] = { ...z[idx], price: isNaN(parsed) ? 0 : parsed }; 
+                      setZones(z); 
+                    }} 
+                    style={{ width: '100%', border: '1px solid #D3D1C7', borderRadius: '6px', padding: '8px 10px', fontSize: '13px', color: '#1E1E1E', background: '#FFFFFF', outline: 'none' }} 
+                  />
+                  <span style={{ fontSize: '10px', color: '#8A8880', marginTop: '2px', display: 'block' }}>
+                    {zone.price === 0 ? '⚠️ 0 SOL (Solo organizadores en Whitelist)' : 'Mín. 0.01 SOL'}
+                  </span>
                 </div>
                 <div style={{ flex: 1 }}>
-                  <p style={{ margin: '0 0 4px', fontSize: '12px', color: '#5F5E5A', fontWeight: 600 }}>Aforo</p>
-                  <input type="number" value={zone.capacity === 0 && idx === zones.length - 1 && zone.name === '' ? '' : zone.capacity} onChange={e => { const z = [...zones]; z[idx] = { ...z[idx], capacity: parseInt(e.target.value)||0 }; setZones(z); }} style={{ width: '100%', border: '1px solid #D3D1C7', borderRadius: '6px', padding: '8px 10px', fontSize: '13px', color: '#1E1E1E', background: '#FFFFFF', outline: 'none' }} />
+                  <p style={{ margin: '0 0 4px', fontSize: '12px', color: '#5F5E5A', fontWeight: 600 }}>Aforo (Boletos)</p>
+                  <input 
+                    type="number" 
+                    min="1"
+                    step="1"
+                    placeholder="100"
+                    value={zone.capacity === 0 && idx === zones.length - 1 && zone.name === '' ? '' : zone.capacity} 
+                    onWheel={e => e.currentTarget.blur()}
+                    onChange={e => { 
+                      const val = e.target.value;
+                      const parsed = parseInt(val);
+                      const z = [...zones]; 
+                      z[idx] = { ...z[idx], capacity: isNaN(parsed) ? 0 : parsed }; 
+                      setZones(z); 
+                    }} 
+                    style={{ width: '100%', border: '1px solid #D3D1C7', borderRadius: '6px', padding: '8px 10px', fontSize: '13px', color: '#1E1E1E', background: '#FFFFFF', outline: 'none' }} 
+                  />
                 </div>
                 <div style={{ flex: 1 }}>
                   <p style={{ margin: '0 0 4px', fontSize: '12px', color: '#5F5E5A', fontWeight: 600 }}>Ubicación visual</p>
@@ -812,7 +892,7 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
                 {allowResale && (
                   <div style={{ marginTop: '16px', borderTop: '1px solid #E5E5E5', paddingTop: '16px' }}>
                     <label style={{ fontSize: '13px', color: '#1E1E1E', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Tope máximo sobreprecio de reventa (%)</label>
-                    <input type="number" placeholder="Ej. 15 (máximo 15% sobre el precio original)" value={resaleCapLimit} onChange={e => setResaleCapLimit(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '14px', borderRadius: '8px', border: '1px solid #D3D1C7', outline: 'none', background: '#FFFFFF', color: '#1E1E1E' }} />
+                    <input type="number" onWheel={e => e.currentTarget.blur()} placeholder="Ej. 15 (máximo 15% sobre el precio original)" value={resaleCapLimit} onChange={e => setResaleCapLimit(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '14px', borderRadius: '8px', border: '1px solid #D3D1C7', outline: 'none', background: '#FFFFFF', color: '#1E1E1E' }} />
                   </div>
                 )}
               </div>
@@ -831,7 +911,7 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
                 {allowRefunds && (
                   <div style={{ marginTop: '16px', borderTop: '1px solid #E5E5E5', paddingTop: '16px' }}>
                     <label style={{ fontSize: '13px', color: '#5F5E5A', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Días límite antes del evento para devolución</label>
-                    <input type="number" placeholder="Ej. 3" value={refundTimeLimit} onChange={e => setRefundTimeLimit(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '13px', borderRadius: '8px', border: '1px solid #D3D1C7', outline: 'none', background: '#FFFFFF', color: '#1E1E1E', marginBottom: '8px' }} />
+                    <input type="number" onWheel={e => e.currentTarget.blur()} placeholder="Ej. 3" value={refundTimeLimit} onChange={e => setRefundTimeLimit(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '13px', borderRadius: '8px', border: '1px solid #D3D1C7', outline: 'none', background: '#FFFFFF', color: '#1E1E1E', marginBottom: '8px' }} />
                   </div>
                 )}
               </div>
@@ -842,7 +922,7 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
                   <div style={{ flex: 1 }}>
                     <label style={{ fontSize: '14px', color: '#1E1E1E', fontWeight: 700, display: 'block', marginBottom: '4px' }}>Límite de Compra por Comprador</label>
                     <p style={{ margin: '0 0 12px', fontSize: '12px', color: '#5F5E5A' }}>Evita el acaparamiento estableciendo un número máximo de entradas por usuario.</p>
-                    <input type="number" placeholder="Ej. 2 (deja vacío para sin límite)" value={identityLimit} onChange={e => setIdentityLimit(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '13px', borderRadius: '8px', border: '1px solid #D3D1C7', outline: 'none', background: '#FFFFFF', color: '#1E1E1E' }} />
+                    <input type="number" onWheel={e => e.currentTarget.blur()} placeholder="Ej. 2 (deja vacío para sin límite)" value={identityLimit} onChange={e => setIdentityLimit(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontSize: '13px', borderRadius: '8px', border: '1px solid #D3D1C7', outline: 'none', background: '#FFFFFF', color: '#1E1E1E' }} />
                   </div>
                 </div>
               </div>
@@ -898,11 +978,17 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
                     <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#5F5E5A' }}>Tarifas de red descentralizada y almacenamiento.</p>
                   </div>
                 </div>
+                {walletBalanceSol !== null && (
+                  <div style={{ background: '#EAF3DE', border: '1px solid #C0DD9D', padding: '4px 10px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#4BAA46' }} />
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#173404' }}>Saldo: {walletBalanceSol} SOL</span>
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px' }}>
-                <span style={{ fontSize: '13px', color: '#5F5E5A' }}>Mintpass Fee (Publicación)</span>
-                <span style={{ fontSize: '13px', color: '#1E1E1E', fontWeight: 600 }}>{estimatedSolFee} SOL</span>
+                <span style={{ fontSize: '13px', color: '#5F5E5A' }}>Renta on-chain (Colección Metaplex)</span>
+                <span style={{ fontSize: '13px', color: '#1E1E1E', fontWeight: 600 }}>~{estimatedSolFee} SOL</span>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #E5E5E5', paddingTop: '14px' }}>

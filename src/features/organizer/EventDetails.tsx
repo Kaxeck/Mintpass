@@ -2,30 +2,44 @@
 import { useState } from "react";
 import * as Icons from "lucide-react";
 import { CreatedEvent } from "../organizer/CreateEvent";
-import { useWalletSession, useSolanaClient } from "@solana/react-hooks";
 import { createEscrowReleaseInstruction } from "../../lib/escrow";
 import { type Address } from "@solana/kit";
 import AlertModal, { AlertModalProps } from "../../components/ui/AlertModal";
 import { getEventTickets } from "../../app/actions/tickets";
 import { useEffect } from "react";
 import { useUmi } from "../../components/providers";
+import { useActiveSolanaWallet } from "../../hooks/useActiveSolanaWallet";
 export default function EventDetails({ 
   event, 
   stats, 
+  isVerified,
   onBack, 
   onGoToStaff 
 }: { 
   event: CreatedEvent, 
   stats?: {sold: number, checked: number}, 
+  isVerified?: boolean,
   onBack: () => void, 
-  onGoToStaff: () => void 
+  onGoToStaff?: () => void 
 }) {
-  const sold = stats?.sold || 0;
-  const checked = stats?.checked || 0;
-  const available = (event.aforo || 0) - sold;
-  
-  const [ownedTickets, setOwnedTickets] = useState<Array<{ mint: string, purchaseDate: number, eventId: string | number, zoneIndex?: number }>>([]);
   const umi = useUmi();
+  const [activeTab, setActiveTab] = useState<'info' | 'tickets'>('info');
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [loadingTickets, setLoadingTickets] = useState(false);
+  const [searchTicket, setSearchTicket] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'USED' | 'CANCELLED'>('ALL');
+  
+  // Stats
+  const sold = stats?.sold ?? (event as any).sold ?? 0;
+  const checked = stats?.checked ?? 0;
+  const aforo = (event as any).aforo || (event as any).total || (event.zones ? event.zones.reduce((acc: number, z: any) => acc + (z.capacity || 0), 0) : 0) || 1;
+  const available = Math.max(0, aforo - sold);
+
+  // Escrow & actions states
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  const [ownedTickets, setOwnedTickets] = useState<Array<{ mint: string, purchaseDate: number, eventId: string | number, zoneIndex?: number }>>([]);
   
   useEffect(() => {
     async function loadTickets() {
@@ -59,8 +73,7 @@ export default function EventDetails({
   const [isFinishing, setIsFinishing] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  const session = useWalletSession();
-  const walletAddressStr = session?.account?.address?.toString();
+  const { walletAddress: walletAddressStr, user } = useActiveSolanaWallet();
   const walletAddress: Address | null = walletAddressStr ? (walletAddressStr as Address) : null;
 
   const [editData, setEditData] = useState({
@@ -187,9 +200,6 @@ export default function EventDetails({
   };
 
 
-  const client = useSolanaClient();
-  const [isWithdrawing, setIsWithdrawing] = useState(false);
-
   const walletConnected = !!walletAddress;
   const [withdrawn, setWithdrawn] = useState(() => {
     return typeof window !== 'undefined' ? localStorage.getItem(`mintpass_withdrawn_${event.id}`) === 'true' : false;
@@ -259,7 +269,14 @@ export default function EventDetails({
             <Icons.ArrowLeft size={16} /> Volver
           </button>
           <div style={{ width: '1px', height: '24px', background: '#D3D1C7' }}></div>
-          <span style={{ fontSize: '18px', fontWeight: 600, color: '#1E1E1E' }}>{event.name}</span>
+          <span style={{ fontSize: '18px', fontWeight: 600, color: '#1E1E1E', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {event.name}
+            {isVerified && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#EAF3DE', color: '#27500A', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 600 }}>
+                <Icons.ShieldCheck size={12} /> Verificado On-chain
+              </span>
+            )}
+          </span>
         </div>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#E8F5E9', color: '#2E7D32', padding: '4px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: 600 }}>

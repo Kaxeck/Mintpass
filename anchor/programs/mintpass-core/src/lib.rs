@@ -663,9 +663,10 @@ pub mod mintpass_core {
         require!(!event_record.was_cancelled, CoreError::EventCancelled);
         
         // Validation: Timelock (Refund window must have passed since event closure)
-        let current_time = Clock::get()?.unix_timestamp;
-        let refund_window_seconds = (event_record.refund_time_limit as i64) * 86_400;
-        require!(current_time >= event_record.closed_at + refund_window_seconds, CoreError::RefundWindowNotPassed);
+        // MVP: Comentado para permitir el retiro inmediato en demostraciones
+        // let current_time = Clock::get()?.unix_timestamp;
+        // let refund_window_seconds = (event_record.refund_time_limit as i64) * 86_400;
+        // require!(current_time >= event_record.closed_at + refund_window_seconds, CoreError::RefundWindowNotPassed);
 
         require!(!escrow_state.is_completed, CoreError::AlreadyReleased);
 

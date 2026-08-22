@@ -3,10 +3,9 @@ import { LandingNavBar } from "../../components/layout/LandingNavBar";
 import { LandingFooter } from "../../components/layout/LandingFooter";
 import '../../styles/organizer-landing.css';
 import '../../styles/layout.css';
-import { usePrivy } from "@privy-io/react-auth";
-import { useWalletSession } from "@solana/react-hooks";
-import { useEffect } from "react";
+import { useActiveSolanaWallet } from "../../hooks/useActiveSolanaWallet";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 interface OrganizerLandingProps {
   onGoToExplore?: () => void;
@@ -17,19 +16,17 @@ export default function OrganizerLanding({
   onGoToExplore,
   onGoToMyTickets,
 }: OrganizerLandingProps) {
-  const { login, authenticated, user } = usePrivy();
-  const session = useWalletSession();
+  const { login, authenticated, walletAddress } = useActiveSolanaWallet();
   const router = useRouter();
 
   // Redirigir automáticamente al dashboard si el usuario inicia sesión
   useEffect(() => {
-    const walletAddressStr = user?.wallet?.address || session?.account?.address?.toString() || null;
-    const isConnected = authenticated || !!walletAddressStr;
+    const isConnected = authenticated || !!walletAddress;
     
     if (isConnected) {
       router.push('/dashboard');
     }
-  }, [authenticated, user, session, router]);
+  }, [authenticated, walletAddress, router]);
 
   return (
     <div className="lp-container">

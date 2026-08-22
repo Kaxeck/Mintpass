@@ -50,6 +50,11 @@ export async function createEventInDb(eventData: any) {
         capacity: validatedData.zones.reduce((acc: number, z: any) => acc + z.capacity, 0),
         ticketPriceSol: validatedData.zones.length > 0 ? validatedData.zones[0].price : 0,
         zones: validatedData.zones as any,
+        allowResale: eventData.allowResale || false,
+        resaleCapLimit: eventData.resaleCapLimit || null,
+        allowRefunds: eventData.allowRefunds || false,
+        refundTimeLimit: eventData.refundTimeLimit || null,
+        identityLimit: eventData.identityLimit || null,
       }
     });
 

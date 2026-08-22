@@ -48,7 +48,7 @@ export default function BuyerPurchasePage() {
             venue: ev.location || "",
             price: ev.ticketPriceSol,
             total: ev.capacity,
-            limitPerWallet: 0,
+            limitPerWallet: ev.identityLimit || 0,
             sold: (ev as any).tickets ? (ev as any).tickets.length : 0,
             cat: ev.category || "Otro",
             icon: ev.iconName || 'Ticket',

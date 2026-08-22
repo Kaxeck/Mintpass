@@ -116,6 +116,7 @@ model Event {
   allowRefunds      Boolean     @default(false)
   refundTimeLimit   Int?
   identityLimit     Int?
+  isSoulbound       Boolean     @default(true)
   isEscrowCompleted Boolean     @default(false)
   lastSyncedSlot    BigInt      @default(0)
   lastUpdatedAt     DateTime    @updatedAt

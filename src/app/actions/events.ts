@@ -55,6 +55,8 @@ export async function createEventInDb(eventData: any) {
         allowRefunds: eventData.allowRefunds || false,
         refundTimeLimit: eventData.refundTimeLimit || null,
         identityLimit: eventData.identityLimit || null,
+        isSoulbound: eventData.isSoulbound !== undefined ? eventData.isSoulbound : true,
+        lineup: validatedData.lineup || [],
       }
     });
 

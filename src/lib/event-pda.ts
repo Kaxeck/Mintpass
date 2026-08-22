@@ -274,3 +274,91 @@ export async function readAllEventsFromChain(
   }
   return events;
 }
+
+/**
+ * Construye la instrucción para cancelar un evento On-Chain.
+ * 
+ * @param organizerAddress - Address del organizador (signer y fee payer)
+ * @param collectionMint - Collection Mint del evento
+ * @returns La instrucción Umi
+ */
+export async function buildCancelEventInstruction(
+  organizerAddress: Address,
+  collectionMint: string
+): Promise<UmiInstruction> {
+  const encoder = getAddressEncoder();
+  const coder = new BorshCoder(MINTPASS_IDL);
+
+  const protocolConfigPda = (await getProgramDerivedAddress({
+    programAddress: EVENT_REGISTRY_PROGRAM_ID,
+    seeds: [Buffer.from("config")]
+  }))[0];
+
+  const [eventRecordPda] = await deriveEventPDA(organizerAddress, collectionMint);
+
+  const reputationPda = (await getProgramDerivedAddress({
+    programAddress: EVENT_REGISTRY_PROGRAM_ID,
+    seeds: [Buffer.from("reputation"), encoder.encode(organizerAddress)]
+  }))[0];
+
+  const payload = coder.instruction.encode("cancelEvent", {});
+
+  const instruction: UmiInstruction = {
+    programId: EVENT_REGISTRY_PROGRAM_ID as any,
+    keys: [
+      { pubkey: protocolConfigPda as any, isSigner: false, isWritable: false },
+      { pubkey: organizerAddress as any, isSigner: true, isWritable: true },
+      { pubkey: organizerAddress as any, isSigner: false, isWritable: false },
+      { pubkey: collectionMint as any, isSigner: false, isWritable: false },
+      { pubkey: eventRecordPda as any, isSigner: false, isWritable: true },
+      { pubkey: reputationPda as any, isSigner: false, isWritable: true },
+    ],
+    data: new Uint8Array(payload),
+  };
+
+  return instruction;
+}
+
+/**
+ * Construye la instrucción para finalizar un evento exitosamente On-Chain.
+ *
+ * @param organizerAddress - Address del organizador (signer y fee payer)
+ * @param collectionMint - Collection Mint del evento
+ * @returns La instrucción Umi
+ */
+export async function buildFinishEventInstruction(
+  organizerAddress: Address,
+  collectionMint: string
+): Promise<UmiInstruction> {
+  const encoder = getAddressEncoder();
+  const coder = new BorshCoder(MINTPASS_IDL);
+
+  const protocolConfigPda = (await getProgramDerivedAddress({
+    programAddress: EVENT_REGISTRY_PROGRAM_ID,
+    seeds: [Buffer.from("config")]
+  }))[0];
+
+  const [eventRecordPda] = await deriveEventPDA(organizerAddress, collectionMint);
+
+  const reputationPda = (await getProgramDerivedAddress({
+    programAddress: EVENT_REGISTRY_PROGRAM_ID,
+    seeds: [Buffer.from("reputation"), encoder.encode(organizerAddress)]
+  }))[0];
+
+  const payload = coder.instruction.encode("finishEventSuccessfully", {});
+
+  const instruction: UmiInstruction = {
+    programId: EVENT_REGISTRY_PROGRAM_ID as any,
+    keys: [
+      { pubkey: protocolConfigPda as any, isSigner: false, isWritable: false },
+      { pubkey: organizerAddress as any, isSigner: true, isWritable: true },
+      { pubkey: organizerAddress as any, isSigner: false, isWritable: false },
+      { pubkey: collectionMint as any, isSigner: false, isWritable: false },
+      { pubkey: eventRecordPda as any, isSigner: false, isWritable: true },
+      { pubkey: reputationPda as any, isSigner: false, isWritable: true },
+    ],
+    data: new Uint8Array(payload),
+  };
+
+  return instruction;
+}

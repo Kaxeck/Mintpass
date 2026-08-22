@@ -287,7 +287,27 @@ export default function BuyerPurchase({
 
               {/* RIGHT COLUMN (Sticky Purchase Card) */}
               <div className="bp-right-col">
-                {screen === 'buy' ? (
+                {event.status === 'CANCELLED' ? (
+                  <div className="bp-card bp-card-pad" style={{ background: '#FEF2F2', border: '1px solid #FCA5A5' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#DC2626', marginBottom: '16px' }}>
+                      <Icons.AlertTriangle size={24} />
+                      <p className="bp-h3" style={{ margin: 0, color: '#DC2626' }}>Evento Cancelado</p>
+                    </div>
+                    <p style={{ fontSize: '14px', color: '#991B1B', lineHeight: 1.5, margin: 0 }}>
+                      Este evento ha sido cancelado por el organizador. La venta de boletos está deshabilitada y el contrato inteligente procesará los reembolsos pertinentes según los términos de Mintpass.
+                    </p>
+                  </div>
+                ) : event.isEventPast || event.status === 'CLOSED' ? (
+                  <div className="bp-card bp-card-pad" style={{ background: '#F3F4F6', border: '1px solid #D1D5DB' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#374151', marginBottom: '16px' }}>
+                      <Icons.Clock size={24} />
+                      <p className="bp-h3" style={{ margin: 0, color: '#374151' }}>Venta Finalizada</p>
+                    </div>
+                    <p style={{ fontSize: '14px', color: '#4B5563', lineHeight: 1.5, margin: 0 }}>
+                      Este evento ya se llevó a cabo o las ventas han sido cerradas. Ya no es posible adquirir boletos.
+                    </p>
+                  </div>
+                ) : screen === 'buy' ? (
                   <div className="bp-card bp-card-pad">
                     <p className="bp-h3" style={{ fontSize: '18px', marginBottom: '16px' }}>Elige tus boletos</p>
                     

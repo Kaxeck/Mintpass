@@ -8,6 +8,7 @@ import { type Address } from "@solana/kit";
 import AlertModal, { AlertModalProps } from "../../components/ui/AlertModal";
 import { getEventTickets } from "../../app/actions/tickets";
 import { useEffect } from "react";
+import { useUmi } from "../../components/providers";
 export default function EventDetails({ 
   event, 
   stats, 
@@ -24,6 +25,7 @@ export default function EventDetails({
   const available = (event.aforo || 0) - sold;
   
   const [ownedTickets, setOwnedTickets] = useState<Array<{ mint: string, purchaseDate: number, eventId: string | number, zoneIndex?: number }>>([]);
+  const umi = useUmi();
   
   useEffect(() => {
     async function loadTickets() {
@@ -50,9 +52,87 @@ export default function EventDetails({
     isOpen: false, title: '', message: '', type: 'info', 
     onClose: () => setAlertConfig(p => ({...p, isOpen: false})) 
   });
+  
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  
+  const [isFinishing, setIsFinishing] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+
+  const session = useWalletSession();
+  const walletAddressStr = session?.account?.address?.toString();
+  const walletAddress: Address | null = walletAddressStr ? (walletAddressStr as Address) : null;
+
+  const [editData, setEditData] = useState({
+    description: event.description || '',
+    coverImageUrl: event.coverImage || '',
+    doorTime: event.doorTime || '',
+    ageRestriction: event.ageRestriction || '',
+    galleryUrls: (event as any).galleryUrls || [] as string[]
+  });
 
   const showAlert = (title: string, message: string, type: AlertModalProps['type'], signature?: string) => {
     setAlertConfig(prev => ({ ...prev, isOpen: true, title, message, type, signature }));
+  };
+
+  const handleFinishEvent = async () => {
+    setIsFinishing(true);
+    try {
+      if (!walletAddress || !event.collectionMint) {
+        showAlert("Error de conexión", "Asegúrate de tener tu wallet conectada.", "warning");
+        return;
+      }
+
+      const { buildFinishEventInstruction } = await import("../../lib/event-pda");
+      const { transactionBuilder } = await import("@metaplex-foundation/umi");
+
+      const ix = await buildFinishEventInstruction(walletAddress, event.collectionMint);
+      const txBuilder = transactionBuilder().add({
+        instruction: ix,
+        signers: [umi.identity],
+        bytesCreatedOnChain: 0
+      });
+
+      showAlert("Firma requerida", "Abre tu Phantom wallet y firma la transacción para finalizar el evento exitosamente.", "info");
+
+      await txBuilder.sendAndConfirm(umi);
+
+      const { finishEventInDb } = await import("../../app/actions/events");
+      const res = await finishEventInDb(event.id.toString(), walletAddress.toString());
+      
+      if (res.success) {
+        event.status = 'CLOSED';
+        showAlert("Evento Finalizado", "El evento ha concluido exitosamente y tu reputación ha sido actualizada.", "success");
+      } else {
+        showAlert("Error al sincronizar", "Transacción exitosa On-Chain, pero hubo un error actualizando la vista: " + res.error, "error");
+      }
+    } catch (e: any) {
+      console.error(e);
+      showAlert("Error On-Chain", "La transacción falló: " + e.message, "error");
+    } finally {
+      setIsFinishing(false);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!walletAddress) return;
+    try {
+      const { updateEventOffchain } = await import("../../app/actions/events");
+      const res = await updateEventOffchain(event.id.toString(), walletAddress.toString(), editData);
+      if (res.success) {
+        setShowEditModal(false);
+        event.description = editData.description;
+        event.coverImage = editData.coverImageUrl;
+        event.doorTime = editData.doorTime;
+        event.ageRestriction = editData.ageRestriction;
+        (event as any).galleryUrls = editData.galleryUrls;
+        showAlert("Evento Actualizado", "Los datos off-chain han sido guardados correctamente.", "success");
+      } else {
+        showAlert("Error al guardar", res.error || "Ocurrió un error inesperado", "error");
+      }
+    } catch (e: any) {
+      showAlert("Error al guardar", e.message, "error");
+    }
   };
 
   const handleCopy = () => {
@@ -60,11 +140,56 @@ export default function EventDetails({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const session = useWalletSession();
+  const handleConfirmCancel = async () => {
+    setIsCancelling(true);
+    try {
+      if (!walletAddress || !event.collectionMint) {
+        showAlert("Error de conexión", "Asegúrate de tener tu wallet conectada y que el evento esté desplegado en la blockchain (Collection Mint).", "warning");
+        setIsCancelling(false);
+        return;
+      }
+
+      // 1. Transaction on Blockchain
+      const { buildCancelEventInstruction } = await import("../../lib/event-pda");
+      const { transactionBuilder } = await import("@metaplex-foundation/umi");
+
+      const ix = await buildCancelEventInstruction(walletAddress, event.collectionMint);
+
+      const txBuilder = transactionBuilder().add({
+        instruction: ix,
+        signers: [umi.identity],
+        bytesCreatedOnChain: 0
+      });
+
+      showAlert("Firma requerida", "Abre tu Phantom wallet y firma la transacción de cancelación. Esta acción tomará unos segundos en confirmarse.", "info");
+
+      await txBuilder.sendAndConfirm(umi);
+
+      // 2. Synchronize DB
+      const { cancelEventInDb } = await import("../../app/actions/events");
+      const res = await cancelEventInDb(event.id.toString(), walletAddress);
+      
+      if (res.success) {
+        event.status = 'CANCELLED';
+        setShowCancelConfirm(false);
+        showAlert("Evento Cancelado", "El evento ha sido cancelado exitosamente On-Chain. Los fondos están listos para reembolso.", "success");
+        setTimeout(() => onBack(), 3000);
+      } else {
+        showAlert("Error al sincronizar", "Transacción exitosa On-Chain, pero hubo un error actualizando la vista: " + res.error, "error");
+      }
+    } catch (e: unknown) {
+      console.error(e);
+      const msg = e instanceof Error ? e.message : String(e);
+      showAlert("Error On-Chain", "La transacción de cancelación falló o fue rechazada:\n" + msg, "error");
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+
   const client = useSolanaClient();
   const [isWithdrawing, setIsWithdrawing] = useState(false);
 
-  const walletAddress: Address | null = session?.account?.address ?? null;
   const walletConnected = !!walletAddress;
   const [withdrawn, setWithdrawn] = useState(() => {
     return typeof window !== 'undefined' ? localStorage.getItem(`mintpass_withdrawn_${event.id}`) === 'true' : false;
@@ -73,11 +198,14 @@ export default function EventDetails({
   const eventTime = new Date(event.date + 'T' + (event.time || '00:00')).getTime();
   const refundWindowMs = 3 * 24 * 60 * 60 * 1000; // 3 days for claims
   const isEventPast = eventTime < Date.now();
-  const isEscrowReleased = Date.now() >= eventTime + refundWindowMs;
+  
+  // FUNCIONALIDAD REAL: El escrow se libera 3 días después del evento para permitir reembolsos
+  // const isEscrowReleased = Date.now() >= eventTime  // MVP: Para fines de demostración, permitimos el cobro cuando el evento se marca como finalizado
+  const isEscrowReleased = event.status === 'CLOSED';
 
   const handleWithdraw = async () => {
     if (!isEscrowReleased) {
-      showAlert("Retiro Bloqueado", "El contrato inteligente (Escrow) retiene los fondos hasta que termine el periodo de reclamaciones y reembolsos (3 días después del evento).", "warning");
+      showAlert("Retiro Bloqueado", "El contrato inteligente retiene los fondos. Debes finalizar el evento primero para acceder al escrow.", "warning");
       return;
     }
 
@@ -239,14 +367,16 @@ export default function EventDetails({
                 </button>
               </div>
 
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <button onClick={() => showAlert("Campaña Blink", "Esta función generará un Action de Solana Blink listo para pegar en X (Twitter) o Dialect, permitiendo a tus usuarios comprar directamente desde la red social.", "info")} className="bp-btn-primary" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                  <Icons.Zap size={16} /> Crear campaña Solana Blink
-                </button>
-                <button onClick={() => showAlert("Descargar QR", "Se está generando un PDF en alta resolución con el código QR para tus flyers impresos.", "info")} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#FFFFFF', border: '1px solid #D3D1C7', color: '#1E1E1E', borderRadius: '10px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>
-                  <Icons.QrCode size={16} /> Descargar QR Promocional
-                </button>
-              </div>
+              {!isEventPast && event.status !== 'CANCELLED' && event.status !== 'CLOSED' && (
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button onClick={() => showAlert("Campaña Blink", "Esta función generará un Action de Solana Blink listo para pegar en X (Twitter) o Dialect, permitiendo a tus usuarios comprar directamente desde la red social.", "info")} className="bp-btn-primary" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <Icons.Zap size={16} /> Crear campaña Solana Blink
+                  </button>
+                  <button onClick={() => showAlert("Descargar QR", "Se está generando un PDF en alta resolución con el código QR para tus flyers impresos.", "info")} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#FFFFFF', border: '1px solid #D3D1C7', color: '#1E1E1E', borderRadius: '10px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>
+                    <Icons.QrCode size={16} /> Descargar QR Promocional
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Recent Purchases */}
@@ -311,15 +441,29 @@ export default function EventDetails({
 
 
 
-                <button onClick={() => showAlert("Edición Deshabilitada", "Por seguridad on-chain, los parámetros de precio y metadatos base no pueden modificarse tras la publicación del contrato.", "warning")} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: '#F7F8F7', border: '1px solid #D3D1C7', borderRadius: '12px', cursor: 'pointer', textAlign: 'left', transition: 'border 0.2s' }} onMouseOver={e => e.currentTarget.style.borderColor='#1E1E1E'} onMouseOut={e => e.currentTarget.style.borderColor='#D3D1C7'}>
-                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#F5F5F5', color: '#5F5E5A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Icons.Pencil size={18} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '14px', fontWeight: 600, color: '#1E1E1E' }}>Editar evento</div>
-                    <div style={{ fontSize: '12px', color: '#5F5E5A' }}>Modificar info o aforo</div>
-                  </div>
-                </button>
+                {!isEventPast && event.status !== 'CANCELLED' && event.status !== 'CLOSED' && (
+                  <button onClick={() => setShowEditModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: '#F7F8F7', border: '1px solid #D3D1C7', borderRadius: '12px', cursor: 'pointer', textAlign: 'left', transition: 'border 0.2s' }} onMouseOver={e => e.currentTarget.style.borderColor='#1E1E1E'} onMouseOut={e => e.currentTarget.style.borderColor='#D3D1C7'}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#F5F5F5', color: '#5F5E5A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Icons.Pencil size={18} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '14px', fontWeight: 600, color: '#1E1E1E' }}>Editar evento</div>
+                      <div style={{ fontSize: '13px', color: '#5F5E5A', marginTop: '2px' }}>Modifica la descripción o imágenes</div>
+                    </div>
+                  </button>
+                )}
+
+                {!isEventPast && event.status !== 'CANCELLED' && event.status !== 'CLOSED' && (
+                  <button onClick={() => setShowCancelConfirm(true)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '12px', cursor: 'pointer', textAlign: 'left', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.background='#FEE2E2'} onMouseOut={e => e.currentTarget.style.background='#FEF2F2'}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#FCA5A5', color: '#991B1B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Icons.XCircle size={18} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '14px', fontWeight: 600, color: '#991B1B' }}>Cancelar Evento</div>
+                      <div style={{ fontSize: '13px', color: '#B91C1C', marginTop: '2px' }}>Detener ventas y reembolsar</div>
+                    </div>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -335,17 +479,27 @@ export default function EventDetails({
                 </div>
               </div>
 
+              {event.status !== 'CLOSED' && isEventPast && event.status !== 'CANCELLED' && (
+                <button 
+                  onClick={handleFinishEvent}
+                  disabled={isFinishing}
+                  style={{ width: '100%', padding: '14px', borderRadius: '10px', fontSize: '14px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#9945FF', color: '#FFFFFF', border: 'none', cursor: isFinishing ? 'not-allowed' : 'pointer', transition: 'background 0.2s', marginBottom: '12px' }}
+                >
+                  {isFinishing ? <><Icons.Loader size={16} className="animate-spin" /> Procesando...</> : <><Icons.Award size={16} /> Finalizar Evento Exitosamente</>}
+                </button>
+              )}
+
               {(event.price || 0) > 0 ? (
                 <button 
                   onClick={handleWithdraw}
-                  disabled={isWithdrawing || withdrawn}
+                  disabled={isWithdrawing || withdrawn || !isEscrowReleased}
                   style={{
                     width: '100%', padding: '14px', borderRadius: '10px', fontSize: '14px', fontWeight: 600,
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                     background: isEscrowReleased && !withdrawn && !isWithdrawing ? '#14F195' : '#F7F8F7',
                     color: isEscrowReleased && !withdrawn && !isWithdrawing ? '#1E1E1E' : '#A1A1AA',
                     border: isEscrowReleased && !withdrawn && !isWithdrawing ? 'none' : '1px solid #D3D1C7',
-                    cursor: (isWithdrawing || withdrawn) ? 'not-allowed' : 'pointer',
+                    cursor: (isWithdrawing || withdrawn || !isEscrowReleased) ? 'not-allowed' : 'pointer',
                     transition: 'background 0.2s'
                   }}
                 >
@@ -353,14 +507,14 @@ export default function EventDetails({
                     <><Icons.Loader size={16} className="animate-spin" /> Procesando...</>
                   ) : withdrawn ? (
                     <><Icons.CheckCircle size={16} /> Fondos liberados</>
-                ) : isEscrowReleased ? (
-                  <><Icons.ArrowDownToLine size={16} /> Retirar fondos del Escrow</>
-                ) : isEventPast ? (
-                  <><Icons.Clock size={16} /> Periodo de reclamaciones activo</>
-                ) : (
-                  <><Icons.Lock size={16} /> Bloqueado por Escrow</>
-                )}
-              </button>
+                  ) : isEscrowReleased ? (
+                    <><Icons.ArrowDownToLine size={16} /> Retirar fondos del Escrow</>
+                  ) : isEventPast && event.status !== 'CLOSED' ? (
+                    <><Icons.Lock size={16} /> Debe finalizar el evento primero</>
+                  ) : (
+                    <><Icons.Lock size={16} /> Bloqueado por Escrow</>
+                  )}
+                </button>
               ) : (
                 <div style={{ width: '100%', padding: '14px', borderRadius: '10px', fontSize: '13px', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#F7F8F7', color: '#5F5E5A', border: '1px solid #D3D1C7' }}>
                   <Icons.Info size={16} /> Evento gratuito (sin fondos a retirar)
@@ -368,33 +522,45 @@ export default function EventDetails({
               )}
 
               <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px dashed #D3D1C7' }}>
-                <h3 style={{ fontSize: '12px', color: '#5F5E5A', margin: '0 0 8px 0', fontWeight: 600 }}>NFT Collection (Contrato)</h3>
-                <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#1E1E1E', wordBreak: 'break-all', background: '#F7F8F7', padding: '10px', borderRadius: '6px', border: '1px solid #D3D1C7', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ paddingRight: '8px' }}>{event.collectionMint || "No desplegado"}</span>
-                  {event.collectionMint && (
-                    <button onClick={() => { navigator.clipboard.writeText(event.collectionMint); alert("¡Copiado!"); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', color: '#14F195', padding: 0 }}>
-                      <Icons.Copy size={16} />
-                    </button>
-                  )}
-                </div>
-                <a href={`https://explorer.solana.com/address/${event.collectionMint}?cluster=devnet`} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#5F5E5A', marginTop: '8px', textDecoration: 'none', fontWeight: 600, marginBottom: '16px' }}>
-                  Ver NFT Collection <Icons.ExternalLink size={10} />
-                </a>
+                <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#1E1E1E', margin: '0 0 12px 0' }}>Registros On-Chain</h3>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F7F8F7', padding: '10px 12px', borderRadius: '8px', border: '1px solid #D3D1C7' }}>
+                    <div>
+                      <div style={{ fontSize: '12px', fontWeight: 600, color: '#1E1E1E' }}>Colección de Boletos (NFT)</div>
+                      <div style={{ fontSize: '11px', color: '#5F5E5A', fontFamily: 'monospace' }}>{event.collectionMint || "Pendiente"}</div>
+                    </div>
+                    {event.collectionMint && (
+                      <a href={`https://explorer.solana.com/address/${event.collectionMint}?cluster=devnet`} target="_blank" rel="noreferrer" style={{ color: '#14F195' }}>
+                        <Icons.ExternalLink size={16} />
+                      </a>
+                    )}
+                  </div>
 
-                <h3 style={{ fontSize: '12px', color: '#5F5E5A', margin: '0 0 8px 0', fontWeight: 600 }}>EventRecord (Datos On-Chain)</h3>
-                <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#1E1E1E', wordBreak: 'break-all', background: '#F7F8F7', padding: '10px', borderRadius: '6px', border: '1px solid #D3D1C7', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ paddingRight: '8px' }}>{event.address || "Pendiente en Blockchain"}</span>
-                  {event.address && (
-                    <button onClick={() => { navigator.clipboard.writeText(event.address as string); alert("¡Copiado!"); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', color: '#14F195', padding: 0 }}>
-                      <Icons.Copy size={16} />
-                    </button>
-                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F7F8F7', padding: '10px 12px', borderRadius: '8px', border: '1px solid #D3D1C7' }}>
+                    <div>
+                      <div style={{ fontSize: '12px', fontWeight: 600, color: '#1E1E1E' }}>Contrato del Evento</div>
+                      <div style={{ fontSize: '11px', color: '#5F5E5A', fontFamily: 'monospace' }}>{event.address || "Pendiente"}</div>
+                    </div>
+                    {event.address && (
+                      <a href={`https://explorer.solana.com/address/${event.address}?cluster=devnet`} target="_blank" rel="noreferrer" style={{ color: '#14F195' }}>
+                        <Icons.ExternalLink size={16} />
+                      </a>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F7F8F7', padding: '10px 12px', borderRadius: '8px', border: '1px solid #D3D1C7' }}>
+                    <div>
+                      <div style={{ fontSize: '12px', fontWeight: 600, color: '#1E1E1E' }}>Bóveda de Fondos (Escrow)</div>
+                      <div style={{ fontSize: '11px', color: '#5F5E5A', fontFamily: 'monospace' }}>{event.escrowVault || "Pendiente"}</div>
+                    </div>
+                    {event.escrowVault && (
+                      <a href={`https://explorer.solana.com/address/${event.escrowVault}?cluster=devnet`} target="_blank" rel="noreferrer" style={{ color: '#14F195' }}>
+                        <Icons.ExternalLink size={16} />
+                      </a>
+                    )}
+                  </div>
                 </div>
-                {event.address && (
-                  <a href={`https://explorer.solana.com/address/${event.address}?cluster=devnet`} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#5F5E5A', marginTop: '8px', textDecoration: 'none', fontWeight: 600 }}>
-                    Ver datos del evento (PDA) <Icons.ExternalLink size={10} />
-                  </a>
-                )}
               </div>
             </div>
 
@@ -403,6 +569,78 @@ export default function EventDetails({
       </div>
       </div>
       
+      {showCancelConfirm && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: '#FFFFFF', borderRadius: '16px', padding: '32px', width: '90%', maxWidth: '440px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#DC2626', marginBottom: '16px' }}>
+              <Icons.AlertTriangle size={28} />
+              <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 700 }}>Cancelar Evento</h2>
+            </div>
+            <p style={{ margin: '0 0 16px 0', fontSize: '15px', color: '#1E1E1E', lineHeight: 1.5 }}>
+              ¿Estás seguro de que deseas cancelar <strong>{event.name}</strong>?
+            </p>
+            <div style={{ background: '#FEF2F2', padding: '16px', borderRadius: '8px', border: '1px solid #FCA5A5', marginBottom: '24px' }}>
+              <ul style={{ margin: 0, paddingLeft: '20px', color: '#991B1B', fontSize: '13px', lineHeight: 1.6 }}>
+                <li>El contrato inteligente de Escrow se desbloqueará para reembolsos.</li>
+                <li>Los fondos retenidos serán devueltos a los compradores.</li>
+                <li>Los boletos emitidos quedarán invalidados inmediatamente.</li>
+                <li>Esta acción <strong>es irreversible</strong>.</li>
+              </ul>
+            </div>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={() => setShowCancelConfirm(false)} style={{ flex: 1, padding: '12px', background: '#F5F5F5', color: '#1E1E1E', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>
+                Regresar
+              </button>
+              <button onClick={handleConfirmCancel} disabled={isCancelling} style={{ flex: 1, padding: '12px', background: '#DC2626', color: '#FFFFFF', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', opacity: isCancelling ? 0.7 : 1 }}>
+                {isCancelling ? 'Cancelando...' : 'Confirmar Cancelación'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEditModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: '#FFFFFF', borderRadius: '16px', padding: '32px', width: '90%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: '#1E1E1E' }}>Editar Evento (Off-Chain)</h2>
+              <button onClick={() => setShowEditModal(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#5F5E5A' }}><Icons.X size={24} /></button>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#1E1E1E', display: 'block', marginBottom: '6px' }}>Descripción</label>
+                <textarea value={editData.description} onChange={e => setEditData({...editData, description: e.target.value})} style={{ width: '100%', padding: '10px 12px', fontSize: '14px', borderRadius: '8px', border: '1px solid #D3D1C7', outline: 'none', minHeight: '80px', resize: 'vertical' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#1E1E1E', display: 'block', marginBottom: '6px' }}>Imagen de Portada (URL)</label>
+                <input type="text" value={editData.coverImageUrl} onChange={e => setEditData({...editData, coverImageUrl: e.target.value})} style={{ width: '100%', padding: '10px 12px', fontSize: '14px', borderRadius: '8px', border: '1px solid #D3D1C7', outline: 'none' }} />
+              </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '13px', fontWeight: 600, color: '#1E1E1E', display: 'block', marginBottom: '6px' }}>Apertura de Puertas</label>
+                  <input type="time" value={editData.doorTime} onChange={e => setEditData({...editData, doorTime: e.target.value})} style={{ width: '100%', padding: '10px 12px', fontSize: '14px', borderRadius: '8px', border: '1px solid #D3D1C7', outline: 'none' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '13px', fontWeight: 600, color: '#1E1E1E', display: 'block', marginBottom: '6px' }}>Restricción de Edad</label>
+                  <select value={editData.ageRestriction} onChange={e => setEditData({...editData, ageRestriction: e.target.value})} style={{ width: '100%', padding: '10px 12px', fontSize: '14px', borderRadius: '8px', border: '1px solid #D3D1C7', outline: 'none' }}>
+                    <option value="">Selecciona</option>
+                    <option value="Todas las edades">Todas las edades</option>
+                    <option value="+14">+14</option>
+                    <option value="+18">+18 (Solo Adultos)</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div style={{ marginTop: '24px', display: 'flex', gap: '12px' }}>
+                <button onClick={() => setShowEditModal(false)} style={{ flex: 1, padding: '12px', background: '#F5F5F5', color: '#1E1E1E', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
+                <button onClick={handleSaveEdit} style={{ flex: 1, padding: '12px', background: '#1E1E1E', color: '#FFFFFF', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>Guardar Cambios</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <AlertModal {...alertConfig} />
     </>
   );

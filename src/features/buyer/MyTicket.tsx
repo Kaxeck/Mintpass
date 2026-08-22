@@ -207,7 +207,9 @@ export default function MyTicket({ event, ticketMint, qrSecret, onBack }: { even
           <div className="mt-card">
             <div className="mt-content">
               <div className="mt-hero">
-                {poapClaimed ? (
+                {event?.status === 'CANCELLED' ? (
+                   <span className="mt-badge-status" style={{ background: '#FEE2E2', color: '#991B1B', border: '1px solid #FCA5A5' }}>Cancelado</span>
+                ) : poapClaimed ? (
                    <span className="mt-badge-status poap">Coleccionable POAP</span>
                 ) : isCheckedIn ? (
                    <span className="mt-badge-status used">Utilizado</span>
@@ -215,9 +217,14 @@ export default function MyTicket({ event, ticketMint, qrSecret, onBack }: { even
                    <span className="mt-badge-status">Activo</span>
                 )}
 
-                <div className={`mt-qr-ring ${isCheckedIn ? 'used' : ''} ${poapClaimed ? 'poap' : ''} ${!isQrActive && !poapClaimed && !isCheckedIn ? 'locked' : ''}`}>
+                <div className={`mt-qr-ring ${event?.status === 'CANCELLED' || isCheckedIn ? 'used' : ''} ${poapClaimed ? 'poap' : ''} ${!isQrActive && !poapClaimed && !isCheckedIn && event?.status !== 'CANCELLED' ? 'locked' : ''}`}>
                   <div className="mt-qr-box">
-                    {poapClaimed ? (
+                    {event?.status === 'CANCELLED' ? (
+                      <div style={{display:'flex', flexDirection:'column', alignItems:'center', color:'#DC2626'}}>
+                        <Icons.XCircle size={48} strokeWidth={1.5} />
+                        <span style={{fontSize:'12px', marginTop:'8px', fontWeight:600, color:'#991B1B', textAlign: 'center'}}>Evento<br/>Cancelado</span>
+                      </div>
+                    ) : poapClaimed ? (
                       <Icons.Medal size={64} color="#F59E0B" />
                     ) : isCheckedIn ? (
                       <button onClick={handleClaimPoap} disabled={isMutating} style={{background:'transparent', border:'none', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', gap:'8px'}}>
@@ -232,11 +239,11 @@ export default function MyTicket({ event, ticketMint, qrSecret, onBack }: { even
                     ) : (
                       <QRCode value={cryptoPayload} size={120} bgColor="#ffffff" fgColor="#111111" />
                     )}
-                    {!isCheckedIn && !poapClaimed && isQrActive && <div className={`mt-flash ${flash ? 'show' : ''}`}></div>}
+                    {!isCheckedIn && !poapClaimed && isQrActive && event?.status !== 'CANCELLED' && <div className={`mt-flash ${flash ? 'show' : ''}`}></div>}
                   </div>
                 </div>
 
-                {!isCheckedIn && !poapClaimed && (
+                {!isCheckedIn && !poapClaimed && event?.status !== 'CANCELLED' && (
                   <>
                     {isQrActive ? (
                       <p className="mt-timer">Se renueva en <span>{secs}s</span></p>

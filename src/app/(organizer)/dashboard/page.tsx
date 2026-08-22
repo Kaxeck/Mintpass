@@ -53,6 +53,7 @@ export default function DashboardPage() {
         const formattedEvents = events.map((ev: any) => ({
           id: ev.id,
           address: ev.address || undefined,
+          status: ev.status,
           name: ev.title,
           category: ev.category || "Otro",
           date: ev.startDate ? new Date(ev.startDate).toISOString().split('T')[0] : "",

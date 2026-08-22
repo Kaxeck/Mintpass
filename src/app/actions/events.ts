@@ -3,6 +3,7 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { eventSchema } from "@/lib/validations";
+import { sendEventPublishedEmail } from "@/lib/email";
 
 export async function createEventInDb(eventData: any) {
   try {
@@ -32,6 +33,7 @@ export async function createEventInDb(eventData: any) {
         description: validatedData.description,
         collectionMint: validatedData.collectionMint,
         address: validatedData.eventRecordPda,
+        escrowVault: eventData.escrowVault,
         organizerPubkey: organizerPubkey,
         status: "PENDING_ON_CHAIN",
         coverImageUrl: validatedData.coverImage,
@@ -50,6 +52,14 @@ export async function createEventInDb(eventData: any) {
         zones: validatedData.zones as any,
       }
     });
+
+    if (eventData.organizerEmail && validatedData.collectionMint && validatedData.eventRecordPda && eventData.escrowVault) {
+      await sendEventPublishedEmail(eventData.organizerEmail, validatedData.name, {
+        collectionMint: validatedData.collectionMint,
+        eventRecord: validatedData.eventRecordPda,
+        escrowVault: eventData.escrowVault,
+      });
+    }
 
     revalidatePath('/dashboard');
     return { success: true, eventId: event.id };
@@ -171,5 +181,103 @@ export async function getOrganizerEventStats(pubkey: string) {
   } catch (error) {
     console.error("Error fetching event stats:", error);
     return {};
+  }
+}
+
+export async function cancelEventInDb(eventId: string, organizerPubkey: string) {
+  try {
+    const event = await prisma.event.findUnique({
+      where: { id: eventId }
+    });
+
+    if (!event || event.organizerPubkey !== organizerPubkey) {
+      return { success: false, error: "No autorizado o evento no encontrado." };
+    }
+
+    if (event.status === 'CANCELLED') {
+      return { success: true };
+    }
+
+    await prisma.event.update({
+      where: { id: eventId },
+      data: { status: 'CANCELLED' }
+    });
+
+    revalidatePath('/');
+    revalidatePath('/dashboard');
+    revalidatePath(`/e/${eventId}`);
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error cancelling event:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function finishEventInDb(eventId: string, organizerPubkey: string) {
+  try {
+    const event = await prisma.event.findUnique({
+      where: { id: eventId }
+    });
+
+    if (!event || event.organizerPubkey !== organizerPubkey) {
+      return { success: false, error: "No autorizado o evento no encontrado." };
+    }
+
+    if (event.status === 'CLOSED') {
+      return { success: true };
+    }
+
+    await prisma.event.update({
+      where: { id: eventId },
+      data: { status: 'CLOSED' }
+    });
+
+    revalidatePath('/');
+    revalidatePath('/dashboard');
+    revalidatePath(`/e/${eventId}`);
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error finishing event:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateEventOffchain(eventId: string, organizerPubkey: string, data: {
+  description?: string;
+  coverImageUrl?: string;
+  galleryUrls?: string[];
+  doorTime?: string;
+  ageRestriction?: string;
+}) {
+  try {
+    const event = await prisma.event.findUnique({
+      where: { id: eventId }
+    });
+
+    if (!event || event.organizerPubkey !== organizerPubkey) {
+      return { success: false, error: "No autorizado o evento no encontrado." };
+    }
+
+    await prisma.event.update({
+      where: { id: eventId },
+      data: {
+        ...(data.description !== undefined && { description: data.description }),
+        ...(data.coverImageUrl !== undefined && { coverImageUrl: data.coverImageUrl }),
+        ...(data.galleryUrls !== undefined && { galleryUrls: data.galleryUrls }),
+        ...(data.doorTime !== undefined && { doorTime: data.doorTime }),
+        ...(data.ageRestriction !== undefined && { ageRestriction: data.ageRestriction }),
+      }
+    });
+
+    revalidatePath('/');
+    revalidatePath('/dashboard');
+    revalidatePath(`/e/${eventId}`);
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error updating event offchain:", error);
+    return { success: false, error: error.message };
   }
 }

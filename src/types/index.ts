@@ -39,4 +39,6 @@ export interface EventModel {
   organizerWallet?: string;
   coverStyle?: any;
   priceStyle?: any;
+  status?: string;
+  isEventPast?: boolean;
 }

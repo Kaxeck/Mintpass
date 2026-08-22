@@ -86,6 +86,7 @@ model Event {
   address           String?     @unique // Solana PDA (Nulo si DRAFT)
   status            EventStatus @default(DRAFT)
   collectionMint    String?     @unique
+  escrowVault       String?
   organizerPubkey   String
   
   title             String

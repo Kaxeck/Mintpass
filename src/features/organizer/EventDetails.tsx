@@ -2,7 +2,7 @@
 import { useState } from "react";
 import * as Icons from "lucide-react";
 import { CreatedEvent } from "../organizer/CreateEvent";
-import { createEscrowReleaseInstruction } from "../../lib/escrow";
+
 import { type Address } from "@solana/kit";
 import AlertModal, { AlertModalProps } from "../../components/ui/AlertModal";
 import { getEventTickets } from "../../app/actions/tickets";
@@ -78,8 +78,8 @@ export default function EventDetails({
 
   const [editData, setEditData] = useState({
     description: event.description || '',
-    coverImageUrl: event.coverImage || '',
-    doorTime: event.doorTime || '',
+    coverImageUrl: event.coverImage || "",
+    doorTime: event.doorTime || "",
     ageRestriction: event.ageRestriction || '',
     galleryUrls: (event as any).galleryUrls || [] as string[]
   });
@@ -258,17 +258,30 @@ export default function EventDetails({
     try {
       setIsWithdrawing(true);
       const totalSol = sold * (event.price || 0);
-      const releaseIx = await createEscrowReleaseInstruction(walletAddress, totalSol);
-      if (!releaseIx) {
-        showAlert("Evento Gratuito", "No hay fondos que retirar en eventos gratuitos.", "info");
-        return;
-      }
-      const sig = "pending-integration";
+
+      const { deriveEventPDA, buildReleaseEscrowInstruction } = await import("../../lib/event-pda");
+      const { transactionBuilder } = await import("@metaplex-foundation/umi");
+      
+      const [eventRecordPda] = await deriveEventPDA(walletAddress, event.collectionMint);
+      const releaseIx = await buildReleaseEscrowInstruction(walletAddress, eventRecordPda);
+      
+      const txBuilder = transactionBuilder().add({
+        instruction: releaseIx,
+        signers: [umi.identity],
+        bytesCreatedOnChain: 0
+      });
+
+      showAlert("Firma requerida", "Abre tu Phantom wallet y firma la transacción para liberar los fondos del contrato inteligente.", "info");
+
+      await txBuilder.sendAndConfirm(umi);
+
+      const sig = "smart-contract-release";
       localStorage.setItem(`mintpass_withdrawn_${event.id}`, 'true');
       setWithdrawn(true);
       showAlert("¡Retiro Exitoso!", `Los fondos han sido liberados desde el contrato a tu wallet privada.\n\nSe transfirieron ${totalSol} SOL de las ganancias.`, "success", sig);
     } catch (e: any) {
-      showAlert("Error de Validación Blockchain", e.message, "error");
+      console.error(e);
+      showAlert("Error de Validación Blockchain", "La transacción falló: " + e.message, "error");
     } finally {
       setIsWithdrawing(false);
     }

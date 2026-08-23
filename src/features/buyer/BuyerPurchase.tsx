@@ -160,7 +160,8 @@ export default function BuyerPurchase({
           organizerAddr,
           address(collectionMint),
           address(ticketMintSigner.publicKey.toString()),
-          selectedZoneIndex
+          selectedZoneIndex,
+          event.ticketImage || event.coverImage || "https://metadata.mintpass.app/ticket"
         );
 
         let finalTx = transactionBuilder().add({
@@ -185,16 +186,7 @@ export default function BuyerPurchase({
       setProgressStep(4);
       setMintedTickets(successfulMints);
 
-      // Iniciar la inicialización de metadatos en segundo plano (Fire and forget)
-      if (event.id) {
-        import("../../app/actions/tickets").then(({ initializeTicketMetadata }) => {
-          for (const mint of successfulMints) {
-            initializeTicketMetadata(mint, event.id.toString()).catch(err => 
-              console.error("Falló inicialización asíncrona de metadata para", mint, err)
-            );
-          }
-        });
-      }
+      // Inicialización de metadatos eliminada: ¡Ahora se hace directamente on-chain en el contrato al mintear!
 
       onSuccessMint(successfulMints, qty);
       setTimeout(() => setScreen('success'), 600);
@@ -228,16 +220,7 @@ export default function BuyerPurchase({
       if (successfulMints.length > 0) {
         // Compra parcial exitosa
         setMintedTickets(successfulMints);
-        
-        // Iniciar metadatos de los que sí fueron exitosos
-        if (event.id) {
-          import("../../app/actions/tickets").then(({ initializeTicketMetadata }) => {
-            for (const mint of successfulMints) {
-              initializeTicketMetadata(mint, event.id.toString()).catch(console.error);
-            }
-          });
-        }
-
+        // Inicialización de metadatos eliminada: ¡Ahora se hace directamente on-chain en el contrato al mintear!
         onSuccessMint(successfulMints, successfulMints.length);
         showAlert(
           "Compra Parcial", 

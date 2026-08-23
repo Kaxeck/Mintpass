@@ -282,6 +282,10 @@ export const MINTPASS_IDL: any = {
           name: "zone_index",
           type: "u8",
         },
+        {
+          name: "ticket_uri",
+          type: "string",
+        },
       ],
     },
     {

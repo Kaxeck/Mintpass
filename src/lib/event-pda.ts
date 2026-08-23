@@ -136,7 +136,8 @@ export async function buildBuyTicketInstruction(
   organizerAddress: Address,
   collectionMint: Address,
   ticketMint: Address,
-  zoneIndex: number
+  zoneIndex: number,
+  ticketUri: string
 ): Promise<{ instruction: UmiInstruction; receiptPda: Address }> {
   const coder = new BorshCoder(MINTPASS_IDL);
 
@@ -172,7 +173,7 @@ export async function buildBuyTicketInstruction(
   if (!process.env.NEXT_PUBLIC_TREASURY_WALLET) throw new Error("Missing NEXT_PUBLIC_TREASURY_WALLET");
   const mintpassTreasury = address(process.env.NEXT_PUBLIC_TREASURY_WALLET);
 
-  const payload = coder.instruction.encode("buy_ticket", { zone_index: zoneIndex });
+  const payload = coder.instruction.encode("buy_ticket", { zone_index: zoneIndex, ticket_uri: ticketUri });
 
   const instruction: UmiInstruction = {
     programId: EVENT_REGISTRY_PROGRAM_ID as any,
@@ -431,6 +432,44 @@ export async function buildInitializeEscrowInstruction(
       { pubkey: escrowVault as any, isSigner: false, isWritable: true },
       { pubkey: escrowState as any, isSigner: false, isWritable: true },
       { pubkey: "11111111111111111111111111111111" as any, isSigner: false, isWritable: false }, // System
+    ],
+    data: new Uint8Array(payload),
+  };
+}
+
+export async function buildReleaseEscrowInstruction(
+  organizerAddress: Address,
+  eventRecordPda: Address
+): Promise<UmiInstruction> {
+  const coder = new BorshCoder(MINTPASS_IDL);
+  const encoder = getAddressEncoder();
+
+  const protocolConfigPda = (await getProgramDerivedAddress({
+    programAddress: EVENT_REGISTRY_PROGRAM_ID,
+    seeds: [Buffer.from("config")]
+  }))[0];
+
+  const escrowVault = (await getProgramDerivedAddress({
+    programAddress: EVENT_REGISTRY_PROGRAM_ID,
+    seeds: [Buffer.from("escrow"), encoder.encode(eventRecordPda)]
+  }))[0];
+
+  const escrowState = (await getProgramDerivedAddress({
+    programAddress: EVENT_REGISTRY_PROGRAM_ID,
+    seeds: [Buffer.from("escrow_state"), encoder.encode(eventRecordPda)]
+  }))[0];
+
+  const payload = coder.instruction.encode("release_escrow", {});
+
+  return {
+    programId: EVENT_REGISTRY_PROGRAM_ID as any,
+    keys: [
+      { pubkey: protocolConfigPda as any, isSigner: false, isWritable: false },
+      { pubkey: organizerAddress as any, isSigner: true, isWritable: true },
+      { pubkey: escrowVault as any, isSigner: false, isWritable: true },
+      { pubkey: escrowState as any, isSigner: false, isWritable: true },
+      { pubkey: eventRecordPda as any, isSigner: false, isWritable: false },
+      { pubkey: "11111111111111111111111111111111" as any, isSigner: false, isWritable: false },
     ],
     data: new Uint8Array(payload),
   };

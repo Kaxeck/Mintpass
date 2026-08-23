@@ -244,6 +244,7 @@ pub mod mintpass_core {
     pub fn buy_ticket(
         ctx: Context<BuyTicket>,
         zone_index: u8,
+        ticket_uri: String,
     ) -> Result<()> {
         require!(!ctx.accounts.protocol_config.is_paused, CoreError::ProtocolPaused);
         let event_record = &mut ctx.accounts.event_record;
@@ -348,7 +349,7 @@ pub mod mintpass_core {
         .owner(Some(&ctx.accounts.buyer.to_account_info()))
         .system_program(&ctx.accounts.system_program.to_account_info())
         .name(format!("Ticket #{}", event_record.zones[zone_index as usize].tickets_sold.checked_add(1).ok_or(CoreError::Overflow)?))
-        .uri(String::from("https://metadata.mintpass.app/ticket"))
+        .uri(ticket_uri)
         .plugins(vec![freeze_auth, burn_auth])
         .invoke_signed(signer_seeds)?;
 
@@ -878,7 +879,7 @@ pub struct FinishEvent<'info> {
     pub authority: Signer<'info>,
     /// CHECK: Organizador del evento
     pub organizer: UncheckedAccount<'info>,
-    pub collection_mint: Account<'info, token::Mint>,
+    pub collection_mint: Account<'info, BaseCollectionV1>,
     #[account(
         mut,
         seeds = [b"event", organizer.key().as_ref(), collection_mint.key().as_ref()],
@@ -903,7 +904,7 @@ pub struct CancelEvent<'info> {
     pub authority: Signer<'info>,
     /// CHECK: Organizador del evento
     pub organizer: UncheckedAccount<'info>,
-    pub collection_mint: Account<'info, token::Mint>,
+    pub collection_mint: Account<'info, BaseCollectionV1>,
     #[account(
         mut,
         seeds = [b"event", organizer.key().as_ref(), collection_mint.key().as_ref()],

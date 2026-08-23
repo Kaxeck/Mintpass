@@ -90,7 +90,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ eve
       organizerAddr,
       address(collectionMint),
       address(ticketMintSigner.publicKey.toString()),
-      0 // zoneIndex 0 por defecto
+      0, // zoneIndex 0 por defecto
+      event.ticketImageUrl || event.coverImageUrl || "https://metadata.mintpass.app/ticket"
     );
 
     let finalTx = transactionBuilder().add({

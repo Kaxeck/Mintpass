@@ -190,6 +190,9 @@ export default function OrganizerDashboard({
     if (ev.status === 'CANCELLED') {
       statusText = 'Cancelado';
       statusClass = 'od-pill-cancelled';
+    } else if (ev.status === 'PENDING_ON_CHAIN') {
+      statusText = 'Procesando en red';
+      statusClass = 'od-pill-soon';
     }
 
     return {
@@ -205,7 +208,8 @@ export default function OrganizerDashboard({
       price: priceStr,
       actions: ev.status === 'CANCELLED' ? ['Ver detalles'] : (isPast || ev.status === 'CLOSED') ? ['Ver detalles', 'Reportes'] : ['Panel staff', 'Ver QR Blink', 'Compartir'],
       primaryAction: ev.status === 'CANCELLED' ? -1 : 0,
-      collectionMint: ev.collectionMint
+      collectionMint: ev.collectionMint,
+      status: ev.status
     };
   });
 
@@ -420,14 +424,18 @@ export default function OrganizerDashboard({
                       </div>
 
                       <div className="od-event-body">
-                        <p className="od-event-name">
-                          {ev.name}
-                          {isVerifiedOnChain && (
-                            <span className="od-onchain">
-                              <Icons.ShieldCheck size={11} /> Verificado
-                            </span>
-                          )}
-                        </p>
+                          <p className="od-event-name">
+                            {ev.name}
+                            {ev.status === 'PUBLISHED' || isVerifiedOnChain ? (
+                              <span className="od-onchain">
+                                <Icons.ShieldCheck size={11} /> Verificado
+                              </span>
+                            ) : ev.status === 'PENDING_ON_CHAIN' ? (
+                              <span className="od-onchain" style={{ background: '#FFF3CD', color: '#856404' }}>
+                                <Icons.Clock size={11} /> No verificado en red
+                              </span>
+                            ) : null}
+                          </p>
                         <p className="od-event-meta">{ev.meta}</p>
                         <div className="od-bar-wrap">
                           <div className="od-bar" style={{ width: `${ev.progress}%`, background: ev.progressColor }} />
@@ -480,7 +488,7 @@ export default function OrganizerDashboard({
                      <Icons.CircleCheck size={20} color="#4BAA46" style={{ marginTop: '2px', flexShrink: 0 }} /> 
                      <div>
                        <p style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: 700, color: '#1E1E1E' }}>Eventos Activos</p>
-                       <p style={{ margin: 0, fontSize: '13px', color: '#5F5E5A', lineHeight: 1.4 }}><strong>{createdEvents.length} evento(s)</strong> publicado(s) y listo(s) para venta.</p>
+                       <p style={{ margin: 0, fontSize: '13px', color: '#5F5E5A', lineHeight: 1.4 }}><strong>{activeStatsEvents.length} evento(s)</strong> publicado(s) y listo(s) para venta.</p>
                      </div>
                    </div>
                    <div style={{ background: '#F8F9F8', borderRadius: '12px', padding: '16px', border: '1px solid #E8E6E0', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
@@ -557,11 +565,15 @@ export default function OrganizerDashboard({
                         <div className="od-event-body">
                           <p className="od-event-name">
                             {ev.name}
-                            {isVerifiedOnChain && (
+                            {ev.status === 'PUBLISHED' || isVerifiedOnChain ? (
                               <span className="od-onchain">
-                                <Icons.ShieldCheck size={11} /> On-chain
+                                <Icons.ShieldCheck size={11} /> Verificado
                               </span>
-                            )}
+                            ) : ev.status === 'PENDING_ON_CHAIN' ? (
+                              <span className="od-onchain" style={{ background: '#FFF3CD', color: '#856404' }}>
+                                <Icons.Clock size={11} /> No verificado en red
+                              </span>
+                            ) : null}
                           </p>
                           <p className="od-event-meta">{ev.meta}</p>
                           <div className="od-bar-wrap">

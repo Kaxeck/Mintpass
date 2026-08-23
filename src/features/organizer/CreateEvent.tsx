@@ -131,14 +131,16 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
         // 2) Associated Token Account (165b)
         // 3) Master Edition V2 (468b)
         // 4) Metadata Account con Collection Details (~1596b)
-        const [mintRent, ataRent, meRent, metaRent] = await Promise.all([
+        // 5) EventRecord PDA (~1048b)
+        const [mintRent, ataRent, meRent, metaRent, pdaRent] = await Promise.all([
           umi.rpc.getRent(82),
           umi.rpc.getRent(165),
           umi.rpc.getRent(468),
-          umi.rpc.getRent(1596)
+          umi.rpc.getRent(1596),
+          umi.rpc.getRent(1048)
         ]);
 
-        const totalLamports = Number(mintRent.basisPoints) + Number(ataRent.basisPoints) + Number(meRent.basisPoints) + Number(metaRent.basisPoints);
+        const totalLamports = Number(mintRent.basisPoints) + Number(ataRent.basisPoints) + Number(meRent.basisPoints) + Number(metaRent.basisPoints) + Number(pdaRent.basisPoints);
         const totalSol = (totalLamports / 1_000_000_000).toFixed(5);
         setDynamicSolFee(totalSol);
 
@@ -428,6 +430,28 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
             <div>
               <p style={{ margin: '0 0 4px', fontSize: '12px', fontWeight: 600, color: '#5F5E5A' }}>Bóveda de Fondos (Escrow)</p>
               <p style={{ margin: 0, fontSize: '13px', fontFamily: 'monospace', color: '#1E1E1E', wordBreak: 'break-all' }}>{createdEventData.escrowVault}</p>
+            </div>
+          </div>
+
+          <div style={{ background: '#F4F4F5', border: '1px solid #E4E4E7', borderRadius: '12px', padding: '16px', marginBottom: '24px', textAlign: 'left' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              <Icons.Link size={16} color="#18181B" />
+              <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#18181B' }}>Enlace de Compra (Blink)</p>
+            </div>
+            <p style={{ margin: '0 0 12px', fontSize: '12px', color: '#71717A' }}>Comparte este enlace para que tus usuarios puedan comprar boletos:</p>
+            <div style={{ display: 'flex', alignItems: 'center', background: '#FFFFFF', border: '1px solid #E4E4E7', borderRadius: '8px', padding: '8px 12px' }}>
+              <span style={{ flex: 1, fontSize: '13px', color: '#27272A', fontFamily: 'monospace', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/purchase/{createdEventData.id}
+              </span>
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(`${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/purchase/${createdEventData.id}`);
+                  showAlert("Enlace copiado", "El enlace de compra ha sido copiado al portapapeles.", "success");
+                }}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#14F195', display: 'flex', alignItems: 'center' }}
+              >
+                <Icons.Copy size={16} />
+              </button>
             </div>
           </div>
 

@@ -401,7 +401,7 @@ export default function EventDetails({
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center', background: '#F7F8F7', padding: '12px 16px', borderRadius: '8px', border: '1px solid #D3D1C7', marginBottom: '16px' }}>
                 <Icons.Link size={18} color="#5F5E5A" />
                 <span style={{ flex: 1, fontSize: '14px', color: '#1E1E1E', fontFamily: 'monospace' }}>
-                  http://localhost:3000/purchase/{event.id}
+                  {typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/purchase/{event.id}
                 </span>
                 <button onClick={handleCopy} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', border: 'none', color: '#1E1E1E', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>
                   {copied ? <Icons.Check size={16} color="#14F195" /> : <Icons.Copy size={16} />} 
@@ -411,10 +411,7 @@ export default function EventDetails({
 
               {!isEventPast && event.status !== 'CANCELLED' && event.status !== 'CLOSED' && (
                 <div style={{ display: 'flex', gap: '12px' }}>
-                  <button onClick={() => showAlert("Campaña Blink", "Esta función generará un Action de Solana Blink listo para pegar en X (Twitter) o Dialect, permitiendo a tus usuarios comprar directamente desde la red social.", "info")} className="bp-btn-primary" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                    <Icons.Zap size={16} /> Crear campaña Solana Blink
-                  </button>
-                  <button onClick={() => showAlert("Descargar QR", "Se está generando un PDF en alta resolución con el código QR para tus flyers impresos.", "info")} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#FFFFFF', border: '1px solid #D3D1C7', color: '#1E1E1E', borderRadius: '10px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>
+                  <button onClick={() => showAlert("Descargar QR (Próximamente)", "En la versión de producción, se descargará un PDF en alta resolución con el código QR para tus flyers impresos.", "info")} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#FFFFFF', border: '1px solid #D3D1C7', color: '#1E1E1E', borderRadius: '10px', fontWeight: 600, fontSize: '13px', cursor: 'pointer', padding: '10px 0' }}>
                     <Icons.QrCode size={16} /> Descargar QR Promocional
                   </button>
                 </div>

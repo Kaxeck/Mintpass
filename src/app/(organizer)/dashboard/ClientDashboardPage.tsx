@@ -21,7 +21,7 @@ export default function DashboardPage() {
   const [organizerProfile, setOrganizerProfile] = useState<OrganizerProfile | null>(null);
   const [loading, setLoading] = useState(true);
   
-  const { walletAddress, ready } = useActiveSolanaWallet();
+  const { walletAddress, ready, getAccessToken } = useActiveSolanaWallet();
 
   useEffect(() => {
     setMounted(true);
@@ -37,10 +37,11 @@ export default function DashboardPage() {
       }
       setLoading(true);
       try {
+        const token = await getAccessToken() || undefined;
         const [events, profile, stats] = await Promise.all([
-          getEventsByOrganizer(walletAddress),
-          getOrganizerProfile(walletAddress),
-          getOrganizerEventStats(walletAddress)
+          getEventsByOrganizer(walletAddress, token),
+          getOrganizerProfile(walletAddress, token),
+          getOrganizerEventStats(walletAddress, token)
         ]);
         
         const formattedEvents = events.map((ev: any) => ({

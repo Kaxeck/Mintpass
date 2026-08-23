@@ -85,26 +85,35 @@ export function useActiveSolanaWallet(): ActiveWalletState {
       (acc: any) => acc.type === 'wallet' && acc.chainType === 'solana'
     );
 
-    // Seleccionamos la instancia estándar para firmas de transacciones
-    const chosenStandardWallet =
-      externalStandardWallet || embeddedStandardWallet || fallbackStandardWallet || null;
+    // Seleccionamos la instancia estándar para firmas de transacciones, 
+    // priorizando las que están explícitamente vinculadas a la cuenta del usuario
+    const matchedExternalStandard = externalLinkedWallet 
+      ? (solanaWallets || []).find(w => w.address === (externalLinkedWallet as any).address)
+      : null;
 
-    // Seleccionamos la dirección en orden estricto de prioridad
+    const matchedEmbeddedStandard = embeddedLinkedWallet
+      ? (solanaWallets || []).find(w => w.address === (embeddedLinkedWallet as any).address)
+      : null;
+
+    const chosenStandardWallet =
+      matchedExternalStandard || matchedEmbeddedStandard || externalStandardWallet || embeddedStandardWallet || fallbackStandardWallet || null;
+
+    // Seleccionamos la dirección en orden estricto de prioridad (Las vinculadas al usuario SIEMPRE ganan)
     const chosenAddress =
-      externalStandardWallet?.address ||
       (externalLinkedWallet as any)?.address ||
-      embeddedStandardWallet?.address ||
       (embeddedLinkedWallet as any)?.address ||
+      externalStandardWallet?.address ||
+      embeddedStandardWallet?.address ||
       fallbackStandardWallet?.address ||
       (fallbackLinkedWallet as any)?.address ||
       null;
 
-    const isExternal = Boolean(externalStandardWallet || externalLinkedWallet);
-    const isEmbedded = !isExternal && Boolean(embeddedStandardWallet || embeddedLinkedWallet);
+    const isExternal = Boolean((externalLinkedWallet as any)?.address || externalStandardWallet?.address);
+    const isEmbedded = !isExternal && Boolean((embeddedLinkedWallet as any)?.address || embeddedStandardWallet?.address);
     
     const clientType =
-      externalStandardWallet?.standardWallet?.name ||
       (externalLinkedWallet as any)?.walletClientType ||
+      externalStandardWallet?.standardWallet?.name ||
       (isEmbedded ? 'privy' : null);
 
     return {

@@ -40,18 +40,20 @@ export async function verifyAuth(expectedWalletAddress: string, providedToken?: 
     
     const verifiedClaims = await privy.utils().auth().verifyAccessToken(token);
     
-    // Obtenemos el usuario correspondiente a la wallet address
-    let userByWallet;
+    // Validar que la wallet proveída esté asociada al usuario autenticado
     try {
-      userByWallet = await privy.users().getByWalletAddress({ address: expectedWalletAddress });
+      const user = await privy.users()._get(verifiedClaims.user_id);
+      
+      const hasWallet = user.linked_accounts.some(
+        (acc: any) => acc.address === expectedWalletAddress
+      );
+      
+      if (!hasWallet) {
+        console.error(`verifyAuth: Wallet ${expectedWalletAddress} no encontrada en las cuentas del usuario (ID: ${user.id}). Cuentas vinculadas:`, JSON.stringify(user.linked_accounts));
+        return false;
+      }
     } catch (e) {
-      console.error(`verifyAuth: Wallet ${expectedWalletAddress} no encontrada en Privy o error de red`);
-      return false;
-    }
-    
-    // Validamos que el usuario que firma sea el dueño de la wallet
-    if (userByWallet.id !== verifiedClaims.user_id) {
-      console.error(`verifyAuth: Wallet ${expectedWalletAddress} belongs to ${userByWallet.id}, not ${verifiedClaims.user_id}`);
+      console.error(`verifyAuth: Error al obtener el usuario de Privy (ID: ${verifiedClaims.user_id}):`, e);
       return false;
     }
     

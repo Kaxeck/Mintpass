@@ -166,9 +166,34 @@ export default function EventDetails({
       const { buildCancelEventInstruction } = await import("../../lib/event-pda");
       const { transactionBuilder } = await import("@metaplex-foundation/umi");
 
-      const ix = await buildCancelEventInstruction(walletAddress, event.collectionMint);
+      let txBuilder = transactionBuilder();
 
-      const txBuilder = transactionBuilder().add({
+      /*
+      // Check if reputation exists (Pausado temporalmente a petición del admin para redesplegar el contrato sin reputación)
+      const { getAddressEncoder, getProgramDerivedAddress } = await import("@solana/addresses");
+      const encoder = getAddressEncoder();
+      const EVENT_REGISTRY_PROGRAM_ID = "FTZot8vUVk4Ez7FTdakSqnNoEabysQbBW7GuAdr2EwFM";
+      const reputationPda = (await getProgramDerivedAddress({
+        programAddress: EVENT_REGISTRY_PROGRAM_ID as any,
+        seeds: [Buffer.from("reputation"), encoder.encode(walletAddress)]
+      }))[0];
+
+      const rpc = umi.rpc;
+      const accountExists = await rpc.accountExists(reputationPda as any);
+      
+      if (!accountExists) {
+        const { buildInitReputationInstruction } = await import("../../lib/event-pda");
+        const initIx = await buildInitReputationInstruction(walletAddress);
+        txBuilder = txBuilder.add({
+          instruction: initIx,
+          signers: [umi.identity],
+          bytesCreatedOnChain: 0
+        });
+      }
+      */
+
+      const ix = await buildCancelEventInstruction(walletAddress, event.collectionMint);
+      txBuilder = txBuilder.add({
         instruction: ix,
         signers: [umi.identity],
         bytesCreatedOnChain: 0

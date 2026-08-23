@@ -13,7 +13,7 @@ import { getUserTickets, mintTicketInDb } from "@/app/actions/tickets";
 export default function BuyerPurchasePage() {
   const router = useRouter();
   const params = useParams();
-  const { walletAddress, ready } = useActiveSolanaWallet();
+  const { walletAddress, ready, getAccessToken } = useActiveSolanaWallet();
   const [mounted, setMounted] = useState(false);
   const [eventModel, setEventModel] = useState<EventModel | null>(null);
   const [collectionMint, setCollectionMint] = useState<string>('');
@@ -73,7 +73,8 @@ export default function BuyerPurchasePage() {
         }
 
         if (currentWalletPk !== "unconnected") {
-          const tickets = await getUserTickets(currentWalletPk);
+          const token = await getAccessToken() || undefined;
+          const tickets = await getUserTickets(currentWalletPk, token);
           const eventTickets = tickets.filter((t: any) => t.eventAddress === ev?.address || t.eventAddress === ev?.id);
           setOwnedTicketsCount(eventTickets.length);
         }

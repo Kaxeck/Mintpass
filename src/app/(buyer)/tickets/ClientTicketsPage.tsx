@@ -45,7 +45,6 @@ export default function TicketsListPage() {
   return (
     <TicketsList 
        tickets={tickets} 
-       events={events}
        loading={loading}
        onBack={() => router.push('/')} 
        onTicketClick={(mint) => {

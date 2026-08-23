@@ -4,9 +4,13 @@ import prisma from "@/lib/prisma";
 import { organizerProfileSchema } from "@/lib/validations";
 
 import { revalidatePath } from 'next/cache';
+import { verifyAuth } from "@/lib/auth";
 
 export async function updateOrganizerProfileInDb(walletAddress: string, profileData: any) {
   try {
+    const isAuthorized = await verifyAuth(walletAddress);
+    if (!isAuthorized) throw new Error("Unauthorized");
+
     const validatedData = organizerProfileSchema.parse(profileData);
 
     const updatedUser = await prisma.userProfile.upsert({
@@ -47,6 +51,9 @@ export async function updateOrganizerProfileInDb(walletAddress: string, profileD
 
 export async function getOrganizerProfile(walletAddress: string) {
   try {
+    const isAuthorized = await verifyAuth(walletAddress);
+    if (!isAuthorized) throw new Error("Unauthorized");
+
     const profile = await prisma.userProfile.findUnique({
       where: { walletPubkey: walletAddress }
     });

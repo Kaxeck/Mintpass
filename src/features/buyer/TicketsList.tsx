@@ -16,13 +16,11 @@ export interface OwnedTicket {
 
 export default function TicketsList({ 
   tickets, 
-  events, 
   loading,
   onBack, 
   onTicketClick 
 }: { 
   tickets: any[], 
-  events: any,
   loading: boolean,
   onBack: () => void, 
   onTicketClick: (mint: string) => void 

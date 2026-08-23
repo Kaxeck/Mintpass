@@ -41,6 +41,7 @@ export default function BuyerPurchase({
   const [qty, setQty] = useState(1);
   const [progressStep, setProgressStep] = useState(0);
   const [selectedZoneIndex, setSelectedZoneIndex] = useState(0);
+  const [onChainZones, setOnChainZones] = useState<any[] | null>(null);
 
   const walletAddress: Address | null = walletAddressStr ? (walletAddressStr as Address) : null;
   const walletConnected = authenticated || !!walletAddressStr;
@@ -56,7 +57,27 @@ export default function BuyerPurchase({
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
-  const available = event.total - event.sold;
+  useEffect(() => {
+    async function loadOnChainStats() {
+      if (!collectionMint || !event.organizerWallet) return;
+      try {
+        const { Connection, PublicKey } = await import("@solana/web3.js");
+        const { fetchEventRecord } = await import("../../lib/anchor");
+        const conn = new Connection(devnetUrl, "confirmed");
+        const [eventPdaStr] = await deriveEventPDA(address(event.organizerWallet), address(collectionMint));
+        const record = await fetchEventRecord(conn, new PublicKey(eventPdaStr));
+        if (record && record.zones) {
+          setOnChainZones(record.zones);
+        }
+      } catch (e) {
+        console.warn("No se pudo cargar estado on-chain", e);
+      }
+    }
+    loadOnChainStats();
+  }, [collectionMint, event.organizerWallet, devnetUrl]);
+
+  const liveTotalSold = onChainZones ? onChainZones.reduce((acc, z) => acc + (z.ticketsSold || 0), 0) : event.sold;
+  const available = event.total - liveTotalSold;
 
   let maxAllowed = 4;
   if (event.limitPerWallet) {
@@ -69,7 +90,7 @@ export default function BuyerPurchase({
     else if (qty > maxAllowed) setQty(maxAllowed);
   }, [maxAllowed, qty]);
 
-  const pctSold = Math.round((event.sold / event.total) * 100);
+  const pctSold = Math.round((liveTotalSold / event.total) * 100);
   const progressBarColor = pctSold > 85
     ? 'bg-gradient-to-r from-[#E24B4A] to-[#ff6b6b]'
     : pctSold > 50
@@ -77,7 +98,9 @@ export default function BuyerPurchase({
       : 'bg-gradient-to-r from-[#1D9E75] to-[#5DCAA5]';
 
   const activePrice = event.zones && event.zones.length > 0 ? event.zones[selectedZoneIndex].price : event.price;
-  const activeAvailable = event.zones && event.zones.length > 0 ? event.zones[selectedZoneIndex].capacity : available;
+  const activeAvailable = onChainZones && onChainZones[selectedZoneIndex] 
+    ? onChainZones[selectedZoneIndex].capacity - onChainZones[selectedZoneIndex].ticketsSold 
+    : (event.zones && event.zones.length > 0 ? event.zones[selectedZoneIndex].capacity : available);
 
   const changeQty = (delta: number) => {
     setQty(prev => Math.max(1, Math.min(maxAllowed, Math.min(activeAvailable, prev + delta))));
@@ -125,7 +148,7 @@ export default function BuyerPurchase({
           name: event.name,
           date: event.date,
           venue: event.venue,
-          ticketNumber: event.sold + 1,
+          ticketNumber: liveTotalSold + 1,
           imageUrl: "https://images.unsplash.com/photo-1541532713592-79a0317b6b77?q=80&w=800&auto=format&fit=crop"
         },
         escrowStatePda
@@ -167,7 +190,7 @@ export default function BuyerPurchase({
 
   return (
     <div className="lp-container relative">
-      {(screen === 'buy' || screen === 'checkout' || screen === 'wallet-checkout') && (
+      {['buy', 'checkout', 'wallet-checkout', 'processing'].includes(screen) ? (
         <main className="lp-content">
           <LandingNavBar onGoToExplore={onBack} onGoToMyTickets={onGoToMyTicket} />
           
@@ -267,6 +290,30 @@ export default function BuyerPurchase({
                   </div>
                 </div>
 
+                <p className="bp-h3" style={{ marginTop: '32px' }}>Reglas de tu entrada</p>
+                <div className="bp-info-row" style={{ marginBottom: '12px' }}>
+                  <div className="bp-info-icon">
+                    <Icons.RefreshCcw size={20} color="#D3D1C7" />
+                  </div>
+                  <div>
+                    <p className="bp-info-title">¿Si no puedes asistir?</p>
+                    <p className="bp-info-sub" style={{ color: event.allowRefunds ? '#27500A' : '#E24B4A' }}>
+                      {event.allowRefunds ? `Puedes cancelar y recuperar tu dinero hasta ${event.refundTimeLimit} días antes del evento.` : 'Para este evento no hay reembolsos.'}
+                    </p>
+                  </div>
+                </div>
+                <div className="bp-info-row">
+                  <div className="bp-info-icon">
+                    <Icons.Repeat size={20} color="#D3D1C7" />
+                  </div>
+                  <div>
+                    <p className="bp-info-title">Pasar tu boleto</p>
+                    <p className="bp-info-sub">
+                      {event.allowResale ? `Puedes venderlo a alguien más de forma segura (tope máximo del ${event.resaleCapLimit}% de lo que pagaste).` : 'Tu entrada es 100% tuya y no se puede transferir a nadie más.'}
+                    </p>
+                  </div>
+                </div>
+
                 <p className="bp-h3" style={{ marginTop: '32px' }}>Organizado por</p>
                 <div className="bp-org-card">
                   <div className="bp-org-avatar">
@@ -312,14 +359,16 @@ export default function BuyerPurchase({
 
                     {event.zones && event.zones.length > 0 ? (
                       event.zones.map((zone, idx) => {
-                        const isAvailable = zone.capacity > 0;
                         const isSelected = selectedZoneIndex === idx;
+                        const onChainZone = onChainZones ? onChainZones[idx] : null;
+                        const zoneAvailable = onChainZone ? onChainZone.capacity - onChainZone.ticketsSold : zone.capacity;
+                        const isAvailable = zoneAvailable > 0;
                         return (
                           <div key={idx} className={`bp-zone-item ${isAvailable ? (isSelected ? 'active' : '') : 'disabled'}`} onClick={() => isAvailable && setSelectedZoneIndex(idx)} style={{ cursor: isAvailable ? 'pointer' : 'not-allowed', border: isSelected ? '2px solid #14F195' : '1px solid #EAEAEA', transition: 'all 0.2s', opacity: isAvailable ? 1 : 0.6 }}>
                             <div>
                               <p className="bp-zone-title">{zone.name}</p>
                               <p className="bp-zone-sub" style={{ color: isAvailable ? '#27500A' : '#E24B4A' }}>
-                                {isAvailable ? `${zone.capacity} lugares totales` : 'Agotado'}
+                                {isAvailable ? `${zoneAvailable} lugares disponibles` : 'Agotado'}
                               </p>
                             </div>
                             <p className="bp-zone-price">
@@ -395,15 +444,19 @@ export default function BuyerPurchase({
                     <div className="bp-summary-box">
                       <div className="bp-summary-row" style={{ fontWeight: 500 }}>
                         <span>{qty} boleto{qty > 1 ? 's' : ''} general</span>
-                        <span className="bp-text-dark font-mono font-medium">{(qty * activePrice).toFixed(3)} SOL</span>
+                        <span className="bp-text-dark font-mono font-medium">{(qty * activePrice).toFixed(4)} SOL</span>
                       </div>
                       <div className="flex justify-between items-center text-[13px] text-gray-500 mb-2">
                         <span>Fee de Plataforma (5%)</span>
-                        <span>{(qty * activePrice * 0.05).toFixed(3)} SOL</span>
+                        <span>{(qty * activePrice * 0.05).toFixed(4)} SOL</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[13px] text-gray-500 mb-2">
+                        <span>Tarifa de red Solana (Gas)</span>
+                        <span>Calculado por tu wallet</span>
                       </div>
                       <div className="flex justify-between items-center text-[15px] font-bold text-gray-900 border-t border-gray-200 pt-3 mt-3">
-                        <span>Total a Pagar</span>
-                        <span>{(qty * activePrice * 1.05).toFixed(3)} SOL</span>
+                        <span>Total a Pagar <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#6B7280', marginLeft: '4px' }}>(sin gas)</span></span>
+                        <span>{(qty * activePrice * 1.05).toFixed(4)} SOL</span>
                       </div>
                     </div>
 
@@ -413,10 +466,6 @@ export default function BuyerPurchase({
                         onClick={() => setPaymentMethod('tarjeta')} 
                         className={`bp-wallet-opt ${paymentMethod === 'tarjeta' ? 'selected' : ''}`}
                       >MercadoPago</div>
-                      <div 
-                        onClick={() => setPaymentMethod('blink')} 
-                        className={`bp-wallet-opt ${paymentMethod === 'blink' ? 'selected' : ''}`}
-                      >Blink</div>
                       <div 
                         onClick={() => setPaymentMethod('wallet')} 
                         className={`bp-wallet-opt ${paymentMethod === 'wallet' ? 'selected green' : ''}`}
@@ -444,7 +493,7 @@ export default function BuyerPurchase({
                       <Icons.ShieldCheck size={14} /> Boleto verificable en Solana
                     </div>
                   </div>
-                ) : (
+                ) : screen === 'wallet-checkout' ? (
                   <div className="bp-card">
                     <div className="bp-card-header">
                       <span className="link" onClick={() => setScreen('checkout')}>
@@ -470,19 +519,24 @@ export default function BuyerPurchase({
                     <div className="bp-summary-box">
                       <p style={{ margin: '0 0 10px', fontSize: '12px', color: '#5F5E5A' }}>Resumen de la transacción</p>
                       <div className="bp-summary-row">
-                        <span>Boletos ({qty})</span><span>{(qty * activePrice).toFixed(3)} SOL</span>
+                        <span>Boletos ({qty})</span><span>{(qty * activePrice).toFixed(4)} SOL</span>
                       </div>
                       <div className="bp-summary-row">
-                        <span>Cargo de servicio Mintpass (5%)</span><span>{(qty * activePrice * 0.05).toFixed(3)} SOL</span>
+                        <span>Cargo de servicio Mintpass (5%)</span><span>{(qty * activePrice * 0.05).toFixed(4)} SOL</span>
                       </div>
                       <div className="bp-summary-row" style={{ color: '#8A8880', fontSize: '12px' }}>
-                        <span>Fee de red Solana</span><span>Calculado por la wallet</span>
+                        <span>Tarifa de red Solana (Gas)</span>
+                        <span style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                          <span>Calculado por tu wallet</span>
+                          <span style={{ fontSize: '10px', opacity: 0.8 }}>(Al firmar la transacción)</span>
+                        </span>
                       </div>
                       <div className="bp-summary-row" style={{ color: '#3C3489' }}>
-                        <span>Límite de reventa (Price Cap)</span><span>Activo</span>
+                        <span>Tope seguro si decides revenderlo</span><span>{event.allowResale ? `Máximo al ${event.resaleCapLimit}%` : 'Intransferible'}</span>
                       </div>
                       <div className="bp-summary-total">
-                        <span>Total a pagar</span><span>{(qty * activePrice * 1.05).toFixed(4)} SOL</span>
+                        <span>Total a pagar <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#8A8880', marginLeft: '4px' }}>(sin gas)</span></span>
+                        <span>{(qty * activePrice * 1.05).toFixed(4)} SOL</span>
                       </div>
                     </div>
 
@@ -511,65 +565,69 @@ export default function BuyerPurchase({
                       Pagos directos P2P. Independiente de pasarelas bancarias.
                     </div>
                   </div>
-                )}
+                ) : screen === 'processing' ? (
+                  <div className="bp-card" style={{ padding: '40px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                    <div style={{ position: 'relative', width: '80px', height: '80px', marginBottom: '24px' }}>
+                      <div style={{ position: 'absolute', inset: 0, border: '4px solid #D3D1C7', borderRadius: '50%' }}></div>
+                      <div style={{ position: 'absolute', inset: 0, border: '4px solid #1E1E1E', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                      <div style={{ position: 'absolute', inset: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFFFFF', borderRadius: '50%', border: '1px solid #D3D1C7', boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}>
+                        <Icons.Loader size={24} color="#1E1E1E" style={{ animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
+                      </div>
+                    </div>
+
+                    <h2 style={{ margin: '0 0 8px', fontSize: '20px', fontWeight: 600, color: '#1E1E1E' }}>Autorizando acceso</h2>
+                    <p style={{ margin: '0 0 24px', fontSize: '13px', color: '#5F5E5A' }}>Interactuando de forma segura con la red Solana...</p>
+
+                    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {[
+                        { step: 1, label: 'Verificando Wallet' },
+                        { step: 2, label: 'Firmando transacción' },
+                        { step: 3, label: 'Generando activo digital' },
+                        { step: 4, label: 'Confirmación On-Chain' }
+                      ].map((s) => {
+                        const status = progressStep > s.step ? 'done' : progressStep === s.step ? 'active' : 'todo';
+                        return (
+                          <div key={s.step} className="bp-step" style={{ 
+                            background: status === 'todo' ? 'rgba(255,255,255,0.5)' : '#FFFFFF',
+                            borderColor: status === 'active' ? '#1E1E1E' : '#D3D1C7',
+                            borderWidth: '1px',
+                            borderStyle: 'solid',
+                            padding: '12px 16px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            borderRadius: '12px'
+                          }}>
+                            <div style={{ 
+                              width: '24px', height: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                              background: status === 'done' ? 'rgba(20,241,149,0.2)' : status === 'active' ? '#1E1E1E' : '#F7F8F7',
+                              border: `1px solid ${status === 'done' ? '#14F195' : status === 'active' ? '#1E1E1E' : '#D3D1C7'}`,
+                              color: status === 'done' ? '#27500A' : status === 'active' ? '#FFFFFF' : '#A1A1AA'
+                            }}>
+                              {status === 'done' ? <Icons.Check size={12} strokeWidth={3} /> :
+                               status === 'active' ? <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#FFFFFF', animation: 'pulse 2s infinite' }}></div> :
+                               <span style={{ fontSize: '10px', fontWeight: 'bold' }}>{s.step}</span>}
+                            </div>
+                            <div style={{ fontSize: '13px', fontWeight: 500, letterSpacing: '0.025em', color: status === 'todo' ? '#5F5E5A' : '#1E1E1E' }}>
+                              {s.label}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
             </div>
           </div>
           <LandingFooter />
         </main>
-      )}
+      ) : null}
 
 
 
-      {/* PROCESSING SCREEN */}
-      {screen === 'processing' && (
-        <div className="bp-processing animate-in fade-in duration-500">
-          <div style={{ position: 'relative', width: '96px', height: '96px', marginBottom: '32px' }}>
-            <div style={{ position: 'absolute', inset: 0, border: '4px solid #D3D1C7', borderRadius: '50%' }}></div>
-            <div style={{ position: 'absolute', inset: 0, border: '4px solid #1E1E1E', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-            <div style={{ position: 'absolute', inset: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFFFFF', borderRadius: '50%', border: '1px solid #D3D1C7', boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}>
-              <Icons.Loader size={28} color="#1E1E1E" style={{ animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
-            </div>
-          </div>
 
-          <h2>Autorizando acceso</h2>
-          <p className="bp-processing-sub">Interactuando de forma segura con la red Solana...</p>
-
-          <div style={{ width: '100%', maxWidth: '340px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {[
-              { step: 1, label: 'Verificando Wallet' },
-              { step: 2, label: 'Firmando transacción' },
-              { step: 3, label: 'Generando activo digital' },
-              { step: 4, label: 'Confirmación On-Chain' }
-            ].map((s) => {
-              const status = progressStep > s.step ? 'done' : progressStep === s.step ? 'active' : 'todo';
-              return (
-                <div key={s.step} className="bp-step" style={{ 
-                  background: status === 'todo' ? 'rgba(255,255,255,0.5)' : '#FFFFFF',
-                  borderColor: status === 'active' ? '#1E1E1E' : '#D3D1C7',
-                  borderWidth: '1px',
-                  borderStyle: 'solid'
-                }}>
-                  <div style={{ 
-                    width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                    background: status === 'done' ? 'rgba(20,241,149,0.2)' : status === 'active' ? '#1E1E1E' : '#F7F8F7',
-                    border: `1px solid ${status === 'done' ? '#14F195' : status === 'active' ? '#1E1E1E' : '#D3D1C7'}`,
-                    color: status === 'done' ? '#27500A' : status === 'active' ? '#FFFFFF' : '#A1A1AA'
-                  }}>
-                    {status === 'done' ? <Icons.Check size={14} strokeWidth={3} /> :
-                     status === 'active' ? <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#FFFFFF', animation: 'pulse 2s infinite' }}></div> :
-                     <span style={{ fontSize: '12px', fontWeight: 'bold' }}>{s.step}</span>}
-                  </div>
-                  <div style={{ fontSize: '14px', fontWeight: 500, letterSpacing: '0.025em', color: status === 'todo' ? '#5F5E5A' : '#1E1E1E' }}>
-                    {s.label}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* SUCCESS SCREEN */}
       {screen === 'success' && (
@@ -597,7 +655,7 @@ export default function BuyerPurchase({
               </div>
 
               <h3 className="text-[20px] font-bold text-[#1E1E1E] mb-4 leading-tight">
-                {event.name} <span className="text-[#A1A1AA] ml-1">#{event.sold + 1}</span>
+                {event.name} <span className="text-[#A1A1AA] ml-1">#{liveTotalSold + 1}</span>
               </h3>
 
               <div className="flex flex-wrap justify-center gap-2">

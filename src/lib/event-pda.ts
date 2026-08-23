@@ -202,9 +202,9 @@ export async function buildBuyTicketInstruction(
       { pubkey: protocolConfigPda as any, isSigner: false, isWritable: false }, // 5. protocolConfig
       { pubkey: mintpassTreasury as any, isSigner: false, isWritable: true }, // 6. mintpassTreasury
       { pubkey: EVENT_REGISTRY_PROGRAM_ID as any, isSigner: false, isWritable: false }, // 7. whitelistRecord (Optional, pass programId if none)
-      { pubkey: escrowVault as any, isSigner: false, isWritable: true }, // 8. escrowVault
-      { pubkey: escrowState as any, isSigner: false, isWritable: true }, // 9. escrowState
-      { pubkey: eventRecordPda as any, isSigner: false, isWritable: true }, // 10. eventRecord
+      { pubkey: eventRecordPda as any, isSigner: false, isWritable: true }, // 8. eventRecord
+      { pubkey: escrowVault as any, isSigner: false, isWritable: true }, // 9. escrowVault
+      { pubkey: escrowState as any, isSigner: false, isWritable: true }, // 10. escrowState
       { pubkey: tokenAccount as any, isSigner: false, isWritable: true }, // 11. tokenAccount
       { pubkey: ticketCounter as any, isSigner: false, isWritable: true }, // 12. ticketCounter
       { pubkey: ticketMetadata as any, isSigner: false, isWritable: false }, // 13. ticketMetadata
@@ -408,6 +408,48 @@ export async function buildInitReputationInstruction(
       { pubkey: organizerAddress as any, isSigner: true, isWritable: true },
       { pubkey: reputationPda as any, isSigner: false, isWritable: true },
       { pubkey: "11111111111111111111111111111111" as any, isSigner: false, isWritable: false },
+    ],
+    data: new Uint8Array(payload),
+  };
+}
+
+export async function buildInitializeEscrowInstruction(
+  organizerAddress: Address,
+  eventRecordPda: Address
+): Promise<UmiInstruction> {
+  const coder = new BorshCoder(MINTPASS_IDL);
+  const encoder = getAddressEncoder();
+
+  const protocolConfigPda = (await getProgramDerivedAddress({
+    programAddress: EVENT_REGISTRY_PROGRAM_ID,
+    seeds: [Buffer.from("config")]
+  }))[0];
+
+  const escrowVault = (await getProgramDerivedAddress({
+    programAddress: EVENT_REGISTRY_PROGRAM_ID,
+    seeds: [Buffer.from("escrow"), encoder.encode(eventRecordPda)]
+  }))[0];
+
+  const escrowState = (await getProgramDerivedAddress({
+    programAddress: EVENT_REGISTRY_PROGRAM_ID,
+    seeds: [Buffer.from("escrow_state"), encoder.encode(eventRecordPda)]
+  }))[0];
+
+  if (!process.env.NEXT_PUBLIC_TREASURY_WALLET) throw new Error("Missing NEXT_PUBLIC_TREASURY_WALLET");
+  const mintpassTreasury = address(process.env.NEXT_PUBLIC_TREASURY_WALLET);
+
+  const payload = coder.instruction.encode("initializeEscrow", { platformFee: new BN(5000000) });
+
+  return {
+    programId: EVENT_REGISTRY_PROGRAM_ID as any,
+    keys: [
+      { pubkey: organizerAddress as any, isSigner: true, isWritable: true },
+      { pubkey: eventRecordPda as any, isSigner: false, isWritable: false },
+      { pubkey: protocolConfigPda as any, isSigner: false, isWritable: false },
+      { pubkey: mintpassTreasury as any, isSigner: false, isWritable: true },
+      { pubkey: escrowVault as any, isSigner: false, isWritable: true },
+      { pubkey: escrowState as any, isSigner: false, isWritable: true },
+      { pubkey: "11111111111111111111111111111111" as any, isSigner: false, isWritable: false }, // System
     ],
     data: new Uint8Array(payload),
   };

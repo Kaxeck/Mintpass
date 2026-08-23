@@ -10,7 +10,7 @@ import { transactionBuilder } from "@metaplex-foundation/umi";
 import { useActiveSolanaWallet } from "../../hooks/useActiveSolanaWallet";
 import { type Address, address as getAddress } from "@solana/kit";
 import AlertModal, { AlertModalProps } from "../../components/ui/AlertModal";
-import { createEventInDb } from "../../app/actions/events";
+import { createEventInDb, deleteEventFromDb } from "../../app/actions/events";
 import { eventSchema } from "../../lib/validations";
 
 export interface CreatedEvent {
@@ -132,15 +132,18 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
         // 3) Master Edition V2 (468b)
         // 4) Metadata Account con Collection Details (~1596b)
         // 5) EventRecord PDA (~1048b)
-        const [mintRent, ataRent, meRent, metaRent, pdaRent] = await Promise.all([
+        // 6) EscrowState PDA (~86b)
+        const [mintRent, ataRent, meRent, metaRent, pdaRent, escrowRent] = await Promise.all([
           umi.rpc.getRent(82),
           umi.rpc.getRent(165),
           umi.rpc.getRent(468),
           umi.rpc.getRent(1596),
-          umi.rpc.getRent(1048)
+          umi.rpc.getRent(1048),
+          umi.rpc.getRent(86)
         ]);
 
-        const totalLamports = Number(mintRent.basisPoints) + Number(ataRent.basisPoints) + Number(meRent.basisPoints) + Number(metaRent.basisPoints) + Number(pdaRent.basisPoints);
+        const platformFeeLamports = 5_000_000; // 0.005 SOL fee
+        const totalLamports = Number(mintRent.basisPoints) + Number(ataRent.basisPoints) + Number(meRent.basisPoints) + Number(metaRent.basisPoints) + Number(pdaRent.basisPoints) + Number(escrowRent.basisPoints) + platformFeeLamports;
         const totalSol = (totalLamports / 1_000_000_000).toFixed(5);
         setDynamicSolFee(totalSol);
 
@@ -276,28 +279,54 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
 
       let eventRecordPdaStr = "";
       let escrowVaultStr = "";
+      let dbEventId: any = Date.now();
       try {
-        // 2. Construir la instrucción de Anchor para registrar el evento
-        const { instruction, pda } = await buildSaveEventInstruction(walletAddress, eventDataOnChain);
+        // 2. Construir la instrucción de Anchor para registrar el evento y la bóveda de escrow
+        const { buildInitializeEscrowInstruction } = await import("../../lib/event-pda");
+        const { instruction: saveEventIx, pda } = await buildSaveEventInstruction(walletAddress, eventDataOnChain);
         eventRecordPdaStr = pda.toString();
         console.log("PDA para guardar evento:", pda);
 
-        const { EVENT_REGISTRY_PROGRAM_ID } = await import("../../lib/anchor");
-        const { getProgramDerivedAddress, getAddressEncoder } = await import("@solana/addresses");
-        const encoder = getAddressEncoder();
-        const [escrowState] = await getProgramDerivedAddress({
-          programAddress: EVENT_REGISTRY_PROGRAM_ID,
-          seeds: [Buffer.from("escrow_state"), encoder.encode(pda)]
-        });
-        const [escrowVault] = await getProgramDerivedAddress({
-          programAddress: EVENT_REGISTRY_PROGRAM_ID,
-          seeds: [Buffer.from("escrow_vault"), encoder.encode(escrowState)]
-        });
-        escrowVaultStr = escrowVault.toString();
+        const { PublicKey } = await import("@solana/web3.js");
+        const PROGRAM_ID = new PublicKey(process.env.NEXT_PUBLIC_EVENT_REGISTRY_PROGRAM_ID || "FTZot8vUVk4Ez7FTdakSqnNoEabysQbBW7GuAdr2EwFM");
+        const [escrowVault] = PublicKey.findProgramAddressSync(
+          [Buffer.from("escrow"), new PublicKey(eventRecordPdaStr).toBuffer()],
+          PROGRAM_ID
+        );
+        escrowVaultStr = escrowVault.toBase58();
         
-        // 3. Unir la creación de la colección y el registro del evento en UNA SOLA TRANSACCIÓN ATÓMICA
+        // 3. Guardar evento en la Base de Datos (Supabase via Prisma) ANTES de enviar a la blockchain
+        // Esto evita la "condición de carrera" donde el webhook de Helius llega antes de que se guarde en la BD
+        try {
+          const token = await getAccessToken() || undefined;
+          const dbResult = await createEventInDb({
+            organizerWallet: walletAddress,
+            organizerEmail: user?.email?.address,
+            eventRecordPda: eventRecordPdaStr,
+            escrowVault: escrowVaultStr,
+            ...eventDataOnChain,
+            description: desc, // Se guarda la descripción real solo en la BD off-chain
+            gallery: gallery.filter(url => url.trim() !== '') // Solo guardamos URLs válidas en BD
+          }, token);
+          if (!dbResult.success) {
+            console.warn("Advertencia: No se pudo guardar el evento en la BD Web2", dbResult.error);
+          } else {
+            console.log("Evento guardado exitosamente en Supabase (DB).");
+            dbEventId = dbResult.eventId;
+          }
+        } catch (dbError) {
+          console.warn("Error inesperado guardando en BD:", dbError);
+        }
+
+        // 4. Unir la creación de la colección, el registro del evento y la inicialización del escrow en UNA SOLA TRANSACCIÓN ATÓMICA
+        const initEscrowIx = await buildInitializeEscrowInstruction(walletAddress, pda as any);
+
         const fullTxBuilder = collectionBuilder.add({
-          instruction: instruction,
+          instruction: saveEventIx,
+          signers: [umi.identity],
+          bytesCreatedOnChain: 0
+        }).add({
+          instruction: initEscrowIx,
           signers: [umi.identity],
           bytesCreatedOnChain: 0
         });
@@ -307,40 +336,27 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
       } catch (pdaError: unknown) {
         const msg = pdaError instanceof Error ? pdaError.message : String(pdaError);
         console.error("Error crítico: No se pudo guardar metadata en PDA on-chain:", msg);
+        
+        // Rollback: Si falló la transacción on-chain, eliminamos el evento zombie de la BD
+        if (dbEventId) {
+          console.log(`Haciendo rollback: eliminando evento ${dbEventId} de la BD por fallo en la blockchain...`);
+          await deleteEventFromDb(dbEventId);
+        }
+        
         showAlert("Error de Transacción", "No se pudo registrar el evento en la blockchain. Asegúrate de aprobar la transacción y tener suficiente SOL.", "error");
         setIsCreating(false);
         return;
-      }
-
-      // Guardar evento en la Base de Datos (Supabase via Prisma)
-      try {
-        const token = await getAccessToken() || undefined;
-        const dbResult = await createEventInDb({
-          organizerWallet: walletAddress,
-          organizerEmail: user?.email?.address,
-          eventRecordPda: eventRecordPdaStr,
-          escrowVault: escrowVaultStr,
-          ...eventDataOnChain,
-          description: desc, // Se guarda la descripción real solo en la BD off-chain
-          gallery: gallery.filter(url => url.trim() !== '') // Solo guardamos URLs válidas en BD
-        }, token);
-        if (!dbResult.success) {
-          console.warn("Advertencia: No se pudo guardar el evento en la BD Web2", dbResult.error);
-        } else {
-          console.log("Evento guardado exitosamente en Supabase (DB).");
-        }
-      } catch (dbError) {
-        console.warn("Error inesperado guardando en BD:", dbError);
       }
 
       // Simulamos un pequeño delay de red antes de mostrar el éxito
       setTimeout(() => {
         setIsCreating(false);
         setCreatedEventData({
-          id: Date.now(),
+          id: dbEventId,
           organizerWallet: walletAddress,
           address: eventRecordPdaStr,
           escrowVault: escrowVaultStr,
+          status: 'PENDING_ON_CHAIN',
           ...eventDataOnChain
         });
       }, 500);

@@ -298,3 +298,15 @@ export async function updateEventOffchain(eventId: string, organizerPubkey: stri
     return { success: false, error: error.message };
   }
 }
+
+export async function deleteEventFromDb(eventId: string) {
+  try {
+    await prisma.event.delete({
+      where: { id: eventId }
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting event from DB:", error);
+    return { success: false, error: String(error) };
+  }
+}

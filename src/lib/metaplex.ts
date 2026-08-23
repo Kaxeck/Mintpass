@@ -152,17 +152,49 @@ export async function mintTicket(umi: Umi, params: {
     const mintSigner = generateSigner(umi);
     const ticketName = `${params.eventData.name} #${params.eventData.ticketNumber + i}`;
 
-    // createNft uses SPL Token under the hood (createV1 + mintV1 from
-    // mpl-token-metadata), so ticket_mint will be owned by SPL Token program.
-    const { percentAmount } = await import("@metaplex-foundation/umi");
-    const builder = createNft(umi, {
-      mint: mintSigner,
-      name: ticketName,
-      uri: metadataUri,
-      sellerFeeBasisPoints: percentAmount(0),
-      tokenOwner: publicKey(params.buyerAddress),
-      collection: { key: publicKey(params.collectionMint), verified: false },
-    });
+    const { createMint, setAuthority, AuthorityType } = await import("@metaplex-foundation/mpl-toolbox");
+    const { createMetadataAccountV3 } = await import("@metaplex-foundation/mpl-token-metadata");
+    const { some } = await import("@metaplex-foundation/umi");
+
+    const builder = transactionBuilder()
+      // 1. Crear el Mint vacío (sin supply), con autoridad temporal del comprador
+      .add(createMint(umi, {
+        mint: mintSigner,
+        decimals: 0,
+        mintAuthority: umi.identity.publicKey,
+        freezeAuthority: umi.identity.publicKey,
+      }))
+      // 2. Crear la cuenta de Metadata (requiere firma de la autoridad del Mint temporal)
+      .add(createMetadataAccountV3(umi, {
+        mint: mintSigner.publicKey,
+        mintAuthority: umi.identity,
+        updateAuthority: umi.identity,
+        data: {
+          name: ticketName,
+          symbol: "MTP",
+          uri: metadataUri,
+          sellerFeeBasisPoints: 0,
+          creators: null,
+          collection: some({ key: publicKey(params.collectionMint), verified: false }),
+          uses: null
+        },
+        isMutable: true,
+        collectionDetails: null
+      }))
+      // 3. Transferir el MintAuthority al PDA de EscrowState para que el contrato Rust pueda acuñar
+      .add(setAuthority(umi, {
+        owned: mintSigner.publicKey,
+        owner: umi.identity,
+        authorityType: AuthorityType.MintTokens,
+        newAuthority: params.escrowStatePda
+      }))
+      // 4. Transferir el FreezeAuthority al PDA de EscrowState (requerido por contrato)
+      .add(setAuthority(umi, {
+        owned: mintSigner.publicKey,
+        owner: umi.identity,
+        authorityType: AuthorityType.FreezeAccount,
+        newAuthority: params.escrowStatePda
+      }));
 
     infos.push({ txBuilder: builder, mintSigner });
   }

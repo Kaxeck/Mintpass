@@ -1,47 +1,34 @@
-import { Connection, PublicKey } from "@solana/web3.js";
-import { BorshCoder } from "@coral-xyz/anchor";
-import fs from "fs";
+import { PrismaClient } from '@prisma/client';
+import { PublicKey } from '@solana/web3.js';
+import * as anchor from "@coral-xyz/anchor";
 
-async function checkEvent() {
-  const EVENT_PDA = "4E5xi8uPrjt1LkmrKBVXwCzjAHNT4FnoCEhJQLE9TyAJ";
-  console.log(`Verificando datos en Solana Devnet para el PDA: ${EVENT_PDA}...`);
-  
-  const connection = new Connection("https://api.devnet.solana.com");
-  const info = await connection.getAccountInfo(new PublicKey(EVENT_PDA));
-  
-  if (!info) {
-    console.log("❌ No se encontró la cuenta en Devnet. Verifica la dirección.");
+const prisma = new PrismaClient();
+
+async function check() {
+  const event = await prisma.event.findFirst({
+    where: { collectionMint: "8ZHfzUvjpxy74hNQKzaSyeygsSCPW6aj59JsPZF3G6Ta" }
+  });
+  if (!event) {
+    console.log("Evento no encontrado en DB");
     return;
   }
   
-  console.log(`✅ Cuenta encontrada. Tamaño en bytes: ${info.data.length}`);
+  console.log("Organizer Pubkey en DB:", event.organizerPubkey);
   
-  const idlString = fs.readFileSync("./full_idl.json", "utf8");
-  const idl = JSON.parse(idlString);
-  const coder = new BorshCoder(idl);
+  const EVENT_REGISTRY_PROGRAM_ID = new PublicKey("FTZot8vUVk4Ez7FTdakSqnNoEabysQbBW7GuAdr2EwFM");
+  const organizerPubkey = new PublicKey(event.organizerPubkey!);
+  const collectionMint = new PublicKey(event.collectionMint!);
   
-  try {
-    const decoded = coder.accounts.decode("EventRecord", info.data);
-    
-    // Serializando BigInts y BN para que JSON.stringify no falle
-    const serialized = JSON.stringify(decoded, (key, value) => {
-      if (typeof value === 'bigint' || (value && value.type === 'Buffer')) return value.toString();
-      if (value && value.toNumber) return value.toNumber(); 
-      if (value && value.toBase58) return value.toBase58(); // Pubkey
-      return value;
-    }, 2);
-
-    console.log("\n📦 Datos guardados en la Blockchain (Descodificados):");
-    console.log(serialized);
-    
-    // Convertir timestamp a fecha legible
-    if (decoded.eventTimestamp) {
-       console.log(`\n🗓️ Fecha del evento: ${new Date(decoded.eventTimestamp.toNumber() * 1000).toLocaleString()}`);
-    }
-
-  } catch (e) {
-    console.log("❌ Error al decodificar la data:", e);
-  }
+  const [eventPda, bump] = PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("event"),
+      organizerPubkey.toBuffer(),
+      collectionMint.toBuffer(),
+    ],
+    EVENT_REGISTRY_PROGRAM_ID
+  );
+  
+  console.log("Calculated EventRecord PDA:", eventPda.toBase58());
 }
 
-checkEvent();
+check().catch(console.error).finally(() => prisma.$disconnect());

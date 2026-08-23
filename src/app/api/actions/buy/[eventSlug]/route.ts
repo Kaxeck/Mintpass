@@ -3,7 +3,7 @@ import {
   ActionGetResponse, 
   ActionPostRequest, 
   ActionPostResponse, 
-  ACTIONS_CORS_HEADERS
+  createActionHeaders
 } from "@solana/actions";
 import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
 import { publicKey as umiPublicKey, createNoopSigner } from "@metaplex-foundation/umi";
@@ -14,11 +14,16 @@ import { address } from "@solana/addresses";
 import { getProgramDerivedAddress, getAddressEncoder } from "@solana/addresses";
 import { EVENT_REGISTRY_PROGRAM_ID } from "../../../../../lib/anchor";
 
+const headers = createActionHeaders({
+  chainId: "devnet", // or mainnet
+  actionVersion: "2.1.3", // specify version
+});
+
 function reply(payload: any, status = 200) {
   if (typeof payload === "string") {
-    return new NextResponse(payload, { status, headers: ACTIONS_CORS_HEADERS });
+    return new NextResponse(payload, { status, headers });
   }
-  return NextResponse.json(payload, { status, headers: ACTIONS_CORS_HEADERS });
+  return NextResponse.json(payload, { status, headers });
 }
 
 export async function OPTIONS() {

@@ -41,4 +41,8 @@ export interface EventModel {
   priceStyle?: any;
   status?: string;
   isEventPast?: boolean;
+  allowResale?: boolean;
+  resaleCapLimit?: number | null;
+  allowRefunds?: boolean;
+  refundTimeLimit?: number | null;
 }

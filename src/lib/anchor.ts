@@ -79,6 +79,22 @@ export const MINTPASS_IDL: any = {
       ]
     },
     {
+      name: "initializeEscrow",
+      discriminator: [243, 160, 77, 153, 11, 92, 48, 209],
+      accounts: [
+        { name: "organizer", isMut: true, isSigner: true },
+        { name: "eventRecord", isMut: false, isSigner: false },
+        { name: "protocolConfig", isMut: false, isSigner: false },
+        { name: "mintpassTreasury", isMut: true, isSigner: false },
+        { name: "escrowVault", isMut: true, isSigner: false },
+        { name: "escrowState", isMut: true, isSigner: false },
+        { name: "systemProgram", isMut: false, isSigner: false }
+      ],
+      args: [
+        { name: "platformFee", type: "u64" }
+      ]
+    },
+    {
       name: "buyTicket",
       discriminator: [11, 24, 17, 193, 168, 116, 164, 169],
       accounts: [
@@ -373,7 +389,7 @@ const FETCH_IDL: any = {
 
 export async function fetchUserTickets(connection: Connection, userPubkey: PublicKey) {
   const provider = { connection } as any; 
-  const program = new Program(FETCH_IDL as any, provider);
+  const program = new Program(MINTPASS_IDL as any, provider);
   
   try {
     const receipts = await (program.account as any).ticketReceipt.all([
@@ -388,7 +404,7 @@ export async function fetchUserTickets(connection: Connection, userPubkey: Publi
 
 export async function fetchEventRecord(connection: Connection, eventPubkey: PublicKey) {
   const provider = { connection } as any; 
-  const program = new Program(FETCH_IDL as any, provider);
+  const program = new Program(MINTPASS_IDL as any, provider);
   try {
     return await (program.account as any).eventRecord.fetch(eventPubkey);
   } catch (e) {

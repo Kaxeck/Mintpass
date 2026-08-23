@@ -297,7 +297,7 @@ export default function OrganizerDashboard({
             <EventDetails 
               event={createdEvents.find(e => e.id.toString() === selectedEventId.toString())!} 
               stats={eventStats[selectedEventId.toString()]} 
-              isVerified={onChainEvents.some(oc => oc.collectionMint === createdEvents.find(e => e.id.toString() === selectedEventId.toString())?.collectionMint)}
+              isVerified={createdEvents.find(e => e.id.toString() === selectedEventId.toString())?.status === 'PUBLISHED'}
               onBack={() => setSelectedEventId(null)} 
               onGoToStaff={() => { setSelectedEventId(null); setActiveSection('checkin'); }} 
             />
@@ -426,11 +426,11 @@ export default function OrganizerDashboard({
                       <div className="od-event-body">
                           <p className="od-event-name">
                             {ev.name}
-                            {ev.status === 'PUBLISHED' || isVerifiedOnChain ? (
+                            {ev.status === 'PUBLISHED' ? (
                               <span className="od-onchain">
                                 <Icons.ShieldCheck size={11} /> Verificado
                               </span>
-                            ) : ev.status === 'PENDING_ON_CHAIN' ? (
+                            ) : ev.status === 'PENDING_BLOCKCHAIN' || ev.status === 'PENDING_ON_CHAIN' ? (
                               <span className="od-onchain" style={{ background: '#FFF3CD', color: '#856404' }}>
                                 <Icons.Clock size={11} /> No verificado en red
                               </span>

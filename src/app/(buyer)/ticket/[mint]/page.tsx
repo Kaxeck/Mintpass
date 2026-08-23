@@ -5,9 +5,11 @@ const MyTicket = dynamic(() => import("@/features/buyer/MyTicket"), { ssr: false
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getTicketWithEvent } from "@/app/actions/tickets";
+import { useActiveSolanaWallet } from "@/hooks/useActiveSolanaWallet";
 
 export default function MyTicketPage() {
   const router = useRouter();
+  const { walletAddress, ready } = useActiveSolanaWallet();
   const params = useParams();
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
@@ -70,12 +72,25 @@ export default function MyTicketPage() {
     fetchEventAndTicket();
   }, [ticketMint]);
 
-  if (!mounted || loading) return null;
+  if (!mounted || !ready || loading) return null;
 
   if (!eventModel) {
     return <div style={{ padding: '24px', textAlign: 'center', fontFamily: 'sans-serif' }}>
       <h2>Boleto no encontrado</h2>
       <button onClick={() => router.push('/tickets')}>Volver a Mis Boletos</button>
+    </div>;
+  }
+
+  if (eventModel.buyerWallet && walletAddress !== eventModel.buyerWallet) {
+    return <div style={{ padding: '24px', textAlign: 'center', fontFamily: 'sans-serif', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      <h2 style={{ fontSize: '24px', marginBottom: '16px' }}>Acceso Denegado</h2>
+      <p style={{ color: '#666', marginBottom: '24px', maxWidth: '400px' }}>Este boleto pertenece a otra cuenta de Solana. Por favor, conecta la cartera correcta para ver este boleto.</p>
+      <button 
+        style={{ padding: '12px 24px', background: '#1E1E1E', color: '#FFF', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
+        onClick={() => router.push('/tickets')}
+      >
+        Volver a Mis Boletos
+      </button>
     </div>;
   }
 

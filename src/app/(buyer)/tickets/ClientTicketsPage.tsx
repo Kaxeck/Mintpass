@@ -21,6 +21,7 @@ export default function TicketsListPage() {
   useEffect(() => {
     async function loadTickets() {
       if (!walletAddress) {
+        setTickets([]);
         setLoading(false);
         return;
       }

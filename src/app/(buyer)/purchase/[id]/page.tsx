@@ -1,5 +1,7 @@
 'use client';
 
+import "@/styles/buyer.css";
+import "@/features/buyer/BuyerPurchase.css";
 import { Country, State } from 'country-state-city';
 import dynamic from 'next/dynamic';
 const BuyerPurchase = dynamic(() => import("@/features/buyer/BuyerPurchase"), { ssr: false });

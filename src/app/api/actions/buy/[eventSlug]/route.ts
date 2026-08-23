@@ -7,7 +7,7 @@ import {
 } from "@solana/actions";
 import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
 import { publicKey as umiPublicKey, createNoopSigner } from "@metaplex-foundation/umi";
-import { getEventById } from "../../../../actions/events";
+import prisma from "../../../../../lib/prisma";
 import { mintTicket } from "../../../../../lib/metaplex";
 import { buildBuyTicketInstruction, deriveEventPDA } from "../../../../../lib/event-pda";
 import { address } from "@solana/addresses";
@@ -27,7 +27,10 @@ export async function OPTIONS() {
 
 export async function GET(request: Request, { params }: { params: Promise<{ eventSlug: string }> }) {
   const { eventSlug } = await params;
-  const event = await getEventById(eventSlug);
+  const event = await prisma.event.findUnique({
+    where: { id: eventSlug },
+    include: { tickets: { select: { mintAddress: true } } }
+  });
   if (!event) return reply({ error: "Evento no encontrado." }, 404);
 
   const payload: ActionGetResponse = {
@@ -42,7 +45,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ even
 
 export async function POST(request: Request, { params }: { params: Promise<{ eventSlug: string }> }) {
   const { eventSlug } = await params;
-  const event = await getEventById(eventSlug);
+  const event = await prisma.event.findUnique({
+    where: { id: eventSlug },
+    include: { tickets: { select: { mintAddress: true } } }
+  });
   if (!event) return reply({ error: "Evento no encontrado." }, 404);
   
   try {

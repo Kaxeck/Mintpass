@@ -11,8 +11,15 @@ import { MINTPASS_IDL } from "@/lib/anchor";
 const PROGRAM_ID = new PublicKey(process.env.NEXT_PUBLIC_EVENT_REGISTRY_PROGRAM_ID || "FTZot8vUVk4Ez7FTdakSqnNoEabysQbBW7GuAdr2EwFM");
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
 
-export async function getUserTickets(walletAddress: string) {
+import { verifyAuth } from "@/lib/auth";
+
+export async function getUserTickets(walletAddress: string, token?: string) {
   try {
+    const isAuthorized = await verifyAuth(walletAddress, token);
+    if (!isAuthorized) {
+      throw new Error("Unauthorized: JWT Token verification failed for this wallet");
+    }
+
     const tickets = await prisma.ticket.findMany({
       where: { ownerPubkey: walletAddress },
       include: {

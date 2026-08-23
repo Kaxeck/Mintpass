@@ -52,7 +52,7 @@ export interface CreatedEvent {
 
 export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void, onSuccess: (event: CreatedEvent) => void }) {
   const umi = useUmi();
-  const { walletAddress: walletAddressStr, user, login } = useActiveSolanaWallet();
+  const { walletAddress: walletAddressStr, user, login, getAccessToken } = useActiveSolanaWallet();
 
   let walletAddress: Address | null = null;
   if (walletAddressStr) {
@@ -312,6 +312,7 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
 
       // Guardar evento en la Base de Datos (Supabase via Prisma)
       try {
+        const token = await getAccessToken() || undefined;
         const dbResult = await createEventInDb({
           organizerWallet: walletAddress,
           organizerEmail: user?.email?.address,
@@ -320,7 +321,7 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
           ...eventDataOnChain,
           description: desc, // Se guarda la descripción real solo en la BD off-chain
           gallery: gallery.filter(url => url.trim() !== '') // Solo guardamos URLs válidas en BD
-        });
+        }, token);
         if (!dbResult.success) {
           console.warn("Advertencia: No se pudo guardar el evento en la BD Web2", dbResult.error);
         } else {

@@ -4,8 +4,9 @@ import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { eventSchema } from "@/lib/validations";
 import { sendEventPublishedEmail } from "@/lib/email";
+import { verifyAuth } from "@/lib/auth";
 
-export async function createEventInDb(eventData: any) {
+export async function createEventInDb(eventData: any, token?: string) {
   try {
     const validatedData = eventSchema.parse(eventData);
 
@@ -15,6 +16,9 @@ export async function createEventInDb(eventData: any) {
     if (!organizerPubkey) {
       throw new Error("Organizer wallet is required");
     }
+
+    const isAuthorized = await verifyAuth(organizerPubkey, token);
+    if (!isAuthorized) throw new Error("Unauthorized");
 
     await prisma.userProfile.upsert({
       where: { walletPubkey: organizerPubkey },
@@ -126,8 +130,11 @@ export async function getEventById(id: string) {
   }
 }
 
-export async function getEventsByOrganizer(pubkey: string) {
+export async function getEventsByOrganizer(pubkey: string, token?: string) {
   try {
+    const isAuthorized = await verifyAuth(pubkey, token);
+    if (!isAuthorized) throw new Error("Unauthorized");
+
     const events = await prisma.event.findMany({
       where: {
         organizerPubkey: pubkey
@@ -163,8 +170,11 @@ export async function getEventByStaffToken(token: string) {
   }
 }
 
-export async function getOrganizerEventStats(pubkey: string) {
+export async function getOrganizerEventStats(pubkey: string, token?: string) {
   try {
+    const isAuthorized = await verifyAuth(pubkey, token);
+    if (!isAuthorized) throw new Error("Unauthorized");
+
     const events = await prisma.event.findMany({
       where: { organizerPubkey: pubkey },
       select: {

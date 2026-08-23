@@ -16,13 +16,11 @@ export interface OwnedTicket {
 
 export default function TicketsList({ 
   tickets, 
-  events, 
   loading,
   onBack, 
   onTicketClick 
 }: { 
   tickets: any[], 
-  events: any,
   loading: boolean,
   onBack: () => void, 
   onTicketClick: (mint: string) => void 
@@ -75,29 +73,37 @@ export default function TicketsList({
           <div className="mb-grid">
             
             {tickets.map((ticket, i) => {
-               const eventData = events[ticket.eventKey];
+               const eventData = ticket.event;
                if (!eventData) return null;
                
-               const dateObj = new Date(eventData.eventTimestamp.toNumber() * 1000);
+               const dateObj = eventData.startDate ? new Date(eventData.startDate) : new Date();
                const dateStr = dateObj.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
                const timeStr = dateObj.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
                
-               const statusObj = ticket.status;
+               const status = ticket.status; // Prisma string: "VALID", "USED", "CANCELLED", "LISTED_FOR_SALE"
                let statusText = 'Activo';
                let isUsed = false;
                let isResale = false;
-               if (statusObj.used) { statusText = 'Usado'; isUsed = true; }
-               if (statusObj.checkedIn) { statusText = 'Verificado'; isUsed = true; }
-               if (statusObj.listed) { statusText = 'En Reventa'; isResale = true; }
-               if (statusObj.cancelled) { statusText = 'Cancelado'; isUsed = true; }
+               
+               if (status === "USED" || status === "CHECKED_IN") { statusText = 'Usado/Verificado'; isUsed = true; }
+               if (status === "LISTED_FOR_SALE") { statusText = 'En Reventa'; isResale = true; }
+               if (status === "CANCELLED") { statusText = 'Cancelado'; isUsed = true; }
 
-               const zoneName = eventData.zones[ticket.zoneIndex]?.name || 'General';
+               // Parse zones from DB
+               let zones = [];
+               if (typeof eventData.zones === 'string') {
+                 try { zones = JSON.parse(eventData.zones); } catch(e) {}
+               } else if (Array.isArray(eventData.zones)) {
+                 zones = eventData.zones;
+               }
+               const zoneName = zones.find((z: any) => z.id === ticket.zoneId)?.name || 'General';
+               const coverImage = eventData.coverImageUrl || 'https://images.unsplash.com/photo-1541532713592-79a0317b6b77?q=80&w=400';
 
                return (
-                  <div key={i} className={`mb-card ${isUsed ? 'past' : ''} ${isResale ? 'resale' : ''}`} onClick={() => onTicketClick(ticket.mint)}>
-                    <div className={`mb-cover ${isUsed ? 'past' : ''}`} style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1541532713592-79a0317b6b77?q=80&w=400")' }}>
+                  <div key={i} className={`mb-card ${isUsed ? 'past' : ''} ${isResale ? 'resale' : ''}`} onClick={() => onTicketClick(ticket.mintAddress)}>
+                    <div className={`mb-cover ${isUsed ? 'past' : ''}`} style={{ backgroundImage: `url("${coverImage}")` }}>
                       <span className={`mb-badge ${isUsed ? 'past' : isResale ? 'resale' : 'active'}`}>{statusText}</span>
-                      <p className="mb-name">{eventData.name}</p>
+                      <p className="mb-name">{eventData.title}</p>
                     </div>
                     <div className="mb-body">
                       <div>

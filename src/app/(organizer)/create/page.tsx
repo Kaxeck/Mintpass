@@ -1,30 +1,7 @@
-'use client';
+import ClientCreatePage from "./ClientCreatePage";
 
-import dynamic from 'next/dynamic';
-const CreateEvent = dynamic(() => import("@/features/organizer/CreateEvent"), { ssr: false });
-import { useMintpassStore } from "@/store";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+export const dynamic = 'force-dynamic';
 
 export default function CreateEventPage() {
-  const { setCreatedEvents, setCollectionMint, isHydrated } = useMintpassStore();
-  const router = useRouter();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted || !isHydrated) return null;
-
-  return (
-    <CreateEvent 
-      onBack={() => router.push('/dashboard')} 
-      onSuccess={(newEvent) => {
-        setCreatedEvents(prev => [...prev, newEvent]);
-        setCollectionMint(newEvent.collectionMint);
-        router.push('/dashboard');
-      }} 
-    />
-  );
+  return <ClientCreatePage />;
 }

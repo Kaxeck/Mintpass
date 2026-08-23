@@ -6,9 +6,9 @@ import { organizerProfileSchema } from "@/lib/validations";
 import { revalidatePath } from 'next/cache';
 import { verifyAuth } from "@/lib/auth";
 
-export async function updateOrganizerProfileInDb(walletAddress: string, profileData: any) {
+export async function updateOrganizerProfileInDb(walletAddress: string, profileData: any, token?: string) {
   try {
-    const isAuthorized = await verifyAuth(walletAddress);
+    const isAuthorized = await verifyAuth(walletAddress, token);
     if (!isAuthorized) throw new Error("Unauthorized");
 
     const validatedData = organizerProfileSchema.parse(profileData);
@@ -49,9 +49,9 @@ export async function updateOrganizerProfileInDb(walletAddress: string, profileD
   }
 }
 
-export async function getOrganizerProfile(walletAddress: string) {
+export async function getOrganizerProfile(walletAddress: string, token?: string) {
   try {
-    const isAuthorized = await verifyAuth(walletAddress);
+    const isAuthorized = await verifyAuth(walletAddress, token);
     if (!isAuthorized) throw new Error("Unauthorized");
 
     const profile = await prisma.userProfile.findUnique({

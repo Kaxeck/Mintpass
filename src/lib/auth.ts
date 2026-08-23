@@ -6,12 +6,25 @@ const privy = new PrivyClient({
   appSecret: process.env.PRIVY_APP_SECRET || ""
 });
 
-export async function verifyAuth(expectedWalletAddress: string): Promise<boolean> {
+/**
+ * Verifica la sesión de Privy de un usuario.
+ * @param expectedWalletAddress La wallet que debe coincidir con el usuario.
+ * @param providedToken (Opcional - Para el MVP) El token JWT pasado explícitamente desde el cliente.
+ */
+export async function verifyAuth(expectedWalletAddress: string, providedToken?: string): Promise<boolean> {
   try {
-    const cookieStore = await cookies();
-    let token = cookieStore.get('privy-token')?.value;
+    // 1. Usar el token proveído manualmente (ideal para MVP en Vercel sin dominio propio)
+    let token = providedToken;
+
+    // 2. [PRODUCCIÓN] Si no hay token manual, intentamos leer la cookie HttpOnly
+    // Nota: Esto requerirá habilitar "HttpOnly Cookies" en el dashboard de Privy
+    // cuando tengas un dominio propio (ej. mintpass.com).
+    if (!token) {
+      const cookieStore = await cookies();
+      token = cookieStore.get('privy-token')?.value;
+    }
     
-    // Fallback: Si no hay cookie, intentar leer del header de Authorization
+    // 3. Fallback: Intentar leer del header de Authorization
     if (!token) {
       const headersList = await headers();
       const authHeader = headersList.get('authorization');
@@ -21,13 +34,13 @@ export async function verifyAuth(expectedWalletAddress: string): Promise<boolean
     }
     
     if (!token) {
-      console.error("verifyAuth: No se encontro privy-token en cookies ni header Authorization");
+      console.error("verifyAuth: No se encontro token (ni manual, ni cookie, ni header)");
       return false;
     }
     
     const verifiedClaims = await privy.utils().auth().verifyAccessToken(token);
     
-    // Find the user by the expected wallet address
+    // Obtenemos el usuario correspondiente a la wallet address
     let userByWallet;
     try {
       userByWallet = await privy.users().getByWalletAddress({ address: expectedWalletAddress });
@@ -36,7 +49,7 @@ export async function verifyAuth(expectedWalletAddress: string): Promise<boolean
       return false;
     }
     
-    // Check if the user who signed in (token) is the same user who owns the wallet
+    // Validamos que el usuario que firma sea el dueño de la wallet
     if (userByWallet.id !== verifiedClaims.user_id) {
       console.error(`verifyAuth: Wallet ${expectedWalletAddress} belongs to ${userByWallet.id}, not ${verifiedClaims.user_id}`);
       return false;

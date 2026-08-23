@@ -13,9 +13,9 @@ const TOKEN_METADATA_PROGRAM_ID = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzj
 
 import { verifyAuth } from "@/lib/auth";
 
-export async function getUserTickets(walletAddress: string) {
+export async function getUserTickets(walletAddress: string, token?: string) {
   try {
-    const isAuthorized = await verifyAuth(walletAddress);
+    const isAuthorized = await verifyAuth(walletAddress, token);
     if (!isAuthorized) {
       throw new Error("Unauthorized: JWT Token verification failed for this wallet");
     }

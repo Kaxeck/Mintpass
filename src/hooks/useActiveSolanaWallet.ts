@@ -15,6 +15,7 @@ export interface ActiveWalletState {
   user: any;
   login: () => void;
   logout: () => Promise<void>;
+  getAccessToken: () => Promise<string | null>;
 }
 
 /**
@@ -26,7 +27,7 @@ export interface ActiveWalletState {
  * 3. Wallet embebida de Solana creada por Privy (fallback para usuarios Web2 que entraron con Email/Google).
  */
 export function useActiveSolanaWallet(): ActiveWalletState {
-  const { user, authenticated, ready, login, logout } = usePrivy();
+  const { user, authenticated, ready, login, logout, getAccessToken } = usePrivy();
   const { wallets: solanaWallets } = usePrivySolanaWallets();
 
   return useMemo(() => {
@@ -42,6 +43,7 @@ export function useActiveSolanaWallet(): ActiveWalletState {
         user,
         login,
         logout,
+        getAccessToken,
       };
     }
 
@@ -116,6 +118,7 @@ export function useActiveSolanaWallet(): ActiveWalletState {
       user,
       login,
       logout,
+      getAccessToken,
     };
-  }, [user, authenticated, ready, solanaWallets, login, logout]);
+  }, [user, authenticated, ready, solanaWallets, login, logout, getAccessToken]);
 }

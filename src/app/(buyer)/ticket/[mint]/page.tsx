@@ -9,7 +9,7 @@ import { useActiveSolanaWallet } from "@/hooks/useActiveSolanaWallet";
 
 export default function MyTicketPage() {
   const router = useRouter();
-  const { walletAddress, ready } = useActiveSolanaWallet();
+  const { walletAddress, ready, getAccessToken } = useActiveSolanaWallet();
   const params = useParams();
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
@@ -26,13 +26,14 @@ export default function MyTicketPage() {
   
   useEffect(() => {
     async function fetchEventAndTicket() {
-      if (!ticketMint) {
+      if (!ticketMint || !walletAddress) {
         setLoading(false);
         return;
       }
       setLoading(true);
       try {
-        const ticketWithEvent = await getTicketWithEvent(ticketMint);
+        const token = await getAccessToken() || undefined;
+        const ticketWithEvent = await getTicketWithEvent(ticketMint, walletAddress, token);
         if (ticketWithEvent && ticketWithEvent.event) {
           const ev = ticketWithEvent.event;
           setEventModel({

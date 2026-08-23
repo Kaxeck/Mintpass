@@ -259,8 +259,13 @@ export async function getTicketQrSecret(mintAddress: string) {
   }
 }
 
-export async function getTicketWithEvent(mintAddress: string) {
+export async function getTicketWithEvent(mintAddress: string, walletAddress: string, token?: string) {
   try {
+    const isAuthorized = await verifyAuth(walletAddress, token);
+    if (!isAuthorized) {
+      throw new Error("Unauthorized: JWT Token verification failed for this wallet");
+    }
+
     const ticket = await prisma.ticket.findUnique({
       where: { mintAddress },
       include: { 
@@ -274,6 +279,11 @@ export async function getTicketWithEvent(mintAddress: string) {
         owner: true
       }
     });
+
+    if (ticket && ticket.ownerPubkey !== walletAddress) {
+      throw new Error("Unauthorized: This ticket does not belong to the requested wallet");
+    }
+
     return ticket;
   } catch (e) {
     console.error("Failed to fetch ticket with event", e);

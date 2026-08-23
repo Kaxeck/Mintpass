@@ -38,7 +38,7 @@ export default function OrganizerDashboard({
   organizerProfile?: OrganizerProfile | null;
   onProfileComplete?: (profile: OrganizerProfile) => void;
 }) {
-  const { walletAddress: walletAddressStr, authenticated, user, ready } = useActiveSolanaWallet();
+  const { walletAddress: walletAddressStr, authenticated, user, ready, getAccessToken } = useActiveSolanaWallet();
   const { setCreatedEvents } = useMintpassStore();
   const devnetUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com";
   const rpcRaw = useMemo(() => createSolanaRpc(devnetUrl), [devnetUrl]);
@@ -304,7 +304,8 @@ export default function OrganizerDashboard({
                   alert("Aún no se ha detectado tu wallet de Solana. Si iniciaste con correo, espera unos segundos a que se asigne, o conecta una wallet directamente (ej. Phantom).");
                   return;
                 }
-                const res = await updateOrganizerProfileInDb(walletAddressStr, profile);
+                const token = await getAccessToken() || undefined;
+                const res = await updateOrganizerProfileInDb(walletAddressStr, profile, token);
                 if (!res.success) {
                   alert("Error al guardar el perfil: " + res.error);
                   return;

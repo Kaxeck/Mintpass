@@ -42,27 +42,29 @@ export default function AlertModal({ isOpen, title, message, type, signature, ac
     '#FFFFFF';
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', background: 'rgba(30,30,30,0.45)', backdropFilter: 'blur(4px)' }} className="animate-in fade-in duration-200">
-      <div style={{ width: '100%', maxWidth: '360px', background: '#FFFFFF', borderRadius: '18px', padding: '24px', boxShadow: '0 10px 30px rgba(0,0,0,0.18)', fontFamily: 'var(--font-sans)', boxSizing: 'border-box' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', background: 'rgba(30,30,30,0.45)', backdropFilter: 'blur(4px)' }} className="animate-in fade-in duration-200">
+      <div style={{ width: '100%', maxWidth: '360px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', background: '#FFFFFF', borderRadius: '18px', padding: '24px', boxShadow: '0 10px 30px rgba(0,0,0,0.18)', fontFamily: 'var(--font-sans)', boxSizing: 'border-box' }}>
         
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
           <span onClick={onClose} style={{ fontSize: '14px', color: '#5F5E5A', cursor: 'pointer', userSelect: 'none' }}>✕</span>
         </div>
 
-        <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+        <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', flexShrink: 0 }}>
           <IconObj size={24} color={iconColor} strokeWidth={2.5} />
         </div>
         
-        <p style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: 600, color: '#1E1E1E', textAlign: 'center' }}>
+        <p style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: 600, color: '#1E1E1E', textAlign: 'center', flexShrink: 0 }}>
           {title}
         </p>
         
-        <p style={{ margin: '0 0 24px', fontSize: '14px', color: '#5F5E5A', textAlign: 'center', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
-          {message}
-        </p>
+        <div style={{ overflowY: 'auto', marginBottom: '24px' }}>
+          <p style={{ margin: 0, fontSize: '14px', color: '#5F5E5A', textAlign: 'center', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+            {message}
+          </p>
+        </div>
 
         {signature && (
-          <div style={{ background: '#F7F8F7', border: '1px solid #D3D1C7', borderRadius: '12px', padding: '14px', marginBottom: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{ background: '#F7F8F7', border: '1px solid #D3D1C7', borderRadius: '12px', padding: '14px', marginBottom: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
             <span style={{ fontSize: '12px', color: '#5F5E5A', fontWeight: 500, margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Icons.Link size={14} /> Firma de Red
             </span>
@@ -77,7 +79,7 @@ export default function AlertModal({ isOpen, title, message, type, signature, ac
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '10px', flexShrink: 0 }}>
           {actionText && onAction && (
             <button 
               onClick={onClose}

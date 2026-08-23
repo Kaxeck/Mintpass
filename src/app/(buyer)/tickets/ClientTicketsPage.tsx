@@ -9,7 +9,7 @@ import { getUserTickets } from "@/app/actions/tickets";
 
 export default function TicketsListPage() {
   const router = useRouter();
-  const { walletAddress } = useActiveSolanaWallet();
+  const { walletAddress, ready, getAccessToken } = useActiveSolanaWallet();
   const [mounted, setMounted] = useState(false);
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,7 +26,8 @@ export default function TicketsListPage() {
       }
       
       try {
-        const dbTickets = await getUserTickets(walletAddress);
+        const token = await getAccessToken() || undefined;
+        const dbTickets = await getUserTickets(walletAddress, token);
         setTickets(dbTickets);
       } catch (e) {
         console.error("Error fetching tickets", e);

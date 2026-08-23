@@ -79,7 +79,6 @@ pub mod mintpass_core {
     pub fn create_event(
         ctx: Context<CreateEvent>,
         name: String,
-        description: String,
         event_timestamp: i64,
         venue: String,
         category: String,
@@ -93,7 +92,7 @@ pub mod mintpass_core {
     ) -> Result<()> {
         require!(!ctx.accounts.protocol_config.is_paused, CoreError::ProtocolPaused);
         require!(name.len() <= MAX_NAME_LEN, CoreError::NameTooLong);
-        require!(description.len() <= MAX_DESC_LEN, CoreError::DescriptionTooLong);
+        // require!(description.len() <= MAX_DESC_LEN, CoreError::DescriptionTooLong);
         require!(venue.len() <= MAX_VENUE_LEN, CoreError::VenueTooLong);
         require!(category.len() <= MAX_CATEGORY_LEN, CoreError::CategoryTooLong);
         require!(zones.len() > 0, CoreError::NoZonesProvided);
@@ -124,7 +123,7 @@ pub mod mintpass_core {
         event.organizer = ctx.accounts.organizer.key();
         event.collection_mint = ctx.accounts.collection_mint.key();
         event.name = name.clone();
-        event.description = description;
+        // event.description = description;
         event.event_timestamp = event_timestamp;
         event.venue = venue;
         event.category = category;
@@ -159,18 +158,18 @@ pub mod mintpass_core {
         require!(event.is_active, CoreError::EventAlreadyClosed);
         require!(current_time > event.event_timestamp, CoreError::EventNotStarted);
         
-        let reputation = &mut ctx.accounts.reputation;
+        // let reputation = &mut ctx.accounts.reputation;
         event.is_active = false;
         event.closed_at = current_time;
         
-        let total_tickets_sold: u32 = event.zones.iter().map(|z| z.tickets_sold).sum();
-        let volume_points = (total_tickets_sold / 100) as u64;
-        let total_points_earned = SUCCESS_POINTS.checked_add(volume_points).unwrap_or(SUCCESS_POINTS);
+        // let total_tickets_sold: u32 = event.zones.iter().map(|z| z.tickets_sold).sum();
+        // let volume_points = (total_tickets_sold / 100) as u64;
+        // let total_points_earned = SUCCESS_POINTS.checked_add(volume_points).unwrap_or(SUCCESS_POINTS);
         
-        reputation.score = reputation.score.checked_add(total_points_earned).ok_or(CoreError::Overflow)?;
-        reputation.successful_events = reputation.successful_events.checked_add(1).ok_or(CoreError::Overflow)?;
-        reputation.total_events = reputation.total_events.checked_add(1).ok_or(CoreError::Overflow)?;
-        reputation.last_updated = current_time;
+        // reputation.score = reputation.score.checked_add(total_points_earned).ok_or(CoreError::Overflow)?;
+        // reputation.successful_events = reputation.successful_events.checked_add(1).ok_or(CoreError::Overflow)?;
+        // reputation.total_events = reputation.total_events.checked_add(1).ok_or(CoreError::Overflow)?;
+        // reputation.last_updated = current_time;
 
         emit!(EventClosed {
             event_record: event.key(),
@@ -186,16 +185,16 @@ pub mod mintpass_core {
         let event = &mut ctx.accounts.event_record;
         require!(event.is_active, CoreError::EventAlreadyClosed);
         
-        let reputation = &mut ctx.accounts.reputation;
+        // let reputation = &mut ctx.accounts.reputation;
         event.is_active = false;
         event.was_cancelled = true;
         event.closed_at = current_time;
         
         // Ensure saturating_sub and checked_add are consistent and we don't underflow
-        reputation.score = reputation.score.saturating_sub(CANCEL_PENALTY);
-        reputation.cancelled_events = reputation.cancelled_events.checked_add(1).ok_or(CoreError::Overflow)?;
-        reputation.total_events = reputation.total_events.checked_add(1).ok_or(CoreError::Overflow)?;
-        reputation.last_updated = current_time;
+        // reputation.score = reputation.score.saturating_sub(CANCEL_PENALTY);
+        // reputation.cancelled_events = reputation.cancelled_events.checked_add(1).ok_or(CoreError::Overflow)?;
+        // reputation.total_events = reputation.total_events.checked_add(1).ok_or(CoreError::Overflow)?;
+        // reputation.last_updated = current_time;
 
         emit!(EventClosed {
             event_record: event.key(),
@@ -981,13 +980,13 @@ pub struct FinishEvent<'info> {
         constraint = event_record.organizer == organizer.key() @ CoreError::Unauthorized
     )]
     pub event_record: Account<'info, EventRecord>,
-    #[account(
-        mut,
-        seeds = [b"reputation", organizer.key().as_ref()],
-        bump,
-        constraint = reputation.organizer == organizer.key() @ CoreError::Unauthorized
-    )]
-    pub reputation: Account<'info, ReputationProfile>,
+    // #[account(
+    //     mut,
+    //     seeds = [b"reputation", organizer.key().as_ref()],
+    //     bump,
+    //     constraint = reputation.organizer == organizer.key() @ CoreError::Unauthorized
+    // )]
+    // pub reputation: Account<'info, ReputationProfile>,
 }
 
 #[derive(Accounts)]
@@ -1006,13 +1005,13 @@ pub struct CancelEvent<'info> {
         constraint = event_record.organizer == organizer.key() @ CoreError::Unauthorized
     )]
     pub event_record: Account<'info, EventRecord>,
-    #[account(
-        mut,
-        seeds = [b"reputation", organizer.key().as_ref()],
-        bump,
-        constraint = reputation.organizer == organizer.key() @ CoreError::Unauthorized
-    )]
-    pub reputation: Account<'info, ReputationProfile>,
+    // #[account(
+    //     mut,
+    //     seeds = [b"reputation", organizer.key().as_ref()],
+    //     bump,
+    //     constraint = reputation.organizer == organizer.key() @ CoreError::Unauthorized
+    // )]
+    // pub reputation: Account<'info, ReputationProfile>,
 }
 
 #[derive(Accounts)]

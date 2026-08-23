@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, PropsWithChildren } from "react";
+import { usePrivy } from "@privy-io/react-auth";
 import { CreatedEvent } from "../features/organizer/CreateEvent";
 import { OrganizerProfile } from "../features/organizer/OrganizerProfileSetup";
 
@@ -51,6 +52,20 @@ export function MintpassProvider({ children }: PropsWithChildren) {
   const [collectionMint, setCollectionMint] = useState<string>('');
   const [ownedTickets, setOwnedTickets] = useState<OwnedTicket[]>([]);
   const [eventStats, setEventStats] = useState<Record<string, EventStats>>({});
+
+  const { authenticated, user } = usePrivy();
+
+  // Limpieza Automática: Si el usuario cierra sesión o cambia de cuenta,
+  // reiniciamos todo el estado de la memoria a sus valores iniciales.
+  useEffect(() => {
+    if (!authenticated) {
+      setCreatedEvents([]);
+      setOrganizerProfile(null);
+      setCollectionMint('');
+      setOwnedTickets([]);
+      setEventStats({});
+    }
+  }, [authenticated, user?.id]);
 
   useEffect(() => {
     // DB Fetching logic should ideally happen per-page or via SWR/React Query.

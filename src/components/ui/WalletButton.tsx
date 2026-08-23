@@ -112,7 +112,7 @@ export default function WalletButton({ className, style, theme = 'light', dropdo
               onClick={async () => { 
                 setShowDropdown(false); 
                 await logout(); 
-                router.push('/');
+                window.location.href = '/';
               }}
               style={{
                 width: '100%',

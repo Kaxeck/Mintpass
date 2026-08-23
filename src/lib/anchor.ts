@@ -10,6 +10,42 @@ export const MINTPASS_IDL: any = {
   address: process.env.NEXT_PUBLIC_EVENT_REGISTRY_PROGRAM_ID || "FTZot8vUVk4Ez7FTdakSqnNoEabysQbBW7GuAdr2EwFM",
   instructions: [
     {
+      name: "initializeReputation",
+      discriminator: [150, 240, 109, 53, 147, 42, 152, 162],
+      accounts: [
+        { name: "organizer", isMut: true, isSigner: true },
+        { name: "reputation", isMut: true, isSigner: false },
+        { name: "systemProgram", isMut: false, isSigner: false }
+      ],
+      args: []
+    },
+    {
+      name: "cancelEvent",
+      discriminator: [55, 143, 36, 45, 59, 241, 89, 119],
+      accounts: [
+        { name: "protocolConfig", isMut: false, isSigner: false },
+        { name: "authority", isMut: true, isSigner: true },
+        { name: "organizer", isMut: false, isSigner: false },
+        { name: "collectionMint", isMut: false, isSigner: false },
+        { name: "eventRecord", isMut: true, isSigner: false }
+        // { name: "reputation", isMut: true, isSigner: false } // Pausado temporalmente
+      ],
+      args: []
+    },
+    {
+      name: "finishEvent",
+      discriminator: [212, 237, 21, 119, 133, 119, 103, 57],
+      accounts: [
+        { name: "protocolConfig", isMut: false, isSigner: false },
+        { name: "authority", isMut: true, isSigner: true },
+        { name: "organizer", isMut: false, isSigner: false },
+        { name: "collectionMint", isMut: false, isSigner: false },
+        { name: "eventRecord", isMut: true, isSigner: false }
+        // { name: "reputation", isMut: true, isSigner: false } // Pausado temporalmente
+      ],
+      args: []
+    },
+    {
       name: "createEvent",
       discriminator: [49, 219, 29, 203, 22, 98, 100, 87],
       accounts: [
@@ -22,7 +58,7 @@ export const MINTPASS_IDL: any = {
       ],
       args: [
         { name: "name", type: "string" },
-        { name: "description", type: "string" },
+        // { name: "description", type: "string" }, // Movido solo a DB
         { name: "eventTimestamp", type: "i64" },
         { name: "venue", type: "string" },
         { name: "category", type: "string" },

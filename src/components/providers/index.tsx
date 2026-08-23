@@ -152,7 +152,7 @@ export function Providers({ children }: PropsWithChildren) {
         },
         embeddedWallets: {
           solana: {
-            createOnLogin: 'off',
+            createOnLogin: 'users-without-wallets',
           },
           ethereum: {
             createOnLogin: 'off',

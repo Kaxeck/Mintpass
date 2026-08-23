@@ -95,7 +95,7 @@ export async function buildSaveEventInstruction(
   // The arguments must match the IDL exact casing and types
   const args = {
     name: eventData.name,
-    description: eventData.description,
+    // description: "", // Guardado solo en DB para ahorrar rent en Solana
     eventTimestamp: new BN(new Date(`${eventData.date}T${eventData.time}`).getTime() / 1000), // convert to i64
     venue: eventData.venue,
     category: eventData.category,
@@ -323,10 +323,10 @@ export async function buildCancelEventInstruction(
 
   const [eventRecordPda] = await deriveEventPDA(organizerAddress, collectionMint);
 
-  const reputationPda = (await getProgramDerivedAddress({
-    programAddress: EVENT_REGISTRY_PROGRAM_ID,
-    seeds: [Buffer.from("reputation"), encoder.encode(organizerAddress)]
-  }))[0];
+  // const reputationPda = (await getProgramDerivedAddress({
+  //   programAddress: EVENT_REGISTRY_PROGRAM_ID,
+  //   seeds: [Buffer.from("reputation"), encoder.encode(organizerAddress)]
+  // }))[0];
 
   const payload = coder.instruction.encode("cancelEvent", {});
 
@@ -338,7 +338,7 @@ export async function buildCancelEventInstruction(
       { pubkey: organizerAddress as any, isSigner: false, isWritable: false },
       { pubkey: collectionMint as any, isSigner: false, isWritable: false },
       { pubkey: eventRecordPda as any, isSigner: false, isWritable: true },
-      { pubkey: reputationPda as any, isSigner: false, isWritable: true },
+      // { pubkey: reputationPda as any, isSigner: false, isWritable: true },
     ],
     data: new Uint8Array(payload),
   };
@@ -367,10 +367,10 @@ export async function buildFinishEventInstruction(
 
   const [eventRecordPda] = await deriveEventPDA(organizerAddress, collectionMint);
 
-  const reputationPda = (await getProgramDerivedAddress({
-    programAddress: EVENT_REGISTRY_PROGRAM_ID,
-    seeds: [Buffer.from("reputation"), encoder.encode(organizerAddress)]
-  }))[0];
+  // const reputationPda = (await getProgramDerivedAddress({
+  //   programAddress: EVENT_REGISTRY_PROGRAM_ID,
+  //   seeds: [Buffer.from("reputation"), encoder.encode(organizerAddress)]
+  // }))[0];
 
   const payload = coder.instruction.encode("finishEventSuccessfully", {});
 
@@ -382,10 +382,33 @@ export async function buildFinishEventInstruction(
       { pubkey: organizerAddress as any, isSigner: false, isWritable: false },
       { pubkey: collectionMint as any, isSigner: false, isWritable: false },
       { pubkey: eventRecordPda as any, isSigner: false, isWritable: true },
-      { pubkey: reputationPda as any, isSigner: false, isWritable: true },
+      // { pubkey: reputationPda as any, isSigner: false, isWritable: true },
     ],
     data: new Uint8Array(payload),
   };
 
   return instruction;
+}
+export async function buildInitReputationInstruction(
+  organizerAddress: Address
+): Promise<UmiInstruction> {
+  const encoder = getAddressEncoder();
+  const coder = new BorshCoder(MINTPASS_IDL);
+
+  const reputationPda = (await getProgramDerivedAddress({
+    programAddress: EVENT_REGISTRY_PROGRAM_ID,
+    seeds: [Buffer.from("reputation"), encoder.encode(organizerAddress)]
+  }))[0];
+
+  const payload = coder.instruction.encode("initializeReputation", {});
+
+  return {
+    programId: EVENT_REGISTRY_PROGRAM_ID as any,
+    keys: [
+      { pubkey: organizerAddress as any, isSigner: true, isWritable: true },
+      { pubkey: reputationPda as any, isSigner: false, isWritable: true },
+      { pubkey: "11111111111111111111111111111111" as any, isSigner: false, isWritable: false },
+    ],
+    data: new Uint8Array(payload),
+  };
 }

@@ -149,6 +149,7 @@ export default function EventDetails({
   };
 
   const handleCopy = () => {
+    navigator.clipboard.writeText(`${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/purchase/${event.id}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

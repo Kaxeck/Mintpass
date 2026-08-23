@@ -26,7 +26,8 @@ export default function OrganizerDashboard({
   onGoToMyTickets,
   onGoToExplore,
   organizerProfile,
-  onProfileComplete
+  onProfileComplete,
+  onEventCreated
 }: {
   createdEvents: CreatedEvent[];
   eventStats?: Record<string, { sold: number; checked: number }>;
@@ -37,6 +38,7 @@ export default function OrganizerDashboard({
   onGoToExplore?: () => void;
   organizerProfile?: OrganizerProfile | null;
   onProfileComplete?: (profile: OrganizerProfile) => void;
+  onEventCreated?: (event: CreatedEvent) => void;
 }) {
   const { walletAddress: walletAddressStr, authenticated, user, ready, getAccessToken } = useActiveSolanaWallet();
   const { setCreatedEvents } = useMintpassStore();
@@ -610,7 +612,11 @@ export default function OrganizerDashboard({
             </>
           ) : activeSection === 'crear_evento' ? (
             <div style={{ margin: '-32px -40px', height: 'calc(100vh - 64px)', overflow: 'auto' }}>
-              <CreateEvent onBack={() => setActiveSection('eventos')} onSuccess={(ev) => { setCreatedEvents(prev => [ev, ...prev]); setActiveSection('eventos'); }} />
+              <CreateEvent onBack={() => setActiveSection('eventos')} onSuccess={(ev) => { 
+                if (onEventCreated) onEventCreated(ev);
+                else setCreatedEvents(prev => [ev, ...prev]); 
+                setActiveSection('eventos'); 
+              }} />
             </div>
           ) : activeSection === 'checkin' ? (
             <div style={{ margin: '-32px -40px', height: 'calc(100vh - 64px)', overflow: 'auto', background: '#F7F8F7' }}>

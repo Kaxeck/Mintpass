@@ -108,13 +108,27 @@ export function useActiveSolanaWallet(): ActiveWalletState {
       (fallbackLinkedWallet as any)?.address ||
       null;
 
-    const isExternal = Boolean((externalLinkedWallet as any)?.address || externalStandardWallet?.address);
-    const isEmbedded = !isExternal && Boolean((embeddedLinkedWallet as any)?.address || embeddedStandardWallet?.address);
-    
-    const clientType =
-      (externalLinkedWallet as any)?.walletClientType ||
-      externalStandardWallet?.standardWallet?.name ||
-      (isEmbedded ? 'privy' : null);
+    let isExternal = false;
+    let isEmbedded = false;
+    let clientType = null;
+
+    if (chosenAddress === (externalLinkedWallet as any)?.address) {
+      isExternal = true;
+      clientType = (externalLinkedWallet as any)?.walletClientType || 'external';
+    } else if (chosenAddress === (embeddedLinkedWallet as any)?.address) {
+      isEmbedded = true;
+      clientType = 'privy';
+    } else if (chosenAddress === externalStandardWallet?.address) {
+      isExternal = true;
+      clientType = externalStandardWallet?.standardWallet?.name || 'external';
+    } else if (chosenAddress === embeddedStandardWallet?.address) {
+      isEmbedded = true;
+      clientType = 'privy';
+    } else if (chosenAddress) {
+      // Fallback
+      isExternal = false;
+      clientType = 'unknown';
+    }
 
     return {
       walletAddress: chosenAddress,

@@ -3,10 +3,12 @@ import { useState, useEffect } from "react";
 import * as Icons from "lucide-react";
 import QRCode from "react-qr-code";
 import { useUmi } from "../../components/providers";
+import { publicKey } from "@metaplex-foundation/umi";
+import { fetchAsset } from "@metaplex-foundation/mpl-core";
 import { mutateToPoap } from "../../lib/metaplex";
 import AlertModal, { AlertModalProps } from "../../components/ui/AlertModal";
-import "../../styles/buyer.css";
-import "./MyTicket.css";
+
+
 
 import { LandingNavBar } from "../../components/layout/LandingNavBar";
 import { LandingFooter } from "../../components/layout/LandingFooter";
@@ -21,6 +23,7 @@ export default function MyTicket({ event, ticketMint, qrSecret, onBack }: { even
   const [cryptoPayload, setCryptoPayload] = useState("");
   const [isQrActive, setIsQrActive] = useState(false);
   const [timeToUnlock, setTimeToUnlock] = useState("");
+  const [showQr, setShowQr] = useState(false);
   
   const umi = useUmi();
   const [isMutating, setIsMutating] = useState(false);
@@ -40,74 +43,61 @@ export default function MyTicket({ event, ticketMint, qrSecret, onBack }: { even
   
   // Validamos si este boleto ya fue pasado por el escáner del Staff
   const isCheckedIn = (() => {
+    if (event?.ticketStatus === 'CHECKED_IN') return true;
     try {
       const checks = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('mintpass_demo_checkins') || '[]') : [];
       return checks.includes(ticketMint);
     } catch { return false; }
   })();
 
-  const [poapClaimed, setPoapClaimed] = useState(() => {
-    try {
-      const poaps = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('mintpass_demo_poaps') || '[]') : [];
-      return poaps.includes(ticketMint);
-    } catch { return false; }
-  });
+  const poapClaimed = isCheckedIn; // El POAP es automático en esta versión
+
+  const [fallbackFolio, setFallbackFolio] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!event?.ticketNumber && ticketMint) {
+      const getOnChainName = async () => {
+        if (event?.ticketStatus === 'PENDING_ON_CHAIN') return; // No intentar si aún está pendiente
+        try {
+          const asset = await fetchAsset(umi, publicKey(ticketMint));
+          const match = asset.name.match(/#(\d+)$/);
+          if (match) {
+            setFallbackFolio(`#${parseInt(match[1], 10).toString().padStart(4, '0')}`);
+          }
+        } catch (e) {
+          // Ignorar silenciosamente si no se encuentra (suele pasar si el RPC va lento)
+        }
+      };
+      getOnChainName();
+    }
+  }, [event?.ticketNumber, ticketMint, umi]);
+
+  const parsedZones = event?.zones || [];
+  const zoneName = parsedZones[event?.ticketZoneIndex || 0]?.name || "General";
+  const folioStr = event?.ticketNumber 
+    ? `#${event.ticketNumber.toString().padStart(4, '0')}` 
+    : (fallbackFolio ? fallbackFolio : (ticketMint ? `#${ticketMint.substring(0, 5).toUpperCase()}` : "#0001"));
 
   const ticketData = {
     name: event?.name || "Evento Desconocido",
-    date: `${event?.date || ''} · ${event?.time || ''} · ${event?.venue || ''}`,
-    zone: "General",
-    folio: "#0001",
+    date: `${event?.date || ''} · ${event?.time || ''}${event?.venue && event.venue !== event?.name ? ` · ${event.venue}` : ''}`,
+    zone: zoneName,
+    folio: folioStr,
     gate: undefined,
-    row: undefined,
-    seat: undefined,
+    row: event?.ticketRow,
+    seat: event?.ticketSeat,
     isSoulbound: event?.isSoulbound || false,
     allowResale: event?.allowResale !== undefined ? event.allowResale : true,
     resaleCapLimit: event?.resaleCapLimit,
     allowRefunds: event?.allowRefunds || false,
     refundTimeLimit: event?.refundTimeLimit,
-    organizer: "Organizador Independiente",
-    reputation: 100,
-    eventsCompleted: 1
+    organizer: event?.organizerName || "Organizador Independiente",
+    reputation: event?.organizerReputation || 100,
+    eventsCompleted: event?.organizerEvents || 1,
+    buyerWallet: event?.buyerWallet || null
   };
 
-  const handleClaimPoap = () => {
-    showAlert(
-      "Confirmar Evolución a POAP",
-      "Evolucionar tu ticket a un POAP coleccionable requiere una tarifa de red de Solana (Gas Fee de 0.002 SOL aprox).\n\n¿Deseas firmar la transacción y continuar?",
-      "info",
-      "Firmar y Evolucionar",
-      async () => {
-        setIsMutating(true);
-        try {
-          await mutateToPoap(umi, {
-            mintAddress: ticketMint,
-            collectionMint: event?.collectionMint || "",
-            eventData: {
-              name: ticketData.name,
-              date: ticketData.date,
-              venue: ticketData.date,
-              ticketNumber: 1,
-              totalAttendees: 100,
-            },
-            poapImageUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&auto=format&fit=crop"
-          });
-          
-          const claimed = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('mintpass_demo_poaps') || '[]') : [];
-          claimed.push(ticketMint);
-          localStorage.setItem('mintpass_demo_poaps', JSON.stringify(claimed));
-          setPoapClaimed(true);
-
-          setTimeout(() => {
-            showAlert("¡POAP Reclamado!", "Tu ticket ha mutado exitosamente en la blockchain y ahora es un coleccionable permanente e inmutable.", "success");
-          }, 300);
-        } catch(e: any) {
-          showAlert("Error Transaccional", "Fallo al reclamar POAP en devnet:\n" + e.message, "error");
-        }
-        setIsMutating(false);
-      }
-    );
-  };
+  // Mutation logic has been moved to the server side (automatically triggered on check-in)
 
   const handleRefund = () => {
     showAlert(
@@ -183,11 +173,32 @@ export default function MyTicket({ event, ticketMint, qrSecret, onBack }: { even
   }, [event?.date, event?.time, ticketMint, qrSecret]);
 
   const handleShare = () => {
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1600);
+    if (typeof window !== 'undefined') {
+      // Compartimos el enlace público del evento para invitar amigos, no el boleto privado
+      const eventUrl = `${window.location.origin}/purchase/${event?.id}`;
+      navigator.clipboard.writeText(eventUrl).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1600);
+      }).catch(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1600);
+      });
+    }
+  };
+
+  const handleAddToWallet = () => {
+    showAlert("Agregar a Wallet", "Esta función generará un archivo .pkpass para Apple Wallet o Google Wallet en la versión final.", "info");
   };
 
   const shortMint = ticketMint.length > 10 ? `${ticketMint.slice(0,4)}…${ticketMint.slice(-4)}` : ticketMint;
+
+  const eventImage = event?.coverImage || 'https://images.unsplash.com/photo-1541532713592-79a0317b6b77?q=80&w=400';
+  
+  const ticketImage = poapClaimed 
+    ? `https://api.dicebear.com/7.x/shapes/svg?seed=${ticketMint}`
+    : (event?.ticketImage || eventImage);
+
+  const showQrSection = showQr || isCheckedIn || poapClaimed || event?.status === 'CANCELLED' || event?.ticketStatus === 'CANCELLED';
 
   return (
     <div className="lp-container">
@@ -195,67 +206,122 @@ export default function MyTicket({ event, ticketMint, qrSecret, onBack }: { even
       
       <div className="lp-content">
         <div className="mt-container">
-          <button 
-            onClick={onBack} 
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', border: 'none', color: '#5F5E5A', fontSize: '13px', fontWeight: 500, cursor: 'pointer', padding: 0, marginBottom: '22px' }}
-            onMouseOver={e => e.currentTarget.style.color = '#1E1E1E'} 
-            onMouseOut={e => e.currentTarget.style.color = '#5F5E5A'}
-          >
+          <button onClick={onBack} className="mt-back-btn">
             <Icons.ArrowLeft size={16} /> Volver a Mis boletos
           </button>
 
-          <div className="mt-card">
-            <div className="mt-content">
-              <div className="mt-hero">
-                {event?.status === 'CANCELLED' ? (
-                   <span className="mt-badge-status" style={{ background: '#FEE2E2', color: '#991B1B', border: '1px solid #FCA5A5' }}>Cancelado</span>
+          <div className="mt-card" style={{ overflow: 'hidden' }}>
+            <div 
+              style={{ 
+                height: '220px', 
+                backgroundImage: `url('${eventImage}')`, 
+                backgroundSize: 'cover', 
+                backgroundPosition: 'center',
+                position: 'relative'
+              }}
+            >
+              <div style={{ position: 'absolute', top: '16px', right: '16px' }}>
+                {event?.status === 'CANCELLED' || event?.ticketStatus === 'CANCELLED' ? (
+                   <span className="mt-badge-status cancelled" style={{ position: 'static' }}>Cancelado</span>
+                ) : event?.ticketStatus === 'PENDING_ON_CHAIN' ? (
+                   <span className="mt-badge-status" style={{ background: '#FEF3C7', color: '#92400E', position: 'static' }}>Pendiente On-Chain</span>
                 ) : poapClaimed ? (
-                   <span className="mt-badge-status poap">Coleccionable POAP</span>
-                ) : isCheckedIn ? (
-                   <span className="mt-badge-status used">Utilizado</span>
+                   <span className="mt-badge-status poap" style={{ position: 'static' }}>Coleccionable POAP</span>
                 ) : (
-                   <span className="mt-badge-status">Activo</span>
+                   <span className="mt-badge-status" style={{ position: 'static' }}>Activo</span>
                 )}
+              </div>
+            </div>
 
-                <div className={`mt-qr-ring ${event?.status === 'CANCELLED' || isCheckedIn ? 'used' : ''} ${poapClaimed ? 'poap' : ''} ${!isQrActive && !poapClaimed && !isCheckedIn && event?.status !== 'CANCELLED' ? 'locked' : ''}`}>
-                  <div className="mt-qr-box">
-                    {event?.status === 'CANCELLED' ? (
-                      <div style={{display:'flex', flexDirection:'column', alignItems:'center', color:'#DC2626'}}>
-                        <Icons.XCircle size={48} strokeWidth={1.5} />
-                        <span style={{fontSize:'12px', marginTop:'8px', fontWeight:600, color:'#991B1B', textAlign: 'center'}}>Evento<br/>Cancelado</span>
-                      </div>
-                    ) : poapClaimed ? (
-                      <Icons.Medal size={64} color="#F59E0B" />
-                    ) : isCheckedIn ? (
-                      <button onClick={handleClaimPoap} disabled={isMutating} style={{background:'transparent', border:'none', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', gap:'8px'}}>
-                        {isMutating ? <Icons.Loader size={32} color="#14F195" className="animate-spin" /> : <Icons.Gift size={42} color="#14F195" />}
-                        <span style={{fontSize: '10px', color: '#1E1E1E', fontWeight: 600}}>Reclamar POAP</span>
-                      </button>
-                    ) : !isQrActive ? (
-                      <div style={{display:'flex', flexDirection:'column', alignItems:'center', color:'#A1A1AA'}}>
-                        <Icons.Lock size={48} strokeWidth={1.5} />
-                        <span style={{fontSize:'12px', marginTop:'8px', fontWeight:500, color:'#5F5E5A'}}>Bloqueado temporalmente</span>
-                      </div>
-                    ) : (
-                      <QRCode value={cryptoPayload} size={120} bgColor="#ffffff" fgColor="#111111" />
-                    )}
-                    {!isCheckedIn && !poapClaimed && isQrActive && event?.status !== 'CANCELLED' && <div className={`mt-flash ${flash ? 'show' : ''}`}></div>}
+            <div className="mt-content" style={{ paddingTop: '24px' }}>
+              <div className="mt-hero" style={{ marginTop: 0, overflow: 'hidden' }}>
+                
+                {/* QR Section (Underneath the ticket sheet) */}
+                <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', height: '100%', justifyContent: 'center' }}>
+                  <div className={`mt-qr-ring ${event?.status === 'CANCELLED' || event?.ticketStatus === 'CANCELLED' || isCheckedIn ? 'used' : ''} ${poapClaimed ? 'poap' : ''} ${!isQrActive && !poapClaimed && !isCheckedIn && event?.status !== 'CANCELLED' && event?.ticketStatus !== 'CANCELLED' ? 'locked' : ''}`}>
+                    <div className="mt-qr-box">
+                      {event?.status === 'CANCELLED' || event?.ticketStatus === 'CANCELLED' ? (
+                        <div className="mt-qr-state mt-qr-cancelled">
+                          <Icons.XCircle size={48} strokeWidth={1.5} />
+                          <span>Boleto<br/>Cancelado</span>
+                        </div>
+                      ) : event?.ticketStatus === 'PENDING_ON_CHAIN' ? (
+                        <div className="mt-qr-state mt-qr-locked">
+                          <Icons.Clock size={48} strokeWidth={1.5} />
+                          <span>Confirmando<br/>en Solana...</span>
+                        </div>
+                      ) : poapClaimed ? (
+                        <>
+                          <Icons.Medal size={64} color="#F59E0B" />
+                          <span>¡Coleccionable POAP!</span>
+                        </>
+                      ) : !isQrActive ? (
+                        <div className="mt-qr-state mt-qr-locked">
+                          <Icons.Lock size={48} strokeWidth={1.5} />
+                          <span>Bloqueado temporalmente</span>
+                        </div>
+                      ) : (
+                        <QRCode value={cryptoPayload} size={120} bgColor="#ffffff" fgColor="#111111" />
+                      )}
+                      {!isCheckedIn && !poapClaimed && isQrActive && event?.status !== 'CANCELLED' && <div className={`mt-flash ${flash ? 'show' : ''}`}></div>}
+                    </div>
                   </div>
+
+                  {!isCheckedIn && !poapClaimed && event?.status !== 'CANCELLED' && (
+                    <>
+                      {isQrActive ? (
+                        <p className="mt-timer">Se renueva en <span>{secs}s</span></p>
+                      ) : (
+                        <p className="mt-timer mt-timer-locked">Se revelará en {timeToUnlock}</p>
+                      )}
+                      <p className="mt-warning">Imposible de capturar en pantalla</p>
+                    </>
+                  )}
+                  {poapClaimed && <p className="mt-warning">Registrado permanentemente off-chain</p>}
                 </div>
 
-                {!isCheckedIn && !poapClaimed && event?.status !== 'CANCELLED' && (
-                  <>
-                    {isQrActive ? (
-                      <p className="mt-timer">Se renueva en <span>{secs}s</span></p>
-                    ) : (
-                      <p className="mt-timer" style={{color: '#B45309', background: '#FEF3C7', padding: '4px 8px', borderRadius: '4px'}}>
-                        Se revelará en {timeToUnlock}
-                      </p>
-                    )}
-                    <p className="mt-warning">Imposible de capturar en pantalla o reenviar</p>
-                  </>
-                )}
-                {poapClaimed && <p className="mt-warning">Registrado permanentemente off-chain</p>}
+                {/* Animated Ticket Image Sheet (On top) */}
+                <div 
+                  className={`mt-ticket-sheet ${showQrSection ? 'peeled' : ''}`}
+                  style={{ backgroundImage: `url('${ticketImage}')` }}
+                >
+                  <div className="mt-ticket-sheet-overlay"></div>
+                </div>
+
+                {/* Action Button (Always on top) */}
+                <div style={{ position: 'absolute', bottom: '24px', left: '24px', right: '24px', zIndex: 20 }}>
+                  {!poapClaimed && !isCheckedIn && event?.status !== 'CANCELLED' && event?.ticketStatus !== 'CANCELLED' && (
+                    <button 
+                      onClick={() => {
+                        if (event?.ticketStatus === 'PENDING_ON_CHAIN') {
+                          showAlert("Confirmando en Solana", "Tu boleto está siendo validado en la blockchain. El código QR estará disponible en unos instantes una vez que la red confirme la transacción.", "info");
+                          return;
+                        }
+                        setShowQr(!showQr);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '16px',
+                        background: showQr ? '#F4F4F5' : '#14F195',
+                        color: showQr ? '#1E1E1E' : '#000000',
+                        border: 'none',
+                        borderRadius: '12px',
+                        fontSize: '15px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        transition: 'all 0.2s',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                      }}
+                    >
+                      {showQr ? <Icons.EyeOff size={18} /> : <Icons.QrCode size={18} />}
+                      {showQr ? 'Ocultar código de acceso' : 'Mostrar código de acceso'}
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="mt-details">
@@ -285,7 +351,11 @@ export default function MyTicket({ event, ticketMint, qrSecret, onBack }: { even
                   </div>
                   <div className="mt-info-box">
                     <p className="mt-info-label">Wallet</p>
-                    <p className="mt-info-value">{shortMint}</p>
+                    <p className="mt-info-value">
+                      {ticketData.buyerWallet 
+                        ? (ticketData.buyerWallet.length > 10 ? `${ticketData.buyerWallet.slice(0,4)}…${ticketData.buyerWallet.slice(-4)}` : ticketData.buyerWallet) 
+                        : shortMint}
+                    </p>
                   </div>
                 </div>
 
@@ -293,12 +363,12 @@ export default function MyTicket({ event, ticketMint, qrSecret, onBack }: { even
                   <div className="mt-verify-icon">✓</div>
                   <div>
                     <p className="mt-verify-title">Verificado on-chain en Solana</p>
-                    <p className="mt-verify-link">Ver estado en el explorador →</p>
+                    <a href={`https://explorer.solana.com/address/${ticketMint}?cluster=devnet`} target="_blank" rel="noopener noreferrer" className="mt-verify-link" style={{ textDecoration: 'none' }}>Ver estado en el explorador →</a>
                   </div>
                 </div>
 
                 <div className="mt-actions-row">
-                  <button className="mt-btn mt-btn-primary">Agregar a wallet</button>
+                  <button className="mt-btn mt-btn-primary" onClick={handleAddToWallet}>Agregar a wallet</button>
                   <button className="mt-btn mt-btn-secondary" onClick={handleShare}>
                     {copied ? '¡Copiado!' : 'Compartir'}
                   </button>

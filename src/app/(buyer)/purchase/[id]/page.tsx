@@ -1,7 +1,5 @@
 'use client';
 
-import "@/styles/buyer.css";
-import "@/features/buyer/BuyerPurchase.css";
 import { Country, State } from 'country-state-city';
 import dynamic from 'next/dynamic';
 const BuyerPurchase = dynamic(() => import("@/features/buyer/BuyerPurchase"), { ssr: false });
@@ -10,7 +8,7 @@ import { useActiveSolanaWallet } from "@/hooks/useActiveSolanaWallet";
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getEventById } from "@/app/actions/events";
-import { getUserTickets, mintTicketInDb } from "@/app/actions/tickets";
+import { getUserTickets, mintTicketInDb, deleteTicketFromDb } from "@/app/actions/tickets";
 
 export default function BuyerPurchasePage() {
   const router = useRouter();
@@ -101,28 +99,37 @@ export default function BuyerPurchasePage() {
       event={eventModel} 
       collectionMint={collectionMint}
       ownedTicketsCount={ownedTicketsCount}
-      onSuccessMint={async (mintInfos, qty) => {
+      onBeforeMint={async (mintInfos, eventPda) => {
           const mintsArray = Array.isArray(mintInfos) ? mintInfos : [mintInfos];
           
-          // Save to DB
+          // Save to DB before signing
           for (const mintInfo of mintsArray) {
             await mintTicketInDb({
               mintAddress: mintInfo,
-              eventAddress: eventModel.id,
+              eventAddress: eventPda, // <--- Usamos el PDA de Solana, que es lo que espera la BD
               ownerPubkey: currentWalletPk,
               originalPrice: eventModel.price,
               pricePaid: eventModel.price
             });
           }
-
-          if (mintsArray.length > 0) {
-            router.push(`/ticket/${mintsArray[0]}?eventId=${eventModel.id}`);
-          } else {
-            router.push('/tickets');
+      }}
+      onCancelMint={async (mintsArray: string[]) => {
+          for (const mintInfo of mintsArray) {
+            await deleteTicketFromDb(mintInfo);
           }
       }}
+      onSuccessMint={async (mintInfos, qty) => {
+          // Ya no guardamos en DB aquí, eso lo hace onBeforeMint.
+          // Y Helius webhook actualizará el estado a VALID.
+      }}
       onBack={() => router.back()} 
-      onGoToMyTicket={() => router.push('/tickets')} 
+      onGoToMyTicket={(mint) => {
+        if (mint) {
+          router.push(`/ticket/${mint}?eventId=${eventModel.id}`);
+        } else {
+          router.push('/tickets');
+        }
+      }} 
     />
   );
 }

@@ -33,7 +33,7 @@ function getAppMasterSeed(): Uint8Array {
   return new Uint8Array(bytes);
 }
 
-function getMasterSigner(umi: Umi) {
+export function getMasterSigner(umi: Umi) {
   const masterKeypair = umi.eddsa.createKeypairFromSeed(getAppMasterSeed());
   return createSignerFromKeypair(umi, masterKeypair);
 }
@@ -78,10 +78,12 @@ export async function createEventCollectionBuilder(
     description: string;
     imageUrl: string;
     organizerWallet: string;
+    collectionSigner: any;
+    updateAuthority?: string;
   }
 ): Promise<{ builder: any; collectionMint: string }> {
-  const { createNft } = await import("@metaplex-foundation/mpl-token-metadata");
-  const { generateSigner, percentAmount } = await import("@metaplex-foundation/umi");
+  const { createCollection } = await import("@metaplex-foundation/mpl-core");
+  const { publicKey } = await import("@metaplex-foundation/umi");
 
   const metadataUri = await uploadMetadata({
     name: eventData.name,
@@ -93,17 +95,14 @@ export async function createEventCollectionBuilder(
     ],
   });
 
-  const collectionSigner = generateSigner(umi);
-
-  const builder = createNft(umi, {
-    mint: collectionSigner,
+  const builder = createCollection(umi, {
+    collection: eventData.collectionSigner,
     name: eventData.name,
     uri: metadataUri,
-    sellerFeeBasisPoints: percentAmount(0),
-    isCollection: true,
+    updateAuthority: eventData.updateAuthority ? publicKey(eventData.updateAuthority) : undefined,
   });
 
-  return { builder, collectionMint: collectionSigner.publicKey.toString() };
+  return { builder, collectionMint: eventData.collectionSigner.publicKey.toString() };
 }
 
 export async function createEventCollection(
@@ -113,6 +112,7 @@ export async function createEventCollection(
     description: string;
     imageUrl: string;
     organizerWallet: string;
+    collectionSigner: any;
   }
 ): Promise<string> {
   const { builder, collectionMint } = await createEventCollectionBuilder(umi, eventData);
@@ -120,87 +120,6 @@ export async function createEventCollection(
   return collectionMint;
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// GENERATE TICKET INSTRUCTIONS (via Metaplex Token Metadata / SPL Token)
-// The on-chain program expects ticket_mint owned by SPL Token program
-// (TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA), NOT Metaplex Core.
-// ═══════════════════════════════════════════════════════════════════
-export async function mintTicket(umi: Umi, params: {
-  collectionMint: string;
-  buyerAddress: Address;
-  priceSol: number;
-  qty: number;
-  eventData: { name: string; date: string; venue: string; ticketNumber: number; imageUrl: string };
-  escrowStatePda: Address;
-}): Promise<{ txBuilder: any; mintSigner: any }[]> {
-  const { createNft } = await import("@metaplex-foundation/mpl-token-metadata");
-  const { publicKey, transactionBuilder, generateSigner } = await import("@metaplex-foundation/umi");
-
-  const metadataUri = await uploadMetadata({
-    name: `${params.eventData.name} Ticket`,
-    description: `Ticket de entrada oficial para ${params.eventData.name}`,
-    image: params.eventData.imageUrl,
-    attributes: [
-      { trait_type: "Fecha", value: params.eventData.date },
-      { trait_type: "Lugar", value: params.eventData.venue }
-    ],
-  });
-
-  const infos = [];
-
-  for (let i = 0; i < params.qty; i++) {
-    const mintSigner = generateSigner(umi);
-    const ticketName = `${params.eventData.name} #${params.eventData.ticketNumber + i}`;
-
-    const { createMint, setAuthority, AuthorityType } = await import("@metaplex-foundation/mpl-toolbox");
-    const { createMetadataAccountV3 } = await import("@metaplex-foundation/mpl-token-metadata");
-    const { some } = await import("@metaplex-foundation/umi");
-
-    const builder = transactionBuilder()
-      // 1. Crear el Mint vacío (sin supply), con autoridad temporal del comprador
-      .add(createMint(umi, {
-        mint: mintSigner,
-        decimals: 0,
-        mintAuthority: umi.identity.publicKey,
-        freezeAuthority: umi.identity.publicKey,
-      }))
-      // 2. Crear la cuenta de Metadata (requiere firma de la autoridad del Mint temporal)
-      .add(createMetadataAccountV3(umi, {
-        mint: mintSigner.publicKey,
-        mintAuthority: umi.identity,
-        updateAuthority: umi.identity,
-        data: {
-          name: ticketName,
-          symbol: "MTP",
-          uri: metadataUri,
-          sellerFeeBasisPoints: 0,
-          creators: null,
-          collection: some({ key: publicKey(params.collectionMint), verified: false }),
-          uses: null
-        },
-        isMutable: true,
-        collectionDetails: null
-      }))
-      // 3. Transferir el MintAuthority al PDA de EscrowState para que el contrato Rust pueda acuñar
-      .add(setAuthority(umi, {
-        owned: mintSigner.publicKey,
-        owner: umi.identity,
-        authorityType: AuthorityType.MintTokens,
-        newAuthority: params.escrowStatePda
-      }))
-      // 4. Transferir el FreezeAuthority al PDA de EscrowState (requerido por contrato)
-      .add(setAuthority(umi, {
-        owned: mintSigner.publicKey,
-        owner: umi.identity,
-        authorityType: AuthorityType.FreezeAccount,
-        newAuthority: params.escrowStatePda
-      }));
-
-    infos.push({ txBuilder: builder, mintSigner });
-  }
-
-  return infos;
-}
 
 // ═══════════════════════════════════════════════════════════════════
 // BUILD ESCROW TRANSFER INSTRUCTION (via @solana/kit)
@@ -248,6 +167,43 @@ export async function mutateToPoap(
     asset: coreAsset,
     collection: coreCollection,
     name: poapName,
+    uri: newMetadataUri,
+    authority: appMasterSigner,
+  }).sendAndConfirm(umi);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// INITIALIZE TICKET (via UMI / MPL Core)
+// ═══════════════════════════════════════════════════════════════════
+export async function updateTicketMetadata(
+  umi: Umi,
+  params: {
+    mintAddress: string;
+    collectionMint: string;
+    eventData: {
+      name: string;
+      description: string;
+    };
+    ticketImageUrl: string;
+  }
+): Promise<void> {
+  const newMetadataUri = await uploadMetadata({
+    name: params.eventData.name,
+    description: params.eventData.description,
+    image: params.ticketImageUrl,
+    attributes: [
+      { trait_type: "Tipo", value: "Boleto Digital" },
+    ],
+  });
+
+  const coreAsset = await fetchAsset(umi, publicKey(params.mintAddress));
+  const coreCollection = await fetchCollection(umi, publicKey(params.collectionMint));
+  const appMasterSigner = getMasterSigner(umi);
+
+  await update(umi, {
+    asset: coreAsset,
+    collection: coreCollection,
+    name: params.eventData.name,
     uri: newMetadataUri,
     authority: appMasterSigner,
   }).sendAndConfirm(umi);

@@ -1,5 +1,6 @@
 export interface EventModel {
   id: string | number;
+  address?: string;
   icon: string;
   color: string;
   bg: string;

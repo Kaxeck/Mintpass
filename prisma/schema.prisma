@@ -137,6 +137,7 @@ model Ticket {
   zoneIndex           Int
   row                 String?
   seat                String?
+  ticketNumber        Int?
   
   originalPrice       Float
   pricePaid           Float

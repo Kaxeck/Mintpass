@@ -1,9 +1,10 @@
 'use client';
 
 import { useActiveSolanaWallet } from "@/hooks/useActiveSolanaWallet";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Wallet, LogOut, CheckCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { Connection, PublicKey } from "@solana/web3.js";
 
 interface WalletButtonProps {
   className?: string;
@@ -15,7 +16,24 @@ interface WalletButtonProps {
 export default function WalletButton({ className, style, theme = 'light', dropdownPosition = 'bottom' }: WalletButtonProps) {
   const { walletAddress, isExternal, walletClientType, login, logout, authenticated, ready, user } = useActiveSolanaWallet();
   const [showDropdown, setShowDropdown] = useState(false);
+  const [balance, setBalance] = useState<number | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    if (!walletAddress || !showDropdown) return;
+    
+    const fetchBalance = async () => {
+      try {
+        const connection = new Connection(process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com");
+        const lamports = await connection.getBalance(new PublicKey(walletAddress));
+        setBalance(lamports / 1e9);
+      } catch (e) {
+        console.error("Error obteniendo balance:", e);
+      }
+    };
+    
+    fetchBalance();
+  }, [walletAddress, showDropdown]);
 
   let displayValue = 'Conectado';
   if (user) {
@@ -91,19 +109,52 @@ export default function WalletButton({ className, style, theme = 'light', dropdo
                   <span style={{ fontSize: 11, fontWeight: 600, color: isDark ? '#9B9990' : '#73726C', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     {isExternal ? (walletClientType ? walletClientType.toUpperCase() : 'WALLET EXTERNA') : 'WALLET PRIVY'}
                   </span>
-                  <span style={{
-                    fontSize: 10,
-                    fontWeight: 600,
-                    padding: '2px 6px',
-                    borderRadius: 6,
-                    background: isExternal ? 'rgba(20, 241, 149, 0.15)' : 'rgba(255, 255, 255, 0.1)',
-                    color: isExternal ? '#14F195' : (isDark ? '#D3D1C7' : '#5C5B56')
-                  }}>
-                    {isExternal ? 'Conectada' : 'Embebida'}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {balance !== null && (
+                      <span style={{ fontSize: 10, fontWeight: 600, color: '#14F195' }}>
+                        {balance.toFixed(2)} SOL
+                      </span>
+                    )}
+                    <span style={{
+                      fontSize: 10,
+                      fontWeight: 600,
+                      padding: '2px 6px',
+                      borderRadius: 6,
+                      background: isExternal ? 'rgba(20, 241, 149, 0.15)' : 'rgba(255, 255, 255, 0.1)',
+                      color: isExternal ? '#14F195' : (isDark ? '#D3D1C7' : '#5C5B56')
+                    }}>
+                      {isExternal ? 'Conectada' : 'Embebida'}
+                    </span>
+                  </div>
                 </div>
-                <div style={{ fontSize: 12, fontFamily: 'monospace', color: isDark ? '#F5F5F3' : '#1A1A18', wordBreak: 'break-all' }}>
-                  {walletAddress.slice(0, 8)}...{walletAddress.slice(-8)}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginTop: 4 }}>
+                  <div style={{ fontSize: 12, fontFamily: 'monospace', color: isDark ? '#F5F5F3' : '#1A1A18', wordBreak: 'break-all' }}>
+                    {walletAddress.slice(0, 8)}...{walletAddress.slice(-8)}
+                  </div>
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(walletAddress);
+                      const el = document.getElementById('copy-wallet-btn');
+                      if (el) {
+                        el.innerText = 'Copiado';
+                        setTimeout(() => el.innerText = 'Copiar', 2000);
+                      }
+                    }}
+                    id="copy-wallet-btn"
+                    style={{
+                      background: isDark ? '#3A3A38' : '#F0EEe5',
+                      border: 'none',
+                      color: isDark ? '#B4B2A9' : '#5C5B56',
+                      fontSize: 10,
+                      fontWeight: 600,
+                      padding: '4px 8px',
+                      borderRadius: 4,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    Copiar
+                  </button>
                 </div>
               </div>
             )}

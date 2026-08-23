@@ -82,12 +82,13 @@ export default function TicketsList({
                
                const status = ticket.status; // Prisma string: "VALID", "USED", "CANCELLED", "LISTED_FOR_SALE"
                let statusText = 'Activo';
-               let isUsed = false;
+               let isCancelled = false;
                let isResale = false;
+               let isPoap = false;
                
-               if (status === "USED" || status === "CHECKED_IN") { statusText = 'Usado/Verificado'; isUsed = true; }
+               if (status === "USED" || status === "CHECKED_IN") { statusText = 'Coleccionable POAP'; isPoap = true; }
                if (status === "LISTED_FOR_SALE") { statusText = 'En Reventa'; isResale = true; }
-               if (status === "CANCELLED") { statusText = 'Cancelado'; isUsed = true; }
+               if (status === "CANCELLED") { statusText = 'Cancelado'; isCancelled = true; }
 
                // Parse zones from DB
                let zones = [];
@@ -97,12 +98,15 @@ export default function TicketsList({
                  zones = eventData.zones;
                }
                const zoneName = zones.find((z: any) => z.id === ticket.zoneId)?.name || 'General';
-               const coverImage = eventData.coverImageUrl || 'https://images.unsplash.com/photo-1541532713592-79a0317b6b77?q=80&w=400';
+               let coverImage = eventData.ticketImageUrl || eventData.coverImageUrl || 'https://images.unsplash.com/photo-1541532713592-79a0317b6b77?q=80&w=400';
+               if (isPoap) {
+                 coverImage = `https://api.dicebear.com/7.x/shapes/svg?seed=${ticket.mintAddress}`;
+               }
 
                return (
-                  <div key={i} className={`mb-card ${isUsed ? 'past' : ''} ${isResale ? 'resale' : ''}`} onClick={() => onTicketClick(ticket.mintAddress)}>
-                    <div className={`mb-cover ${isUsed ? 'past' : ''}`} style={{ backgroundImage: `url("${coverImage}")` }}>
-                      <span className={`mb-badge ${isUsed ? 'past' : isResale ? 'resale' : 'active'}`}>{statusText}</span>
+                  <div key={i} className={`mb-card ${isCancelled ? 'past' : ''} ${isPoap ? 'poap' : ''} ${isResale ? 'resale' : ''}`} onClick={() => onTicketClick(ticket.mintAddress)}>
+                    <div className={`mb-cover ${isCancelled ? 'past' : ''} ${isPoap ? 'poap' : ''}`} style={{ backgroundImage: `url("${coverImage}")` }}>
+                      <span className={`mb-badge ${isCancelled ? 'past' : isPoap ? 'poap' : isResale ? 'resale' : 'active'}`}>{statusText}</span>
                       <p className="mb-name">{eventData.title}</p>
                     </div>
                     <div className="mb-body">
@@ -110,9 +114,13 @@ export default function TicketsList({
                         <p className="mb-date">{dateStr} · {timeStr}</p>
                         <p className="mb-meta">{zoneName}</p>
                       </div>
-                      {!isUsed ? (
+                      {!isCancelled && !isPoap ? (
                         <span className="mb-icon-box">
                           <Icons.QrCode size={20} />
+                        </span>
+                      ) : isPoap ? (
+                        <span className="mb-icon-box" style={{ background: '#FEF3C7', color: '#D97706' }}>
+                          <Icons.Medal size={20} />
                         </span>
                       ) : (
                         <span className="mb-link">

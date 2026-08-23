@@ -58,7 +58,8 @@ export async function mintTicketInDb(ticketData: any) {
     await prisma.ticketAuditLog.create({
       data: {
         ticketMint: mintAddress,
-        newStatus: "VALID",
+        previousStatus: null,
+        newStatus: "PENDING_ON_CHAIN",
         changedAtSlot: 0,
         txSignature: "mint_" + mintAddress,
       }
@@ -71,7 +72,22 @@ export async function mintTicketInDb(ticketData: any) {
     return { success: false, error: error.message };
   }
 }
-
+export async function deleteTicketFromDb(mintAddress: string) {
+  try {
+    // Solo permitimos borrar tickets que estén PENDING_ON_CHAIN por seguridad
+    const ticket = await prisma.ticket.findUnique({ where: { mintAddress } });
+    if (ticket && ticket.status === "PENDING_ON_CHAIN") {
+      // Borrar logs de auditoría primero por la llave foránea
+      await prisma.ticketAuditLog.deleteMany({ where: { ticketMint: mintAddress } });
+      await prisma.ticket.delete({ where: { mintAddress } });
+      return { success: true };
+    }
+    return { success: false, error: "Ticket not found or not in PENDING_ON_CHAIN status" };
+  } catch (error: any) {
+    console.error("Error deleting pending ticket from DB:", error);
+    return { success: false, error: error.message };
+  }
+}
 
 
 export async function checkInTicket(mintAddress: string, staffId?: string, qrTimestamp?: number, qrHash?: string) {
@@ -84,6 +100,10 @@ export async function checkInTicket(mintAddress: string, staffId?: string, qrTim
 
     if (!ticketInfo) {
       throw new Error("Ticket not found");
+    }
+
+    if (ticketInfo.isCheckedIn || ticketInfo.status === "CHECKED_IN") {
+      throw new Error("ALREADY_CHECKED_IN");
     }
 
     // --- TOTP VALIDATION ---
@@ -176,6 +196,34 @@ export async function checkInTicket(mintAddress: string, staffId?: string, qrTim
       }
     });
 
+    // Fire and forget mutateToPoap with Generative Art
+    if (process.env.APP_MASTER_SEED) {
+      (async () => {
+        try {
+          const { createUmi } = await import("@metaplex-foundation/umi-bundle-defaults");
+          const { mutateToPoap } = await import("@/lib/metaplex");
+          
+          const umi = createUmi(process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com");
+          
+          await mutateToPoap(umi, {
+            mintAddress: mintAddress,
+            collectionMint: ticketInfo.event.collectionMint || "",
+            eventData: {
+              name: ticketInfo.event.title || "Evento Mintpass",
+              date: ticketInfo.event.startDate ? ticketInfo.event.startDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+              venue: ticketInfo.event.location || "Mintpass",
+              ticketNumber: 1, // Folio
+              totalAttendees: ticketInfo.event.capacity || 100,
+            },
+            poapImageUrl: `https://api.dicebear.com/7.x/shapes/svg?seed=${mintAddress}`
+          });
+          console.log(`✅ [POAP] Boleto ${mintAddress} mutado automáticamente a coleccionable.`);
+        } catch (err) {
+          console.error("❌ [POAP] Fallo en la mutación automática de POAP en segundo plano:", err);
+        }
+      })();
+    }
+
     return { success: true, ticket };
   } catch (error: any) {
     console.error("Error checking in ticket:", error);
@@ -215,11 +263,59 @@ export async function getTicketWithEvent(mintAddress: string) {
   try {
     const ticket = await prisma.ticket.findUnique({
       where: { mintAddress },
-      include: { event: true }
+      include: { 
+        event: {
+          include: {
+            userProfile: {
+              include: { reputation: true }
+            }
+          }
+        },
+        owner: true
+      }
     });
     return ticket;
   } catch (e) {
     console.error("Failed to fetch ticket with event", e);
     return null;
+  }
+}
+
+export async function initializeTicketMetadata(mintAddress: string, eventId: string) {
+  try {
+    const event = await prisma.event.findUnique({
+      where: { id: eventId }
+    });
+
+    if (!event || !event.collectionMint) {
+      throw new Error("Event not found or has no collection mint");
+    }
+
+    if (process.env.APP_MASTER_SEED && process.env.NEXT_PUBLIC_SOLANA_RPC_URL) {
+      const { createUmi } = await import("@metaplex-foundation/umi-bundle-defaults");
+      const { updateTicketMetadata } = await import("@/lib/metaplex");
+      
+      const umi = createUmi(process.env.NEXT_PUBLIC_SOLANA_RPC_URL);
+      
+      const defaultImageUrl = event.ticketImageUrl || event.coverImageUrl || "https://images.unsplash.com/photo-1541532713592-79a0317b6b77?q=80&w=400";
+      
+      await updateTicketMetadata(umi, {
+        mintAddress,
+        collectionMint: event.collectionMint,
+        eventData: {
+          name: `Ticket para ${event.title}`,
+          description: event.description || "Boleto de acceso general",
+        },
+        ticketImageUrl: defaultImageUrl,
+      });
+
+      console.log(`✅ [METADATA] Ticket ${mintAddress} initialized with actual image.`);
+      return { success: true };
+    } else {
+      throw new Error("Server not configured for on-chain updates");
+    }
+  } catch (error: any) {
+    console.error("Error initializing ticket metadata:", error);
+    return { success: false, error: error.message };
   }
 }

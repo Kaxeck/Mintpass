@@ -100,6 +100,7 @@ export default function DashboardPage() {
       eventStats={eventStats}
       organizerProfile={organizerProfile}
       onProfileComplete={setOrganizerProfile}
+      onEventCreated={(ev) => setCreatedEvents(prev => [ev, ...prev])}
       onBack={() => router.push('/')} 
       onCreate={() => router.push('/create')} 
       onEventClick={(id) => { /* Dashboard now handles selectedEventId internally */ }} 

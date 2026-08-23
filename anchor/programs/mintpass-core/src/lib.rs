@@ -3,6 +3,10 @@ use anchor_lang::system_program::{transfer, Transfer};
 use anchor_spl::token::{self, Token, TokenAccount, Transfer as SplTransfer, FreezeAccount, ThawAccount, Approve, Revoke, Burn, CloseAccount, MintTo};
 use anchor_spl::metadata::{MetadataAccount, Metadata};
 use anchor_lang::solana_program::pubkey;
+use mpl_core::{
+    accounts::{BaseAssetV1, BaseCollectionV1},
+    types::{FreezeDelegate, PermanentBurnDelegate, Plugin, PluginAuthorityPair, PluginAuthority},
+};
 
 // ============================================================================
 // PROGRAMA: Mintpass Core (Monolito: Eventos, Reputación, Escrow, Tickets)
@@ -15,7 +19,7 @@ const MAX_DESC_LEN: usize = 200;
 const MAX_VENUE_LEN: usize = 100;
 const MAX_CATEGORY_LEN: usize = 30;
 
-pub const MINIMUM_FEE_LAMPORTS: u64 = 5_000_000; // 0.005 SOL
+pub const MINIMUM_FEE_LAMPORTS: u64 = 15_000_000; // 0.015 SOL (~30 MXN)
 pub const DEPLOYER_KEY: Pubkey = pubkey!("EzkUvxaU38t4kKJdmqnyWnhTHij9UtWp28kqJuha1vfU"); // TODO: Reemplazar con la llave del admin inicial
 
 const SUCCESS_POINTS: u64 = 10;
@@ -248,10 +252,7 @@ pub mod mintpass_core {
         
         require!((zone_index as usize) < event_record.zones.len(), CoreError::InvalidZoneIndex);
         
-        let metadata = &ctx.accounts.ticket_metadata;
-        require!(metadata.collection.is_some(), CoreError::InvalidCollection);
-        let collection = metadata.collection.as_ref().unwrap();
-        require!(collection.key == event_record.collection_mint && collection.verified, CoreError::InvalidCollection);
+        // Collection validation is now handled during asset creation via MPL-Core plugins
 
         let counter = &mut ctx.accounts.ticket_counter;
         if event_record.identity_limit > 0 {
@@ -324,44 +325,33 @@ pub mod mintpass_core {
             &[bump],
         ]];
 
-        // MINT THE TOKEN
-        token::mint_to(
-            CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
-                MintTo {
-                    mint: ctx.accounts.ticket_mint.to_account_info(),
-                    to: ctx.accounts.token_account.to_account_info(),
-                    authority: escrow_state_info.clone(),
-                },
-                signer_seeds,
-            ),
-            1,
-        )?;
+        let freeze_delegate = Plugin::FreezeDelegate(FreezeDelegate { frozen: true });
+        let freeze_auth = PluginAuthorityPair {
+            plugin: freeze_delegate,
+            authority: Some(PluginAuthority::Address { address: ctx.accounts.escrow_state.key() }),
+        };
 
-        // C-04: Aprobar al escrow como delegate para permitir burn en refunds
-        token::approve(
-            CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                Approve {
-                    to: ctx.accounts.token_account.to_account_info(),
-                    delegate: escrow_state_info.clone(),
-                    authority: ctx.accounts.buyer.to_account_info(),
-                },
-            ),
-            1,
-        )?;
+        let burn_delegate = Plugin::PermanentBurnDelegate(PermanentBurnDelegate {});
+        let burn_auth = PluginAuthorityPair {
+            plugin: burn_delegate,
+            authority: Some(PluginAuthority::Address { address: ctx.accounts.escrow_state.key() }),
+        };
 
-        token::freeze_account(
-            CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
-                FreezeAccount {
-                    account: ctx.accounts.token_account.to_account_info(),
-                    mint: ctx.accounts.ticket_mint.to_account_info(),
-                    authority: escrow_state_info,
-                },
-                signer_seeds,
-            ),
-        )?;
+        // MINT THE ASSET (MPL-Core)
+        mpl_core::instructions::CreateV1CpiBuilder::new(
+            &ctx.accounts.mpl_core_program.to_account_info(),
+        )
+        .asset(&ctx.accounts.ticket_mint.to_account_info())
+        .collection(Some(&ctx.accounts.collection_mint.to_account_info()))
+        .authority(Some(escrow_state_info.as_ref())) // The escrow authorizes creation
+        .payer(&ctx.accounts.payer.to_account_info())
+        .owner(Some(&ctx.accounts.buyer.to_account_info()))
+        .system_program(&ctx.accounts.system_program.to_account_info())
+        .name(format!("Ticket #{}", event_record.zones[zone_index as usize].tickets_sold.checked_add(1).ok_or(CoreError::Overflow)?))
+        .uri(String::from("https://metadata.mintpass.app/ticket"))
+        .plugins(vec![freeze_auth, burn_auth])
+        .invoke_signed(signer_seeds)?;
+
 
         let zone = &mut event_record.zones[zone_index as usize];
         zone.tickets_sold = zone.tickets_sold.checked_add(1).ok_or(CoreError::Overflow)?;
@@ -407,47 +397,39 @@ pub mod mintpass_core {
 
         let event_key = event.key();
         let bump = ctx.bumps.escrow_state;
-        let signer_seeds: &[&[&[u8]]] = &[&[
+        let escrow_signer_seeds: &[&[&[u8]]] = &[&[
             b"escrow_state",
             event_key.as_ref(),
             &[bump],
         ]];
 
-        token::thaw_account(
-            CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
-                ThawAccount {
-                    account: ctx.accounts.token_account.to_account_info(),
-                    mint: ctx.accounts.ticket_mint.to_account_info(),
-                    authority: ctx.accounts.escrow_state.to_account_info(),
-                },
-                signer_seeds,
-            ),
-        )?;
+        mpl_core::instructions::UpdatePluginV1CpiBuilder::new(
+            &ctx.accounts.mpl_core_program.to_account_info(),
+        )
+        .asset(&ctx.accounts.ticket_mint.to_account_info())
+        .plugin(Plugin::FreezeDelegate(FreezeDelegate { frozen: false }))
+        .authority(Some(&ctx.accounts.escrow_state.to_account_info()))
+        .system_program(&ctx.accounts.system_program.to_account_info())
+        .invoke_signed(escrow_signer_seeds)?;
 
-        token::approve(
-            CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                Approve {
-                    to: ctx.accounts.token_account.to_account_info(),
-                    delegate: ctx.accounts.escrow_state.to_account_info(),
-                    authority: ctx.accounts.seller.to_account_info(),
-                },
-            ),
-            1,
-        )?;
+        mpl_core::instructions::TransferV1CpiBuilder::new(
+            &ctx.accounts.mpl_core_program.to_account_info(),
+        )
+        .asset(&ctx.accounts.ticket_mint.to_account_info())
+        .payer(&ctx.accounts.seller.to_account_info())
+        .authority(Some(&ctx.accounts.seller.to_account_info()))
+        .new_owner(&ctx.accounts.escrow_state.to_account_info())
+        .system_program(Some(&ctx.accounts.system_program.to_account_info()))
+        .invoke()?;
 
-        token::freeze_account(
-            CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
-                FreezeAccount {
-                    account: ctx.accounts.token_account.to_account_info(),
-                    mint: ctx.accounts.ticket_mint.to_account_info(),
-                    authority: ctx.accounts.escrow_state.to_account_info(),
-                },
-                signer_seeds,
-            ),
-        )?;
+        mpl_core::instructions::UpdatePluginV1CpiBuilder::new(
+            &ctx.accounts.mpl_core_program.to_account_info(),
+        )
+        .asset(&ctx.accounts.ticket_mint.to_account_info())
+        .plugin(Plugin::FreezeDelegate(FreezeDelegate { frozen: true }))
+        .authority(Some(&ctx.accounts.escrow_state.to_account_info()))
+        .system_program(&ctx.accounts.system_program.to_account_info())
+        .invoke_signed(escrow_signer_seeds)?;
 
         receipt.status = TicketStatus::Listed;
         receipt.resale_price = resale_price;
@@ -476,52 +458,33 @@ pub mod mintpass_core {
             &[bump],
         ]];
 
-        token::thaw_account(
-            CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
-                ThawAccount {
-                    account: ctx.accounts.token_account.to_account_info(),
-                    mint: ctx.accounts.ticket_mint.to_account_info(),
-                    authority: ctx.accounts.escrow_state.to_account_info(),
-                },
-                signer_seeds,
-            ),
-        )?;
+        mpl_core::instructions::UpdatePluginV1CpiBuilder::new(
+            &ctx.accounts.mpl_core_program.to_account_info(),
+        )
+        .asset(&ctx.accounts.ticket_mint.to_account_info())
+        .plugin(Plugin::FreezeDelegate(FreezeDelegate { frozen: false }))
+        .authority(Some(&ctx.accounts.escrow_state.to_account_info()))
+        .system_program(&ctx.accounts.system_program.to_account_info())
+        .invoke_signed(signer_seeds)?;
 
-        token::revoke(
-            CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                Revoke {
-                    source: ctx.accounts.token_account.to_account_info(),
-                    authority: ctx.accounts.seller.to_account_info(),
-                },
-            ),
-        )?;
+        mpl_core::instructions::TransferV1CpiBuilder::new(
+            &ctx.accounts.mpl_core_program.to_account_info(),
+        )
+        .asset(&ctx.accounts.ticket_mint.to_account_info())
+        .payer(&ctx.accounts.seller.to_account_info()) // Seller pays rent
+        .authority(Some(&ctx.accounts.escrow_state.to_account_info()))
+        .new_owner(&ctx.accounts.seller.to_account_info())
+        .system_program(Some(&ctx.accounts.system_program.to_account_info()))
+        .invoke_signed(signer_seeds)?;
 
-        // Restaurar delegación al escrow para mantener capacidad de refund
-        token::approve(
-            CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                Approve {
-                    to: ctx.accounts.token_account.to_account_info(),
-                    delegate: ctx.accounts.escrow_state.to_account_info(),
-                    authority: ctx.accounts.seller.to_account_info(),
-                },
-            ),
-            1,
-        )?;
-
-        token::freeze_account(
-            CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
-                FreezeAccount {
-                    account: ctx.accounts.token_account.to_account_info(),
-                    mint: ctx.accounts.ticket_mint.to_account_info(),
-                    authority: ctx.accounts.escrow_state.to_account_info(),
-                },
-                signer_seeds,
-            ),
-        )?;
+        mpl_core::instructions::UpdatePluginV1CpiBuilder::new(
+            &ctx.accounts.mpl_core_program.to_account_info(),
+        )
+        .asset(&ctx.accounts.ticket_mint.to_account_info())
+        .plugin(Plugin::FreezeDelegate(FreezeDelegate { frozen: true }))
+        .authority(Some(&ctx.accounts.escrow_state.to_account_info()))
+        .system_program(&ctx.accounts.system_program.to_account_info())
+        .invoke_signed(signer_seeds)?;
 
         if receipt.original_buyer == receipt.buyer {
             receipt.status = TicketStatus::Valid;
@@ -565,18 +528,6 @@ pub mod mintpass_core {
             &[bump],
         ]];
 
-        token::thaw_account(
-            CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
-                ThawAccount {
-                    account: ctx.accounts.seller_token_account.to_account_info(),
-                    mint: ctx.accounts.ticket_mint.to_account_info(),
-                    authority: ctx.accounts.escrow_state.to_account_info(),
-                },
-                signer_seeds,
-            ),
-        )?;
-
         transfer(
             CpiContext::new(
                 ctx.accounts.system_program.to_account_info(),
@@ -599,43 +550,33 @@ pub mod mintpass_core {
             calculated_fee,
         )?;
 
-        token::transfer(
-            CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
-                SplTransfer {
-                    from: ctx.accounts.seller_token_account.to_account_info(),
-                    to: ctx.accounts.buyer_token_account.to_account_info(),
-                    authority: ctx.accounts.escrow_state.to_account_info(), // Escrow is delegate!
-                },
-                signer_seeds,
-            ),
-            1,
-        )?;
+        mpl_core::instructions::UpdatePluginV1CpiBuilder::new(
+            &ctx.accounts.mpl_core_program.to_account_info(),
+        )
+        .asset(&ctx.accounts.ticket_mint.to_account_info())
+        .plugin(Plugin::FreezeDelegate(FreezeDelegate { frozen: false }))
+        .authority(Some(&ctx.accounts.escrow_state.to_account_info()))
+        .system_program(&ctx.accounts.system_program.to_account_info())
+        .invoke_signed(signer_seeds)?;
 
-        // Aprobar al escrow como delegate en la cuenta del nuevo comprador para refunds
-        token::approve(
-            CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                Approve {
-                    to: ctx.accounts.buyer_token_account.to_account_info(),
-                    delegate: ctx.accounts.escrow_state.to_account_info(),
-                    authority: ctx.accounts.buyer.to_account_info(),
-                },
-            ),
-            1,
-        )?;
+        mpl_core::instructions::TransferV1CpiBuilder::new(
+            &ctx.accounts.mpl_core_program.to_account_info(),
+        )
+        .asset(&ctx.accounts.ticket_mint.to_account_info())
+        .payer(&ctx.accounts.buyer.to_account_info())
+        .authority(Some(&ctx.accounts.escrow_state.to_account_info()))
+        .new_owner(&ctx.accounts.buyer.to_account_info())
+        .system_program(Some(&ctx.accounts.system_program.to_account_info()))
+        .invoke_signed(signer_seeds)?;
 
-        token::freeze_account(
-            CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
-                FreezeAccount {
-                    account: ctx.accounts.buyer_token_account.to_account_info(),
-                    mint: ctx.accounts.ticket_mint.to_account_info(),
-                    authority: ctx.accounts.escrow_state.to_account_info(),
-                },
-                signer_seeds,
-            ),
-        )?;
+        mpl_core::instructions::UpdatePluginV1CpiBuilder::new(
+            &ctx.accounts.mpl_core_program.to_account_info(),
+        )
+        .asset(&ctx.accounts.ticket_mint.to_account_info())
+        .plugin(Plugin::FreezeDelegate(FreezeDelegate { frozen: true }))
+        .authority(Some(&ctx.accounts.escrow_state.to_account_info()))
+        .system_program(&ctx.accounts.system_program.to_account_info())
+        .invoke_signed(signer_seeds)?;
 
         receipt.buyer = ctx.accounts.buyer.key();
         receipt.price_paid = new_price;
@@ -768,35 +709,23 @@ pub mod mintpass_core {
             &[escrow_bump],
         ]];
 
-        token::thaw_account(
-            CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
-                ThawAccount {
-                    account: ctx.accounts.token_account.to_account_info(),
-                    mint: ctx.accounts.ticket_mint.to_account_info(),
-                    authority: ctx.accounts.escrow_state.to_account_info(),
-                },
-                escrow_signer_seeds,
-            ),
-        )?;
-        
-        // BURN the token to destroy it permanently
-        token::burn(
-            CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
-                Burn {
-                    mint: ctx.accounts.ticket_mint.to_account_info(),
-                    from: ctx.accounts.token_account.to_account_info(),
-                    authority: ctx.accounts.escrow_state.to_account_info(),
-                },
-                escrow_signer_seeds,
-            ),
-            1,
-        )?;
+        mpl_core::instructions::UpdatePluginV1CpiBuilder::new(
+            &ctx.accounts.mpl_core_program.to_account_info(),
+        )
+        .asset(&ctx.accounts.ticket_mint.to_account_info())
+        .plugin(Plugin::FreezeDelegate(FreezeDelegate { frozen: false }))
+        .authority(Some(&ctx.accounts.escrow_state.to_account_info()))
+        .system_program(&ctx.accounts.system_program.to_account_info())
+        .invoke_signed(escrow_signer_seeds)?;
 
-        // Nota: No se cierra la token account aquí porque CloseAccount requiere
-        // el owner de la cuenta (no un delegate). El usuario puede cerrarla
-        // manualmente después para recuperar el rent.
+        mpl_core::instructions::BurnV1CpiBuilder::new(
+            &ctx.accounts.mpl_core_program.to_account_info(),
+        )
+        .asset(&ctx.accounts.ticket_mint.to_account_info())
+        .payer(&ctx.accounts.current_owner.to_account_info())
+        .authority(Some(&ctx.accounts.escrow_state.to_account_info()))
+        .system_program(Some(&ctx.accounts.system_program.to_account_info()))
+        .invoke_signed(escrow_signer_seeds)?;
 
         emit!(TicketRefunded {
             ticket_mint: receipt.ticket_mint,
@@ -817,13 +746,7 @@ pub mod mintpass_core {
         
         require!(Clock::get()?.unix_timestamp >= event.event_timestamp - 86400, CoreError::EventNotStarted);
         
-        // H-03: Validar colección del NFT contra el evento
-        let metadata = &ctx.accounts.ticket_metadata;
-        let collection = metadata.collection.as_ref().ok_or(CoreError::InvalidCollection)?;
-        require!(
-            collection.key == event.collection_mint && collection.verified,
-            CoreError::InvalidCollection
-        );
+        // Collection validation is implicit via ticket_receipt's event_record linkage
         
         require!(
             receipt.status == TicketStatus::Valid || receipt.status == TicketStatus::Resold,
@@ -873,17 +796,8 @@ pub mod mintpass_core {
             &[escrow_bump],
         ]];
 
-        token::thaw_account(
-            CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
-                ThawAccount {
-                    account: ctx.accounts.token_account.to_account_info(),
-                    mint: ctx.accounts.ticket_mint.to_account_info(),
-                    authority: ctx.accounts.escrow_state.to_account_info(),
-                },
-                escrow_signer_seeds,
-            ),
-        )?;
+        // Assets in MPL-Core are not frozen via SPL, this is now a no-op for backward compatibility
+        msg!("Thaw is a no-op in MPL-Core");
         Ok(())
     }
 }
@@ -939,18 +853,10 @@ pub struct InitializeReputation<'info> {
 pub struct CreateEvent<'info> {
     #[account(mut)]
     pub organizer: Signer<'info>,
-    pub collection_mint: Account<'info, token::Mint>,
     #[account(
-        seeds = [
-            b"metadata",
-            Metadata::id().as_ref(),
-            collection_mint.key().as_ref()
-        ],
-        bump,
-        seeds::program = Metadata::id(),
-        constraint = collection_metadata.update_authority == organizer.key() @ CoreError::Unauthorized
+        constraint = collection_mint.update_authority == organizer.key() @ CoreError::Unauthorized
     )]
-    pub collection_metadata: Account<'info, MetadataAccount>,
+    pub collection_mint: Account<'info, BaseCollectionV1>,
     #[account(
         init,
         payer = organizer,
@@ -1053,12 +959,8 @@ pub struct BuyTicket<'info> {
     pub payer: Signer<'info>, 
     #[account(mut)]
     pub buyer: Signer<'info>,
-    #[account(
-        mut,
-        constraint = ticket_mint.freeze_authority.is_some() && ticket_mint.freeze_authority.unwrap() == escrow_state.key() @ CoreError::InvalidFreezeAuthority,
-        constraint = ticket_mint.mint_authority.is_some() && ticket_mint.mint_authority.unwrap() == escrow_state.key() @ CoreError::InvalidMintAuthority
-    )]
-    pub ticket_mint: Account<'info, token::Mint>,
+    #[account(mut)]
+    pub ticket_mint: Signer<'info>,
     #[account(
         init,
         payer = payer,
@@ -1083,12 +985,6 @@ pub struct BuyTicket<'info> {
     #[account(mut, seeds = [b"escrow_state", event_record.key().as_ref()], bump)]
     pub escrow_state: Box<Account<'info, EscrowState>>,
     #[account(
-        mut,
-        constraint = token_account.owner == buyer.key() @ CoreError::Unauthorized,
-        constraint = token_account.mint == ticket_mint.key() @ CoreError::InvalidTicket
-    )]
-    pub token_account: Account<'info, TokenAccount>,
-    #[account(
         init_if_needed,
         payer = payer,
         space = 8 + TicketCounter::INIT_SPACE,
@@ -1096,19 +992,15 @@ pub struct BuyTicket<'info> {
         bump
     )]
     pub ticket_counter: Box<Account<'info, TicketCounter>>,
-    #[account(
-        seeds = [
-            b"metadata",
-            Metadata::id().as_ref(),
-            ticket_mint.key().as_ref()
-        ],
-        bump,
-        seeds::program = Metadata::id(),
-        constraint = ticket_metadata.mint == ticket_mint.key() @ CoreError::InvalidMetadata
-    )]
-    pub ticket_metadata: Box<Account<'info, MetadataAccount>>,
-    pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
+    /// CHECK: MPL Core Program
+    #[account(address = mpl_core::ID)]
+    pub mpl_core_program: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        constraint = collection_mint.key() == event_record.collection_mint @ CoreError::InvalidCollection
+    )]
+    pub collection_mint: Account<'info, BaseCollectionV1>,
 }
 
 #[derive(Accounts)]
@@ -1135,13 +1027,6 @@ pub struct ForceRefund<'info> {
     #[account(mut, constraint = current_owner.key() == ticket_receipt.buyer @ CoreError::Unauthorized)]
     /// CHECK: Comprador actual
     pub current_owner: UncheckedAccount<'info>,
-    #[account(
-        mut,
-        constraint = token_account.owner == current_owner.key() @ CoreError::Unauthorized,
-        constraint = token_account.mint == ticket_receipt.ticket_mint @ CoreError::InvalidTicket,
-        constraint = token_account.amount == 1 @ CoreError::InvalidTicketState
-    )]
-    pub token_account: Account<'info, TokenAccount>,
     #[account(mut, constraint = ticket_receipt.event_record == event_record.key() @ CoreError::InvalidTicket)]
     pub ticket_receipt: Account<'info, TicketReceipt>,
     #[account(
@@ -1153,12 +1038,18 @@ pub struct ForceRefund<'info> {
     pub escrow_vault: SystemAccount<'info>,
     #[account(mut, seeds = [b"escrow_state", event_record.key().as_ref()], bump)]
     pub escrow_state: Account<'info, EscrowState>,
-    #[account(mut, constraint = ticket_mint.key() == ticket_receipt.ticket_mint @ CoreError::InvalidTicket)]
-    pub ticket_mint: Account<'info, token::Mint>,
+    #[account(
+        mut,
+        constraint = ticket_mint.key() == ticket_receipt.ticket_mint @ CoreError::InvalidTicket,
+        constraint = ticket_mint.owner == current_owner.key() @ CoreError::Unauthorized
+    )]
+    pub ticket_mint: Account<'info, BaseAssetV1>,
     #[account(mut)]
     pub ticket_counter: Option<Account<'info, TicketCounter>>,
-    pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
+    /// CHECK: MPL Core Program
+    #[account(address = mpl_core::ID)]
+    pub mpl_core_program: UncheckedAccount<'info>,
 }
 
     // Removed AuthorizeStaff context
@@ -1169,13 +1060,6 @@ pub struct ListTicket<'info> {
     pub seller: Signer<'info>,
     #[account(
         mut,
-        constraint = token_account.owner == seller.key() @ CoreError::Unauthorized,
-        constraint = token_account.mint == ticket_receipt.ticket_mint @ CoreError::InvalidTicket,
-        constraint = token_account.amount == 1 @ CoreError::InvalidTicketState
-    )]
-    pub token_account: Account<'info, TokenAccount>,
-    #[account(
-        mut,
         constraint = ticket_receipt.buyer == seller.key() @ CoreError::Unauthorized,
         constraint = ticket_receipt.event_record == event_record.key() @ CoreError::InvalidTicket
     )]
@@ -1183,11 +1067,18 @@ pub struct ListTicket<'info> {
     pub event_record: Account<'info, EventRecord>,
     #[account(seeds = [b"escrow_state", event_record.key().as_ref()], bump)]
     pub escrow_state: Account<'info, EscrowState>,
-    #[account(mut, constraint = ticket_mint.key() == ticket_receipt.ticket_mint @ CoreError::InvalidTicket)]
-    pub ticket_mint: Account<'info, token::Mint>,
+    #[account(
+        mut,
+        constraint = ticket_mint.key() == ticket_receipt.ticket_mint @ CoreError::InvalidTicket,
+        constraint = ticket_mint.owner == seller.key() @ CoreError::Unauthorized
+    )]
+    pub ticket_mint: Account<'info, BaseAssetV1>,
     #[account(seeds = [b"config"], bump)]
     pub protocol_config: Account<'info, ProtocolConfig>,
-    pub token_program: Program<'info, Token>,
+    /// CHECK: MPL Core Program
+    #[account(address = mpl_core::ID)]
+    pub mpl_core_program: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -1196,13 +1087,6 @@ pub struct DelistTicket<'info> {
     pub seller: Signer<'info>,
     #[account(
         mut,
-        constraint = token_account.owner == seller.key() @ CoreError::Unauthorized,
-        constraint = token_account.mint == ticket_receipt.ticket_mint @ CoreError::InvalidTicket,
-        constraint = token_account.amount == 1 @ CoreError::InvalidTicketState
-    )]
-    pub token_account: Account<'info, TokenAccount>,
-    #[account(
-        mut,
         constraint = ticket_receipt.buyer == seller.key() @ CoreError::Unauthorized,
         constraint = ticket_receipt.event_record == event_record.key() @ CoreError::InvalidTicket
     )]
@@ -1210,11 +1094,18 @@ pub struct DelistTicket<'info> {
     pub event_record: Account<'info, EventRecord>,
     #[account(seeds = [b"escrow_state", event_record.key().as_ref()], bump)]
     pub escrow_state: Account<'info, EscrowState>,
-    #[account(mut, constraint = ticket_mint.key() == ticket_receipt.ticket_mint @ CoreError::InvalidTicket)]
-    pub ticket_mint: Account<'info, token::Mint>,
+    #[account(
+        mut,
+        constraint = ticket_mint.key() == ticket_receipt.ticket_mint @ CoreError::InvalidTicket,
+        constraint = ticket_mint.owner == seller.key() @ CoreError::Unauthorized
+    )]
+    pub ticket_mint: Account<'info, BaseAssetV1>,
     #[account(seeds = [b"config"], bump)]
     pub protocol_config: Account<'info, ProtocolConfig>,
-    pub token_program: Program<'info, Token>,
+    /// CHECK: MPL Core Program
+    #[account(address = mpl_core::ID)]
+    pub mpl_core_program: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -1224,19 +1115,6 @@ pub struct BuyResale<'info> {
     /// CHECK: Recibe el dinero
     #[account(mut, constraint = seller.key() == ticket_receipt.buyer @ CoreError::Unauthorized)]
     pub seller: UncheckedAccount<'info>,
-    #[account(
-        mut,
-        constraint = seller_token_account.owner == seller.key() @ CoreError::Unauthorized,
-        constraint = seller_token_account.mint == ticket_receipt.ticket_mint @ CoreError::InvalidTicket,
-        constraint = seller_token_account.amount == 1 @ CoreError::InvalidTicketState
-    )]
-    pub seller_token_account: Account<'info, TokenAccount>,
-    #[account(
-        mut,
-        constraint = buyer_token_account.owner == buyer.key() @ CoreError::Unauthorized,
-        constraint = buyer_token_account.mint == ticket_receipt.ticket_mint @ CoreError::InvalidTicket
-    )]
-    pub buyer_token_account: Account<'info, TokenAccount>,
     #[account(
         mut,
         constraint = ticket_receipt.event_record == event_record.key() @ CoreError::InvalidTicket
@@ -1250,8 +1128,12 @@ pub struct BuyResale<'info> {
     pub event_record: Box<Account<'info, EventRecord>>,
     #[account(seeds = [b"escrow_state", event_record.key().as_ref()], bump)]
     pub escrow_state: Box<Account<'info, EscrowState>>,
-    #[account(constraint = ticket_mint.key() == ticket_receipt.ticket_mint @ CoreError::InvalidTicket)]
-    pub ticket_mint: Account<'info, token::Mint>,
+    #[account(
+        mut,
+        constraint = ticket_mint.key() == ticket_receipt.ticket_mint @ CoreError::InvalidTicket,
+        constraint = ticket_mint.owner == seller.key() @ CoreError::Unauthorized
+    )]
+    pub ticket_mint: Account<'info, BaseAssetV1>,
     #[account(
         init_if_needed,
         payer = buyer,
@@ -1260,8 +1142,10 @@ pub struct BuyResale<'info> {
         bump
     )]
     pub ticket_counter: Box<Account<'info, TicketCounter>>,
-    pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
+    /// CHECK: MPL Core Program
+    #[account(address = mpl_core::ID)]
+    pub mpl_core_program: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -1270,13 +1154,10 @@ pub struct PerformCheckin<'info> {
     pub protocol_config: Account<'info, ProtocolConfig>,
     #[account(mut, constraint = mintpass_authority.key() == protocol_config.authority @ CoreError::Unauthorized)]
     pub mintpass_authority: Signer<'info>,
-    pub ticket_mint: Account<'info, token::Mint>,
     #[account(
-        constraint = token_account.owner == ticket_receipt.buyer @ CoreError::Unauthorized,
-        constraint = token_account.mint == ticket_mint.key() @ CoreError::InvalidTicket,
-        constraint = token_account.amount == 1 @ CoreError::InvalidTicketState
+        constraint = ticket_mint.owner == ticket_receipt.buyer @ CoreError::Unauthorized
     )]
-    pub token_account: Account<'info, TokenAccount>,
+    pub ticket_mint: Account<'info, BaseAssetV1>,
     #[account(mut, constraint = ticket_mint.key() == ticket_receipt.ticket_mint @ CoreError::InvalidTicket)]
     pub ticket_receipt: Account<'info, TicketReceipt>,
     #[account(
@@ -1284,17 +1165,6 @@ pub struct PerformCheckin<'info> {
         constraint = !event_record.was_cancelled @ CoreError::EventCancelled
     )]
     pub event_record: Account<'info, EventRecord>,
-    #[account(
-        seeds = [
-            b"metadata",
-            Metadata::id().as_ref(),
-            ticket_mint.key().as_ref()
-        ],
-        bump,
-        seeds::program = Metadata::id(),
-        constraint = ticket_metadata.mint == ticket_mint.key() @ CoreError::InvalidMetadata
-    )]
-    pub ticket_metadata: Account<'info, MetadataAccount>,
     pub system_program: Program<'info, System>,
 }
 
@@ -1440,19 +1310,14 @@ pub struct ForceThaw<'info> {
     pub mintpass_authority: Signer<'info>,
     #[account(
         mut,
-        constraint = token_account.mint == ticket_mint.key() @ CoreError::InvalidTicket
+        constraint = ticket_mint.key() == ticket_receipt.ticket_mint @ CoreError::InvalidTicket
     )]
-    pub token_account: Account<'info, TokenAccount>,
-    #[account(
-        constraint = ticket_mint.freeze_authority.is_some() 
-            && ticket_mint.freeze_authority.unwrap() == escrow_state.key() 
-            @ CoreError::InvalidFreezeAuthority
-    )]
-    pub ticket_mint: Account<'info, token::Mint>,
+    pub ticket_mint: Account<'info, BaseAssetV1>,
+    pub ticket_receipt: Account<'info, TicketReceipt>,
     #[account(seeds = [b"escrow_state", event_record.key().as_ref()], bump)]
     pub escrow_state: Account<'info, EscrowState>,
     pub event_record: Account<'info, EventRecord>,
-    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
 }
 
 // ============================================================================

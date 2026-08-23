@@ -6,7 +6,7 @@ import "./StaffScanner.css";
 import { CreatedEvent } from "./CreateEvent";
 import { Scanner } from '@yudiel/react-qr-scanner';
 
-export default function StaffPanel({ event, stats, onCheckIn, onBack, isPwa = false }: { event?: CreatedEvent, stats?: {sold: number, checked: number}, onCheckIn?: (ticketMint?: string) => void, onBack: () => void, isPwa?: boolean }) {
+export default function StaffPanel({ event, stats, onCheckIn, onBack, isPwa = false }: { event?: CreatedEvent, stats?: {sold: number, checked: number}, onCheckIn?: (payload: any) => Promise<{success: boolean, error?: string}>, onBack: () => void, isPwa?: boolean }) {
   // Estados principales del escáner
   const [scanning, setScanning] = useState(true);
   const [torchOn, setTorchOn] = useState(false);
@@ -204,23 +204,39 @@ export default function StaffPanel({ event, stats, onCheckIn, onBack, isPwa = fa
     setScanning(false); 
     setIsRelaying(true);
     
-    // Extraemos el mint si viene dentro de nuestro JSON cryptoPayload
+    let payload = null;
     let targetMint = mintToVerify;
     try {
       const parsed = JSON.parse(mintToVerify);
-      if (parsed.mint) targetMint = parsed.mint;
+      if (parsed.mint) {
+         targetMint = parsed.mint;
+         payload = parsed;
+      }
     } catch(e) { }
-    
-    // Simulación del backend (Relayer)
-    setTimeout(() => {
-      setIsRelaying(false);
-      
-      // Simulamos la respuesta (aleatoria para el demo: 80% éxito, 10% inválido, 10% duplicado)
-      const rand = Math.random();
-      if (rand > 0.2) simulate('valid', targetMint);
-      else if (rand > 0.1) simulate('duplicate', targetMint);
-      else simulate('invalid', targetMint);
-    }, 800);
+
+    if (onCheckIn) {
+      try {
+        const res = await onCheckIn(payload || { mint: targetMint });
+        setIsRelaying(false);
+        if (res.success) {
+          simulate('valid', targetMint);
+        } else {
+          if (res.error && res.error.includes("ALREADY_CHECKED_IN")) {
+            simulate('duplicate', targetMint);
+          } else {
+            simulate('invalid', targetMint);
+          }
+        }
+      } catch (e) {
+        setIsRelaying(false);
+        simulate('invalid', targetMint);
+      }
+    } else {
+      setTimeout(() => {
+        setIsRelaying(false);
+        simulate('valid', targetMint);
+      }, 800);
+    }
   };
 
   return (

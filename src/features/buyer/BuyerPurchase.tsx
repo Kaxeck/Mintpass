@@ -3,7 +3,6 @@ import { useState, useEffect, useMemo } from "react";
 import * as Icons from "lucide-react";
 import { EventModel } from '../../types';
 import { useUmi } from "../../components/providers";
-import { mintTicket, getOrganizerReputation } from "../../lib/metaplex";
 import { buildBuyTicketInstruction, deriveEventPDA } from "../../lib/event-pda";
 import { address } from "@solana/addresses";
 import { transactionBuilder } from "@metaplex-foundation/umi";
@@ -13,13 +12,18 @@ import WalletButton from "../../components/ui/WalletButton";
 import AlertModal, { AlertModalProps } from "../../components/ui/AlertModal";
 import { LandingNavBar } from "../../components/layout/LandingNavBar";
 import { LandingFooter } from "../../components/layout/LandingFooter";
-import "../../styles/buyer.css";
-import "./BuyerPurchase.css";
+
+
+
+const calculateFee = (price: number) => price * 0.05;
+
 
 export default function BuyerPurchase({
   event,
   collectionMint,
   ownedTicketsCount = 0,
+  onBeforeMint,
+  onCancelMint,
   onSuccessMint,
   onBack,
   onGoToMyTicket,
@@ -27,9 +31,11 @@ export default function BuyerPurchase({
   event: EventModel;
   collectionMint: string;
   ownedTicketsCount?: number;
-  onSuccessMint: (mints: string | string[], qty: number) => void;
+  onBeforeMint?: (mints: string[], eventPda: string) => Promise<void>;
+  onCancelMint?: (mints: string[]) => Promise<void>;
+  onSuccessMint: (mintInfos: string[], qty: number) => void;
   onBack: () => void;
-  onGoToMyTicket: () => void;
+  onGoToMyTicket: (mint?: string) => void;
 }) {
   const umi = useUmi();
   const { walletAddress: walletAddressStr, authenticated, user } = useActiveSolanaWallet();
@@ -42,6 +48,7 @@ export default function BuyerPurchase({
   const [progressStep, setProgressStep] = useState(0);
   const [selectedZoneIndex, setSelectedZoneIndex] = useState(0);
   const [onChainZones, setOnChainZones] = useState<any[] | null>(null);
+  const [mintedTickets, setMintedTickets] = useState<string[]>([]);
 
   const walletAddress: Address | null = walletAddressStr ? (walletAddressStr as Address) : null;
   const walletConnected = authenticated || !!walletAddressStr;
@@ -123,6 +130,9 @@ export default function BuyerPurchase({
       if (step <= 3) setProgressStep(step);
     }, 900);
 
+    const pendingMints: string[] = [];
+    const successfulMints: string[] = [];
+
     try {
       if (!event.organizerWallet) {
         throw new Error("El evento no tiene configurada la wallet del organizador.");
@@ -139,50 +149,106 @@ export default function BuyerPurchase({
         seeds: [Buffer.from("escrow_state"), encoder.encode(eventRecordPda)]
       }))[0];
 
-      const ticketMintInfos = await mintTicket(umi, {
-        collectionMint,
-        buyerAddress: walletAddress!,
-        priceSol: qty * activePrice,
-        qty: qty,
-        eventData: {
-          name: event.name,
-          date: event.date,
-          venue: event.venue,
-          ticketNumber: liveTotalSold + 1,
-          imageUrl: "https://images.unsplash.com/photo-1541532713592-79a0317b6b77?q=80&w=800&auto=format&fit=crop"
-        },
-        escrowStatePda
-      });
 
-      const successfulMints: string[] = [];
-
-      for (const info of ticketMintInfos) {
+      for (let i = 0; i < qty; i++) {
+        const { generateSigner } = await import("@metaplex-foundation/umi");
+        const ticketMintSigner = generateSigner(umi);
+        
         const { instruction } = await buildBuyTicketInstruction(
           address(walletAddress!),
           eventRecordPda,
           organizerAddr,
-          address(info.mintSigner.publicKey),
+          address(collectionMint),
+          address(ticketMintSigner.publicKey.toString()),
           selectedZoneIndex
         );
-        let finalTx = info.txBuilder.add({
+
+        let finalTx = transactionBuilder().add({
           instruction: instruction,
-          signers: [umi.identity],
+          signers: [umi.identity, ticketMintSigner],
           bytesCreatedOnChain: 0
         });
+
+        const ticketMintPubkey = ticketMintSigner.publicKey.toString();
+        pendingMints.push(ticketMintPubkey);
+
+        // Guardar el ticket en la BD como PENDING_ON_CHAIN antes de firmar
+        if (onBeforeMint) {
+          await onBeforeMint([ticketMintPubkey], eventRecordPda);
+        }
+
         await finalTx.sendAndConfirm(umi);
-        successfulMints.push(info.mintSigner.publicKey.toString());
+        successfulMints.push(ticketMintPubkey);
       }
 
       clearInterval(interval);
       setProgressStep(4);
+      setMintedTickets(successfulMints);
+
+      // Iniciar la inicialización de metadatos en segundo plano (Fire and forget)
+      if (event.id) {
+        import("../../app/actions/tickets").then(({ initializeTicketMetadata }) => {
+          for (const mint of successfulMints) {
+            initializeTicketMetadata(mint, event.id.toString()).catch(err => 
+              console.error("Falló inicialización asíncrona de metadata para", mint, err)
+            );
+          }
+        });
+      }
+
       onSuccessMint(successfulMints, qty);
       setTimeout(() => setScreen('success'), 600);
     } catch (e: unknown) {
       console.error(e);
       clearInterval(interval);
-      const msg = e instanceof Error ? e.message : String(e);
-      showAlert("Error de Transacción", "La compra no pudo ser procesada en la red:\n" + msg, "error");
-      setScreen('buy');
+      
+      // Cleanup de tickets en BD si el usuario canceló la transacción
+      if (onCancelMint) {
+        const failedMints = pendingMints.filter(m => !successfulMints.includes(m));
+        if (failedMints.length > 0) {
+          onCancelMint(failedMints).catch(console.error);
+        }
+      }
+
+      let errorString = e instanceof Error ? e.message : String(e);
+      
+      // Intentar extraer el mensaje de Anchor de los logs
+      if (e && typeof e === 'object' && 'logs' in e && Array.isArray((e as any).logs)) {
+        const logsStr = (e as any).logs.join(' ');
+        if (logsStr.includes("límite de boletos permitidos") || logsStr.includes("0x1791")) {
+          errorString = "Has excedido el límite de boletos permitidos para esta cuenta.";
+        } else if (logsStr.includes("Error Message:")) {
+          const match = logsStr.match(/Error Message: (.*?)\./);
+          if (match && match[1]) errorString = match[1];
+        }
+      } else if (errorString.includes("0x1791") || errorString.includes("límite de boletos")) {
+        errorString = "Has excedido el límite de boletos permitidos para esta cuenta.";
+      }
+
+      if (successfulMints.length > 0) {
+        // Compra parcial exitosa
+        setMintedTickets(successfulMints);
+        
+        // Iniciar metadatos de los que sí fueron exitosos
+        if (event.id) {
+          import("../../app/actions/tickets").then(({ initializeTicketMetadata }) => {
+            for (const mint of successfulMints) {
+              initializeTicketMetadata(mint, event.id.toString()).catch(console.error);
+            }
+          });
+        }
+
+        onSuccessMint(successfulMints, successfulMints.length);
+        showAlert(
+          "Compra Parcial", 
+          `Se generaron ${successfulMints.length} boleto(s) exitosamente, pero el resto falló:\n${errorString}`, 
+          "warning"
+        );
+        setTimeout(() => setScreen('success'), 3000);
+      } else {
+        showAlert("Error de Transacción", "La compra no pudo ser procesada:\n" + errorString, "error");
+        setScreen('buy');
+      }
     }
   };
 
@@ -407,8 +473,20 @@ export default function BuyerPurchase({
 
                     {activePrice > 0 && activeAvailable > 0 && (
                       <div className="bp-total-row">
-                        <span style={{ fontSize: '14px', color: '#5F5E5A', fontWeight: 500 }}>Total ({qty} {qty === 1 ? 'boleto' : 'boletos'})</span>
-                        <span style={{ fontSize: '18px', fontWeight: 600, color: '#1E1E1E' }}>{(qty * activePrice * 1.05).toFixed(3)} SOL</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#5F5E5A' }}>
+                            <span>Boletos ({qty})</span>
+                            <span>{(qty * activePrice).toFixed(3)} SOL</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#5F5E5A' }}>
+                            <span>Tarifa Mintpass</span>
+                            <span>{(qty * calculateFee(activePrice)).toFixed(3)} SOL</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #E5E7EB' }}>
+                            <span style={{ fontSize: '14px', color: '#1E1E1E', fontWeight: 600 }}>Total a Pagar</span>
+                            <span style={{ fontSize: '18px', fontWeight: 600, color: '#1E1E1E' }}>{((activePrice + calculateFee(activePrice)) * qty).toFixed(3)} SOL</span>
+                          </div>
+                        </div>
                       </div>
                     )}
 
@@ -456,7 +534,7 @@ export default function BuyerPurchase({
                       </div>
                       <div className="flex justify-between items-center text-[15px] font-bold text-gray-900 border-t border-gray-200 pt-3 mt-3">
                         <span>Total a Pagar <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#6B7280', marginLeft: '4px' }}>(sin gas)</span></span>
-                        <span>{(qty * activePrice * 1.05).toFixed(4)} SOL</span>
+                        <span>{((activePrice + calculateFee(activePrice)) * qty).toFixed(4)} SOL</span>
                       </div>
                     </div>
 
@@ -536,7 +614,7 @@ export default function BuyerPurchase({
                       </div>
                       <div className="bp-summary-total">
                         <span>Total a pagar <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#8A8880', marginLeft: '4px' }}>(sin gas)</span></span>
-                        <span>{(qty * activePrice * 1.05).toFixed(4)} SOL</span>
+                        <span>{((activePrice + calculateFee(activePrice)) * qty).toFixed(4)} SOL</span>
                       </div>
                     </div>
 
@@ -667,11 +745,29 @@ export default function BuyerPurchase({
             <div className="absolute bottom-[70px] -left-[16px] w-[32px] h-[32px] bg-[#F1EFE8] rounded-full border-r border-[#D3D1C7]"></div>
             <div className="absolute bottom-[70px] -right-[16px] w-[32px] h-[32px] bg-[#F1EFE8] rounded-full border-l border-[#D3D1C7]"></div>
             <div className="absolute bottom-[86px] left-8 right-8 h-px border-t-[2px] border-dashed border-[#D3D1C7] opacity-50"></div>
+            
+            <div className="px-6 pb-6 pt-4 text-left">
+              <p className="text-[10px] text-[#8A8880] uppercase tracking-wider mb-2 font-semibold">Registros On-Chain</p>
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center bg-[#F7F8F7] p-2 rounded-md border border-[#E8E6DD]">
+                  <span className="text-[10px] text-[#5F5E5A] font-medium">Boleto NFT</span>
+                  <a href={`https://explorer.solana.com/address/${mintedTickets[0]}?cluster=devnet`} target="_blank" rel="noreferrer" className="text-[10px] text-[#3C3489] font-mono hover:underline truncate w-[140px] text-right">
+                    {mintedTickets[0]?.slice(0,6)}...{mintedTickets[0]?.slice(-6)}
+                  </a>
+                </div>
+                <div className="flex justify-between items-center bg-[#F7F8F7] p-2 rounded-md border border-[#E8E6DD]">
+                  <span className="text-[10px] text-[#5F5E5A] font-medium">Colección</span>
+                  <a href={`https://explorer.solana.com/address/${collectionMint}?cluster=devnet`} target="_blank" rel="noreferrer" className="text-[10px] text-[#3C3489] font-mono hover:underline truncate w-[140px] text-right">
+                    {collectionMint.slice(0,6)}...{collectionMint.slice(-6)}
+                  </a>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="flex max-w-[340px] w-full gap-4">
-            <button onClick={onGoToMyTicket} className="flex-[2] bg-[#1E1E1E] hover:bg-[#333] text-[#FFFFFF] h-[56px] rounded-[16px] font-bold text-[14px] transition-all cursor-pointer shadow-md">
-              Mostrar QR
+            <button onClick={() => onGoToMyTicket(mintedTickets[0])} className="flex-[2] bg-[#1E1E1E] hover:bg-[#333] text-[#FFFFFF] h-[56px] rounded-[16px] font-bold text-[14px] transition-all cursor-pointer shadow-md">
+              Mostrar Boleto
             </button>
             <button onClick={onBack} className="flex-1 bg-[#FFFFFF] hover:bg-[#F7F8F7] text-[#1E1E1E] h-[56px] rounded-[16px] font-semibold text-[14px] transition-colors cursor-pointer border border-[#D3D1C7]">
               Inicio

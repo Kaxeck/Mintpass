@@ -13,16 +13,20 @@
 .mb-card.resale { border: 1px solid #9945FF; }
 .mb-card.past { opacity: 0.6; }
 
-.mb-cover { height: 100px; background-size: cover; background-position: center; position: relative; }
+.mb-cover { aspect-ratio: 1 / 1; background-size: cover; background-position: center; position: relative; }
 .mb-cover::before { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); }
 .mb-cover.past { filter: grayscale(100%); }
 
-.mb-badge { position: absolute; top: 10px; right: 10px; font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 10px; }
+.mb-badge { position: absolute; top: 10px; right: 10px; font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 10px; z-index: 10; }
 .mb-badge.active { background: #14F195; color: #1E1E1E; }
 .mb-badge.resale { background: #EEEDFE; color: #3C3489; }
 .mb-badge.past { background: #F7F8F7; color: #5F5E5A; }
+.mb-badge.poap { background: #FEF3C7; color: #92400E; }
 
-.mb-name { position: absolute; bottom: 8px; left: 14px; margin: 0; color: #FFFFFF; font-size: 15px; font-weight: 600; z-index: 10; }
+.mb-card.poap { border: 1.5px solid #F59E0B; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.15); }
+.mb-cover.poap::before { background: linear-gradient(to top, rgba(0,0,0,0.9), rgba(245,158,11,0.25)); }
+
+.mb-name { position: absolute; bottom: 8px; left: 14px; margin: 0; color: #FFFFFF; font-size: 15px; font-weight: 600; z-index: 10; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
 
 .mb-body { padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; }
 .mb-date { margin: 0; font-size: 12px; color: #5F5E5A; font-weight: 500; }

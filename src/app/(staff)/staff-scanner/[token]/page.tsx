@@ -71,13 +71,17 @@ export default function StaffScannerPage() {
     <StaffPanel 
       event={eventModel} 
       stats={stats} 
-      onCheckIn={async (ticketMint) => { 
-        if (eventModel && ticketMint) {
-          const res = await checkInTicket(ticketMint, token);
+      onCheckIn={async (payload: any) => { 
+        if (eventModel && payload?.mint) {
+          const res = await checkInTicket(payload.mint, token, payload.timestamp, payload.hash);
           if (res.success) {
             setStats(prev => ({ ...prev, checked: prev.checked + 1 }));
+            return { success: true };
+          } else {
+            return { success: false, error: res.error };
           }
         }
+        return { success: false, error: "QR Inválido" };
       }} 
       onBack={() => {}} // No back button since this is an isolated PWA view
     />

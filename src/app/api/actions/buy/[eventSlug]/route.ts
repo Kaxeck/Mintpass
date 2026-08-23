@@ -8,7 +8,6 @@ import {
 import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
 import { publicKey as umiPublicKey, createNoopSigner } from "@metaplex-foundation/umi";
 import prisma from "../../../../../lib/prisma";
-import { mintTicket } from "../../../../../lib/metaplex";
 import { buildBuyTicketInstruction, deriveEventPDA } from "../../../../../lib/event-pda";
 import { address } from "@solana/addresses";
 import { getProgramDerivedAddress, getAddressEncoder } from "@solana/addresses";
@@ -81,36 +80,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ eve
       seeds: [Buffer.from("escrow_state"), encoder.encode(eventRecordPda)]
     }))[0];
 
-    // Assuming zones[0] is the active one, or standard price
-    const activePrice = event.ticketPriceSol;
+    const { generateSigner, transactionBuilder } = await import("@metaplex-foundation/umi");
+    const ticketMintSigner = generateSigner(umi);
 
-    const ticketMintInfos = await mintTicket(umi, {
-      collectionMint,
-      buyerAddress: buyerPubkeyStr as any,
-      priceSol: activePrice,
-      qty: 1,
-      eventData: {
-        name: event.title,
-        date: event.startDate ? new Date(event.startDate).toISOString().split('T')[0] : "",
-        venue: event.location || "",
-        ticketNumber: (event as any).tickets ? (event as any).tickets.length + 1 : 1,
-        imageUrl: event.ticketImageUrl || event.coverImageUrl || "https://images.unsplash.com/photo-1541532713592-79a0317b6b77"
-      },
-      escrowStatePda
-    });
-
-    const info = ticketMintInfos[0];
     const { instruction } = await buildBuyTicketInstruction(
       address(buyerPubkeyStr),
       eventRecordPda,
       organizerAddr,
-      address(info.mintSigner.publicKey.toString()),
+      address(collectionMint),
+      address(ticketMintSigner.publicKey.toString()),
       0 // zoneIndex 0 por defecto
     );
 
-    let finalTx = info.txBuilder.add({
+    let finalTx = transactionBuilder().add({
       instruction: instruction,
-      signers: [umi.identity],
+      signers: [umi.identity, ticketMintSigner],
       bytesCreatedOnChain: 0
     });
 
@@ -118,7 +102,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ eve
     finalTx = finalTx.setBlockhash(blockhash);
     
     let transaction = finalTx.build(umi);
-    transaction = await info.mintSigner.signTransaction(transaction);
+    transaction = await ticketMintSigner.signTransaction(transaction);
 
     const serializedTx = umi.transactions.serialize(transaction);
     const base64Tx = Buffer.from(serializedTx).toString('base64');

@@ -118,7 +118,7 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
   });
 
   const [createdEventData, setCreatedEventData] = useState<CreatedEvent | null>(null);
-  const [dynamicSolFee, setDynamicSolFee] = useState<string>('0.01965');
+  const [dynamicSolFee, setDynamicSolFee] = useState<string>('0.027');
   const [walletBalanceSol, setWalletBalanceSol] = useState<string | null>(null);
 
   // Consulta dinámica en tiempo real del costo exacto de almacenamiento on-chain (Rent-Exemption) y saldo de la wallet
@@ -126,24 +126,18 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
     async function fetchDynamicRentAndBalance() {
       if (!umi) return;
       try {
-        // Cuentas creadas para la Colección NFT de Metaplex:
-        // 1) Mint (82b)
-        // 2) Associated Token Account (165b)
-        // 3) Master Edition V2 (468b)
-        // 4) Metadata Account con Collection Details (~1596b)
-        // 5) EventRecord PDA (~1048b)
-        // 6) EscrowState PDA (~86b)
-        const [mintRent, ataRent, meRent, metaRent, pdaRent, escrowRent] = await Promise.all([
-          umi.rpc.getRent(82),
-          umi.rpc.getRent(165),
-          umi.rpc.getRent(468),
-          umi.rpc.getRent(1596),
+        // Cuentas creadas con MPL Core:
+        // 1) Core Collection Asset (~300b)
+        // 2) EventRecord PDA (~1048b)
+        // 3) EscrowState PDA (~86b)
+        const [coreCollectionRent, pdaRent, escrowRent] = await Promise.all([
+          umi.rpc.getRent(300),
           umi.rpc.getRent(1048),
           umi.rpc.getRent(86)
         ]);
 
-        const platformFeeLamports = 5_000_000; // 0.005 SOL fee
-        const totalLamports = Number(mintRent.basisPoints) + Number(ataRent.basisPoints) + Number(meRent.basisPoints) + Number(metaRent.basisPoints) + Number(pdaRent.basisPoints) + Number(escrowRent.basisPoints) + platformFeeLamports;
+        const platformFeeLamports = 15_000_000; // 0.015 SOL fee (MINIMUM_FEE_LAMPORTS)
+        const totalLamports = Number(coreCollectionRent.basisPoints) + Number(pdaRent.basisPoints) + Number(escrowRent.basisPoints) + platformFeeLamports;
         const totalSol = (totalLamports / 1_000_000_000).toFixed(5);
         setDynamicSolFee(totalSol);
 
@@ -222,6 +216,12 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
       return;
     }
     
+    const eventTimeMs = new Date(`${date}T${time}`).getTime();
+    if (eventTimeMs <= Date.now()) {
+      setShowErrors(true);
+      showAlert("Fecha Inválida", "La fecha y hora del evento no pueden ser en el pasado. Por favor selecciona un horario futuro.", "warning");
+      return;
+    }
     if (!walletAddress) {
       showAlert("Wallet Desconectada", "Abre la ventana de conexión para vincular tu wallet y lanzar el contrato del evento en la blockchain de Solana.", "warning");
       login();
@@ -243,12 +243,30 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
     setIsCreating(true);
 
     try {
+      const { generateSigner } = await import("@metaplex-foundation/umi");
+      const { PublicKey } = await import("@solana/web3.js");
+      
+      const collectionSigner = generateSigner(umi);
+      const collectionAddr = collectionSigner.publicKey.toString();
+
+      const PROGRAM_ID = new PublicKey(process.env.NEXT_PUBLIC_EVENT_REGISTRY_PROGRAM_ID || "FTZot8vUVk4Ez7FTdakSqnNoEabysQbBW7GuAdr2EwFM");
+      const [eventRecordPda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("event"), new PublicKey(walletAddress).toBuffer(), new PublicKey(collectionAddr).toBuffer()],
+        PROGRAM_ID
+      );
+      
+      const [escrowStatePda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("escrow_state"), eventRecordPda.toBuffer()],
+        PROGRAM_ID
+      );
+
       // 1. Preparar el builder de la Colección NFT on-chain via UMI
-      const { builder: collectionBuilder, collectionMint: collectionAddr } = await createEventCollectionBuilder(umi, {
+      const { builder: collectionBuilder } = await createEventCollectionBuilder(umi, {
         name: name || "Evento Mintpass",
         description: desc || "Un evento seguro con tickets NFT dinámicos.",
         imageUrl: coverImage || ticketImage || "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=800&auto=format&fit=crop",
-        organizerWallet: walletAddress
+        organizerWallet: walletAddress,
+        collectionSigner
       });
 
       const eventDataOnChain = {
@@ -279,7 +297,7 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
 
       let eventRecordPdaStr = "";
       let escrowVaultStr = "";
-      let dbEventId: any = Date.now();
+      let dbEventId: string = Date.now().toString();
       try {
         // 2. Construir la instrucción de Anchor para registrar el evento y la bóveda de escrow
         const { buildInitializeEscrowInstruction } = await import("../../lib/event-pda");
@@ -287,7 +305,6 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
         eventRecordPdaStr = pda.toString();
         console.log("PDA para guardar evento:", pda);
 
-        const { PublicKey } = await import("@solana/web3.js");
         const PROGRAM_ID = new PublicKey(process.env.NEXT_PUBLIC_EVENT_REGISTRY_PROGRAM_ID || "FTZot8vUVk4Ez7FTdakSqnNoEabysQbBW7GuAdr2EwFM");
         const [escrowVault] = PublicKey.findProgramAddressSync(
           [Buffer.from("escrow"), new PublicKey(eventRecordPdaStr).toBuffer()],
@@ -312,7 +329,7 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
             console.warn("Advertencia: No se pudo guardar el evento en la BD Web2", dbResult.error);
           } else {
             console.log("Evento guardado exitosamente en Supabase (DB).");
-            dbEventId = dbResult.eventId;
+            if (dbResult.eventId) dbEventId = dbResult.eventId;
           }
         } catch (dbError) {
           console.warn("Error inesperado guardando en BD:", dbError);
@@ -331,7 +348,16 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
           bytesCreatedOnChain: 0
         });
 
-        await fullTxBuilder.sendAndConfirm(umi);
+        const { updateCollection } = await import("@metaplex-foundation/mpl-core");
+        const { publicKey } = await import("@metaplex-foundation/umi");
+        const updateAuthBuilder = updateCollection(umi, {
+          collection: publicKey(collectionAddr),
+          newUpdateAuthority: publicKey(escrowStatePda.toBase58()),
+        });
+
+        const finalTxBuilder = fullTxBuilder.add(updateAuthBuilder);
+
+        await finalTxBuilder.sendAndConfirm(umi);
         console.log("Colección y Evento creados exitosamente en una sola transacción on-chain.");
       } catch (pdaError: unknown) {
         const msg = pdaError instanceof Error ? pdaError.message : String(pdaError);
@@ -340,10 +366,16 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
         // Rollback: Si falló la transacción on-chain, eliminamos el evento zombie de la BD
         if (dbEventId) {
           console.log(`Haciendo rollback: eliminando evento ${dbEventId} de la BD por fallo en la blockchain...`);
-          await deleteEventFromDb(dbEventId);
+          await deleteEventFromDb(dbEventId.toString());
         }
         
-        showAlert("Error de Transacción", "No se pudo registrar el evento en la blockchain. Asegúrate de aprobar la transacción y tener suficiente SOL.", "error");
+        if (msg.includes("0x178f") || msg.includes("6031") || msg.includes("EventAlreadyStarted") || msg.includes("pasado")) {
+          showAlert("Evento en el pasado", "El contrato rechazó la operación porque la fecha y hora seleccionada ya ha transcurrido.", "error");
+        } else if (msg.toLowerCase().includes("blockhash not found") || msg.toLowerCase().includes("expired") || msg.toLowerCase().includes("timeout")) {
+          showAlert("Tiempo agotado", "Te tardaste mucho en aprobar la transacción en tu billetera y expiró por seguridad. Inténtalo de nuevo rápido.", "error");
+        } else {
+          showAlert("Error de Transacción", "No se pudo registrar el evento en la blockchain. Asegúrate de aprobar la transacción y tener suficiente SOL.", "error");
+        }
         setIsCreating(false);
         return;
       }

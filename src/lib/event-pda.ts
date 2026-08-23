@@ -96,34 +96,33 @@ export async function buildSaveEventInstruction(
   const args = {
     name: eventData.name,
     // description: "", // Guardado solo en DB para ahorrar rent en Solana
-    eventTimestamp: new BN(new Date(`${eventData.date}T${eventData.time}`).getTime() / 1000), // convert to i64
+    event_timestamp: new BN(new Date(`${eventData.date}T${eventData.time}`).getTime() / 1000), // convert to i64
     venue: eventData.venue,
     category: eventData.category,
     zones: eventData.zones.map(z => ({
       name: z.name,
       capacity: z.capacity,
       price: new BN(Math.round((Number(z.price) || 0) * 1_000_000_000)),
-      ticketsSold: 0
+      tickets_sold: 0
     })),
-    allowResale: eventData.allowResale,
-    resaleCapLimit: eventData.resaleCapLimit || 0,
-    isSoulbound: eventData.isSoulbound,
-    allowRefunds: eventData.allowRefunds || false,
-    refundTimeLimit: eventData.allowRefunds && eventData.refundTimeLimit ? eventData.refundTimeLimit : 0,
-    identityLimit: eventData.identityLimit || 0,
+    allow_resale: eventData.allowResale,
+    resale_cap_limit: eventData.resaleCapLimit || 0,
+    is_soulbound: eventData.isSoulbound,
+    allow_refunds: eventData.allowRefunds || false,
+    refund_time_limit: eventData.allowRefunds && eventData.refundTimeLimit ? eventData.refundTimeLimit : 0,
+    identity_limit: eventData.identityLimit || 0,
   };
 
-  const payload = coder.instruction.encode("createEvent", args);
+  const payload = coder.instruction.encode("create_event", args);
 
   const instruction: UmiInstruction = {
     programId: EVENT_REGISTRY_PROGRAM_ID as any,
     keys: [
-      { pubkey: organizerAddress as any, isSigner: true, isWritable: true },
-      { pubkey: eventData.collectionMint as any, isSigner: false, isWritable: false },
-      { pubkey: collectionMetadataPda as any, isSigner: false, isWritable: false },
-      { pubkey: pda as any, isSigner: false, isWritable: true },
-      { pubkey: protocolConfigPda as any, isSigner: false, isWritable: false },
-      { pubkey: "11111111111111111111111111111111" as any, isSigner: false, isWritable: false }, // System
+      { pubkey: organizerAddress as any, isSigner: true, isWritable: true }, // 1. organizer
+      { pubkey: eventData.collectionMint as any, isSigner: false, isWritable: false }, // 2. collection_mint
+      { pubkey: pda as any, isSigner: false, isWritable: true }, // 3. event_record
+      { pubkey: protocolConfigPda as any, isSigner: false, isWritable: false }, // 4. protocol_config
+      { pubkey: "11111111111111111111111111111111" as any, isSigner: false, isWritable: false }, // 5. system_program
     ],
     data: new Uint8Array(payload),
   };
@@ -135,6 +134,7 @@ export async function buildBuyTicketInstruction(
   buyerAddress: Address,
   eventRecordPda: Address,
   organizerAddress: Address,
+  collectionMint: Address,
   ticketMint: Address,
   zoneIndex: number
 ): Promise<{ instruction: UmiInstruction; receiptPda: Address }> {
@@ -167,37 +167,19 @@ export async function buildBuyTicketInstruction(
     seeds: [Buffer.from("counter"), encoder.encode(eventRecordPda), encoder.encode(buyerAddress)]
   }))[0];
 
-  // Token Metadata PDA for ticketMint
-  const ticketMetadata = (await getProgramDerivedAddress({
-    programAddress: address("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"),
-    seeds: [
-      Buffer.from("metadata"),
-      encoder.encode(address("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s")),
-      encoder.encode(ticketMint)
-    ]
-  }))[0];
 
-  // Associated Token Account for Buyer and TicketMint
-  const tokenAccount = (await getProgramDerivedAddress({
-    programAddress: address("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"),
-    seeds: [
-      encoder.encode(buyerAddress),
-      encoder.encode(address("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")),
-      encoder.encode(ticketMint)
-    ]
-  }))[0];
 
   if (!process.env.NEXT_PUBLIC_TREASURY_WALLET) throw new Error("Missing NEXT_PUBLIC_TREASURY_WALLET");
   const mintpassTreasury = address(process.env.NEXT_PUBLIC_TREASURY_WALLET);
 
-  const payload = coder.instruction.encode("buyTicket", { zoneIndex });
+  const payload = coder.instruction.encode("buy_ticket", { zone_index: zoneIndex });
 
   const instruction: UmiInstruction = {
     programId: EVENT_REGISTRY_PROGRAM_ID as any,
     keys: [
       { pubkey: buyerAddress as any, isSigner: true, isWritable: true }, // 1. payer
       { pubkey: buyerAddress as any, isSigner: true, isWritable: true }, // 2. buyer
-      { pubkey: ticketMint as any, isSigner: false, isWritable: true },  // 3. ticketMint
+      { pubkey: ticketMint as any, isSigner: true, isWritable: true },  // 3. ticketMint
       { pubkey: ticketReceipt as any, isSigner: false, isWritable: true }, // 4. ticketReceipt
       { pubkey: protocolConfigPda as any, isSigner: false, isWritable: false }, // 5. protocolConfig
       { pubkey: mintpassTreasury as any, isSigner: false, isWritable: true }, // 6. mintpassTreasury
@@ -205,11 +187,10 @@ export async function buildBuyTicketInstruction(
       { pubkey: eventRecordPda as any, isSigner: false, isWritable: true }, // 8. eventRecord
       { pubkey: escrowVault as any, isSigner: false, isWritable: true }, // 9. escrowVault
       { pubkey: escrowState as any, isSigner: false, isWritable: true }, // 10. escrowState
-      { pubkey: tokenAccount as any, isSigner: false, isWritable: true }, // 11. tokenAccount
-      { pubkey: ticketCounter as any, isSigner: false, isWritable: true }, // 12. ticketCounter
-      { pubkey: ticketMetadata as any, isSigner: false, isWritable: false }, // 13. ticketMetadata
-      { pubkey: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" as any, isSigner: false, isWritable: false }, // 14. tokenProgram
-      { pubkey: "11111111111111111111111111111111" as any, isSigner: false, isWritable: false }, // 15. systemProgram
+      { pubkey: ticketCounter as any, isSigner: false, isWritable: true }, // 11. ticketCounter
+      { pubkey: "11111111111111111111111111111111" as any, isSigner: false, isWritable: false }, // 12. systemProgram
+      { pubkey: "CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d" as any, isSigner: false, isWritable: false }, // 13. mplCoreProgram
+      { pubkey: collectionMint as any, isSigner: false, isWritable: true }, // 14. collectionMint
     ],
     data: new Uint8Array(payload),
   };
@@ -328,7 +309,7 @@ export async function buildCancelEventInstruction(
   //   seeds: [Buffer.from("reputation"), encoder.encode(organizerAddress)]
   // }))[0];
 
-  const payload = coder.instruction.encode("cancelEvent", {});
+  const payload = coder.instruction.encode("cancel_event", {});
 
   const instruction: UmiInstruction = {
     programId: EVENT_REGISTRY_PROGRAM_ID as any,
@@ -372,7 +353,7 @@ export async function buildFinishEventInstruction(
   //   seeds: [Buffer.from("reputation"), encoder.encode(organizerAddress)]
   // }))[0];
 
-  const payload = coder.instruction.encode("finishEventSuccessfully", {});
+  const payload = coder.instruction.encode("finish_event_successfully", {});
 
   const instruction: UmiInstruction = {
     programId: EVENT_REGISTRY_PROGRAM_ID as any,
@@ -400,7 +381,7 @@ export async function buildInitReputationInstruction(
     seeds: [Buffer.from("reputation"), encoder.encode(organizerAddress)]
   }))[0];
 
-  const payload = coder.instruction.encode("initializeReputation", {});
+  const payload = coder.instruction.encode("initialize_reputation", {});
 
   return {
     programId: EVENT_REGISTRY_PROGRAM_ID as any,
@@ -438,7 +419,7 @@ export async function buildInitializeEscrowInstruction(
   if (!process.env.NEXT_PUBLIC_TREASURY_WALLET) throw new Error("Missing NEXT_PUBLIC_TREASURY_WALLET");
   const mintpassTreasury = address(process.env.NEXT_PUBLIC_TREASURY_WALLET);
 
-  const payload = coder.instruction.encode("initializeEscrow", { platformFee: new BN(5000000) });
+  const payload = coder.instruction.encode("initialize_escrow", { platform_fee: new BN(15000000) });
 
   return {
     programId: EVENT_REGISTRY_PROGRAM_ID as any,

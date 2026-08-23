@@ -32,7 +32,7 @@ export async function POST(req: Request) {
               where: { collectionMint: mint },
               include: { userProfile: true }
             });
-            if (event && tx.type === "NFT_MINT") {
+            if (event && (tx.type === "NFT_MINT" || event.status === "PENDING_ON_CHAIN")) {
               await prisma.event.update({
                 where: { collectionMint: mint },
                 data: { status: "PUBLISHED" }
@@ -44,12 +44,63 @@ export async function POST(req: Request) {
             }
 
             // Check if this mint is one of our tickets
-            const ticket = await prisma.ticket.findUnique({
+            let ticket = await prisma.ticket.findUnique({
               where: { mintAddress: mint },
               include: { owner: true, event: true }
             });
 
-            if (ticket) {
+            if (!ticket && tx.type === "NFT_MINT") {
+              // Ticket not in DB, probably minted via Blink (100% on-chain)
+              // Let's verify if it belongs to one of our events by fetching its metadata
+              try {
+                const { createUmi } = await import("@metaplex-foundation/umi-bundle-defaults");
+                const { publicKey } = await import("@metaplex-foundation/umi");
+                const { fetchDigitalAsset } = await import("@metaplex-foundation/mpl-token-metadata");
+                
+                const umi = createUmi(process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com");
+                const asset = await fetchDigitalAsset(umi, publicKey(mint));
+                
+                if (asset.metadata.collection.__option === 'Some' && asset.metadata.collection.value.key) {
+                  const collectionMintStr = asset.metadata.collection.value.key.toString();
+                  const parentEvent = await prisma.event.findUnique({ where: { collectionMint: collectionMintStr } });
+                  
+                  if (parentEvent) {
+                    // It's a ticket for our event! Let's save it.
+                    ticket = await prisma.ticket.create({
+                      data: {
+                        mintAddress: mint,
+                        eventAddress: parentEvent.id,
+                        ownerPubkey: toAccount,
+                        originalBuyerPubkey: toAccount,
+                        status: "VALID",
+                        zoneIndex: 0,
+                        originalPrice: parentEvent.ticketPriceSol || 0,
+                        pricePaid: parentEvent.ticketPriceSol || 0,
+                        lastSyncedSlot: tx.slot || 0,
+                      },
+                      include: { owner: true, event: true }
+                    }) as any;
+                    
+                    await prisma.ticketAuditLog.create({
+                      data: {
+                        ticketMint: mint,
+                        previousStatus: "PENDING_ON_CHAIN",
+                        newStatus: "VALID",
+                        changedAtSlot: tx.slot || 0,
+                        txSignature: tx.signature || "mint_webhook_blink",
+                      }
+                    });
+                    
+                    if (ticket?.owner?.email && ticket?.event) {
+                      const ticketUrl = `https://mintpass.com/ticket/${mint}`;
+                      await sendTicketPurchasedEmail(ticket.owner.email, ticket.event.title, ticketUrl);
+                    }
+                  }
+                }
+              } catch (fetchErr) {
+                console.error("Error fetching metadata for new mint in webhook:", fetchErr);
+              }
+            } else if (ticket) {
               if (tx.type === "NFT_MINT") {
                 await prisma.ticket.update({
                   where: { mintAddress: mint },
@@ -64,7 +115,7 @@ export async function POST(req: Request) {
                     txSignature: tx.signature || "mint_webhook",
                   }
                 });
-                if (ticket.owner?.email) {
+                if (ticket.owner?.email && ticket.event) {
                   // A dummy URL for now, could be dynamic
                   const ticketUrl = `https://mintpass.com/ticket/${mint}`;
                   await sendTicketPurchasedEmail(ticket.owner.email, ticket.event.title, ticketUrl);

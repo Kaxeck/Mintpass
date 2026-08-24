@@ -40,6 +40,17 @@ export async function mintTicketInDb(ticketData: any) {
   try {
     const { mintAddress, eventAddress, ownerPubkey, originalBuyerPubkey, zoneIndex, originalPrice, pricePaid } = ticketData;
 
+    // 1. Ensure the buyer has a UserProfile to satisfy the foreign key constraint
+    await prisma.userProfile.upsert({
+      where: { walletPubkey: ownerPubkey },
+      update: {},
+      create: {
+        id: ownerPubkey,
+        walletPubkey: ownerPubkey,
+        role: "ATTENDEE",
+      }
+    });
+
     const ticket = await prisma.ticket.create({
       data: {
         mintAddress,

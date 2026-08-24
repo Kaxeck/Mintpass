@@ -94,7 +94,7 @@ export default function Home({
       price: ev.price,
       sold: 0,
       badge: 'new' as string,
-      bLabel: 'On-chain',
+      bLabel: 'Verificado',
       coverImage: ev.coverImage || undefined,
     };
   });
@@ -152,31 +152,31 @@ export default function Home({
         />
 
         <section className="lp-hero">
-          <p className="lp-hero-tag">POWERED BY SOLANA</p>
-          <p className="lp-hero-title">Boletos que no se pueden<br />falsificar ni revender de más</p>
-          <p className="lp-hero-sub">Compra fácil, sin entender blockchain. Cada boleto es verificable y tuyo.</p>
+          <p className="lp-hero-tag">TECNOLOGÍA DIGITAL ANTI-FRAUDE</p>
+          <p className="lp-hero-title">Tus entradas seguras, infalsificables<br />y a precio justo</p>
+          <p className="lp-hero-sub">Disfruta de tus eventos favoritos con boletos 100% digitales, con garantía de autenticidad y sin sorpresas.</p>
         </section>
 
         <section className="lp-features">
           <div className="lp-feature">
             <QrCode size={28} color="#14F195" />
             <div>
-              <p className="lp-feature-title">QR que cambia cada 30s</p>
-              <p className="lp-feature-desc">Imposible de duplicar</p>
+              <p className="lp-feature-title">Código QR Dinámico</p>
+              <p className="lp-feature-desc">Se renueva para evitar capturas o clonaciones</p>
             </div>
           </div>
           <div className="lp-feature">
             <ShieldCheck size={28} color="#534AB7" />
             <div>
-              <p className="lp-feature-title">Verificado en Solana</p>
-              <p className="lp-feature-desc">Estado público, no privado</p>
+              <p className="lp-feature-title">Autenticidad Garantizada</p>
+              <p className="lp-feature-desc">Cada acceso es único y respaldado oficialmente</p>
             </div>
           </div>
           <div className="lp-feature">
             <TrendingDown size={28} color="#D85A30" />
             <div>
-              <p className="lp-feature-title">Reventa con tope</p>
-              <p className="lp-feature-desc">Nunca precio inflado</p>
+              <p className="lp-feature-title">Protección al Comprador</p>
+              <p className="lp-feature-desc">Sin reventas infladas ni cargos excesivos</p>
             </div>
           </div>
         </section>

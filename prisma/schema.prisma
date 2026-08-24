@@ -184,6 +184,7 @@ model StaffAccessLink {
   token          String       @unique
   status         AccessStatus @default(ACTIVE)
   createdAt      DateTime     @default(now())
+  deviceId       String?
 
   event          Event        @relation(fields: [eventId], references: [id])
   checkedTickets Ticket[]

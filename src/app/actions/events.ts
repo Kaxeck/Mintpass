@@ -150,7 +150,7 @@ export async function getEventsByOrganizer(pubkey: string, token?: string) {
   }
 }
 
-export async function getEventByStaffToken(token: string) {
+export async function getEventByStaffToken(token: string, deviceId?: string) {
   try {
     const staffLink = await prisma.staffAccessLink.findUnique({
       where: { token, status: "ACTIVE" },
@@ -160,13 +160,26 @@ export async function getEventByStaffToken(token: string) {
     });
 
     if (!staffLink || !staffLink.event) {
-      return null;
+      return { error: "NOT_FOUND" };
     }
 
-    return staffLink.event;
+    if (deviceId) {
+      if (!staffLink.deviceId) {
+        // First device to use the link! Bind it.
+        await prisma.staffAccessLink.update({
+          where: { id: staffLink.id },
+          data: { deviceId }
+        });
+      } else if (staffLink.deviceId !== deviceId) {
+        // A different device is trying to use a bound link
+        return { error: "DEVICE_MISMATCH" };
+      }
+    }
+
+    return { event: staffLink.event };
   } catch (error) {
     console.error("Error validating staff token:", error);
-    return null;
+    return { error: "SERVER_ERROR" };
   }
 }
 
@@ -248,6 +261,11 @@ export async function finishEventInDb(eventId: string, organizerPubkey: string) 
     await prisma.event.update({
       where: { id: eventId },
       data: { status: 'CLOSED' }
+    });
+
+    await prisma.staffAccessLink.updateMany({
+      where: { eventId: eventId, status: 'ACTIVE' },
+      data: { status: 'REVOKED' }
     });
 
     revalidatePath('/');

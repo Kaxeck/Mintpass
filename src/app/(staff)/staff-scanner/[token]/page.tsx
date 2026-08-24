@@ -17,16 +17,32 @@ export default function StaffScannerPage() {
   const [stats, setStats] = useState({ sold: 0, checked: 0 });
   const [loading, setLoading] = useState(true);
 
+  const [deviceId, setDeviceId] = useState<string>("");
+  const [errorStatus, setErrorStatus] = useState<string | null>(null);
+
   useEffect(() => {
     setMounted(true);
+    let id = localStorage.getItem("mintpass_scanner_device_id");
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem("mintpass_scanner_device_id", id);
+    }
+    setDeviceId(id);
   }, []);
 
   useEffect(() => {
     async function fetchEvent() {
-      if (!token) return;
+      if (!token || !deviceId) return;
       setLoading(true);
       try {
-        const ev = await getEventByStaffToken(token);
+        const result = await getEventByStaffToken(token, deviceId);
+        
+        if (result.error) {
+          setErrorStatus(result.error);
+          return;
+        }
+
+        const ev = result.event;
         if (ev) {
           setEventModel({
             id: ev.id,
@@ -55,12 +71,21 @@ export default function StaffScannerPage() {
         setLoading(false);
       }
     }
-    fetchEvent();
-  }, [token]);
+    if (deviceId) {
+      fetchEvent();
+    }
+  }, [token, deviceId]);
 
   if (!mounted || loading) return null;
   
-  if (!eventModel) {
+  if (errorStatus === "DEVICE_MISMATCH") {
+    return <div style={{ padding: '24px', textAlign: 'center', fontFamily: 'sans-serif', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      <h2 style={{ fontSize: '24px', marginBottom: '16px', color: '#EF4444' }}>Dispositivo no Autorizado</h2>
+      <p style={{ color: '#666', maxWidth: '400px' }}>Este enlace de staff ya fue utilizado e iniciado en otro dispositivo celular. Por razones de seguridad, cada enlace solo puede ser utilizado por un único escáner.</p>
+    </div>;
+  }
+
+  if (errorStatus === "NOT_FOUND" || !eventModel) {
     return <div style={{ padding: '24px', textAlign: 'center', fontFamily: 'sans-serif' }}>
       <h2>Acceso denegado</h2>
       <p>Este enlace de staff es inválido o ha expirado.</p>

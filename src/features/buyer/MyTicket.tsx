@@ -236,44 +236,50 @@ export default function MyTicket({ event, ticketMint, qrSecret, onBack }: { even
                 
                 {/* QR Section (Underneath the ticket sheet) */}
                 <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', height: '100%', justifyContent: 'center' }}>
-                  <div className={`mt-qr-ring ${event?.status === 'CANCELLED' || event?.ticketStatus === 'CANCELLED' || isCheckedIn ? 'used' : ''} ${poapClaimed ? 'poap' : ''} ${!isQrActive && !poapClaimed && !isCheckedIn && event?.status !== 'CANCELLED' && event?.ticketStatus !== 'CANCELLED' ? 'locked' : ''}`}>
-                    <div className="mt-qr-box">
-                      {event?.status === 'CANCELLED' || event?.ticketStatus === 'CANCELLED' ? (
-                        <div className="mt-qr-state mt-qr-cancelled">
-                          <Icons.XCircle size={48} strokeWidth={1.5} />
-                          <span>Boleto<br/>Cancelado</span>
-                        </div>
-                      ) : event?.ticketStatus === 'PENDING_ON_CHAIN' ? (
-                        <div className="mt-qr-state mt-qr-locked">
-                          <Icons.Clock size={48} strokeWidth={1.5} />
-                          <span>Confirmando<br/>compra...</span>
-                        </div>
-                      ) : poapClaimed ? (
-                        <>
-                          <Icons.ShieldCheck size={64} color="#14F195" />
-                          <span>¡Acceso Validado!</span>
-                          <span style={{ fontSize: '11px', marginTop: '4px', color: '#5F5E5A' }}>Disfruta el evento</span>
-                        </>
-                      ) : !isQrActive ? (
-                        <div className="mt-qr-state mt-qr-locked">
-                          <Icons.Lock size={48} strokeWidth={1.5} />
-                          <span>Bloqueado temporalmente</span>
-                        </div>
-                      ) : (
-                        <QRCode value={cryptoPayload} size={120} bgColor="#ffffff" fgColor="#111111" />
-                      )}
-                      {!isCheckedIn && !poapClaimed && isQrActive && event?.status !== 'CANCELLED' && <div className={`mt-flash ${flash ? 'show' : ''}`}></div>}
-                    </div>
-                  </div>
-
-                  {!isCheckedIn && !poapClaimed && event?.status !== 'CANCELLED' && (
+                  {poapClaimed ? (
                     <>
-                      {isQrActive ? (
-                        <p className="mt-timer">Se renueva en <span>{secs}s</span></p>
-                      ) : (
-                        <p className="mt-timer mt-timer-locked">Se revelará en {timeToUnlock}</p>
+                      <img 
+                        src={`https://api.dicebear.com/7.x/shapes/svg?seed=${ticketMint}`} 
+                        alt="POAP Generado" 
+                        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <div className={`mt-qr-ring ${event?.status === 'CANCELLED' || event?.ticketStatus === 'CANCELLED' || isCheckedIn ? 'used' : ''} ${!isQrActive && !isCheckedIn && event?.status !== 'CANCELLED' && event?.ticketStatus !== 'CANCELLED' ? 'locked' : ''}`}>
+                        <div className="mt-qr-box">
+                          {event?.status === 'CANCELLED' || event?.ticketStatus === 'CANCELLED' ? (
+                            <div className="mt-qr-state mt-qr-cancelled">
+                              <Icons.XCircle size={48} strokeWidth={1.5} />
+                              <span>Boleto<br/>Cancelado</span>
+                            </div>
+                          ) : event?.ticketStatus === 'PENDING_ON_CHAIN' ? (
+                            <div className="mt-qr-state mt-qr-locked">
+                              <Icons.Clock size={48} strokeWidth={1.5} />
+                              <span>Confirmando<br/>compra...</span>
+                            </div>
+                          ) : !isQrActive ? (
+                            <div className="mt-qr-state mt-qr-locked">
+                              <Icons.Lock size={48} strokeWidth={1.5} />
+                              <span>Bloqueado temporalmente</span>
+                            </div>
+                          ) : (
+                            <QRCode value={cryptoPayload} size={120} bgColor="#ffffff" fgColor="#111111" />
+                          )}
+                          {!isCheckedIn && isQrActive && event?.status !== 'CANCELLED' && <div className={`mt-flash ${flash ? 'show' : ''}`}></div>}
+                        </div>
+                      </div>
+
+                      {!isCheckedIn && event?.status !== 'CANCELLED' && (
+                        <>
+                          {isQrActive ? (
+                            <p className="mt-timer">Se renueva en <span>{secs}s</span></p>
+                          ) : (
+                            <p className="mt-timer mt-timer-locked">Se revelará en {timeToUnlock}</p>
+                          )}
+                          <p className="mt-warning">Imposible de capturar o clonar</p>
+                        </>
                       )}
-                      <p className="mt-warning">Imposible de capturar o clonar</p>
                     </>
                   )}
                   {poapClaimed && <p className="mt-warning">Boleto registrado como utilizado</p>}
@@ -324,6 +330,15 @@ export default function MyTicket({ event, ticketMint, qrSecret, onBack }: { even
               </div>
 
               <div className="mt-details">
+                {poapClaimed && (
+                  <div style={{ background: '#14F195', borderRadius: '12px', padding: '16px', marginBottom: '24px', textAlign: 'center', color: '#000', boxShadow: '0 4px 12px rgba(20, 241, 149, 0.2)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '4px' }}>
+                      <Icons.ShieldCheck size={20} strokeWidth={2.5} />
+                      <span style={{ fontSize: '16px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>¡POAP Generado!</span>
+                    </div>
+                    <span style={{ fontSize: '13px', fontWeight: 600, opacity: 0.8 }}>Guardado permanentemente en tu wallet</span>
+                  </div>
+                )}
                 <p className="mt-title">{ticketData.name}</p>
                 <p className="mt-subtitle">{ticketData.date}</p>
 

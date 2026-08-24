@@ -25,6 +25,7 @@ export default function MyTicketPage() {
   const selectedEventId = searchParams?.get("eventId") as string;
   
   useEffect(() => {
+    let intervalId: any;
     async function fetchEventAndTicket(isInitial = false) {
       if (!ticketMint || !walletAddress) {
         if (isInitial) setLoading(false);
@@ -72,6 +73,9 @@ export default function MyTicketPage() {
       }
     }
     fetchEventAndTicket(true);
+    intervalId = setInterval(() => fetchEventAndTicket(false), 5000);
+
+    return () => clearInterval(intervalId);
   }, [ticketMint, walletAddress]);
 
   if (!mounted || !ready || loading) return null;

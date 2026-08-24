@@ -268,7 +268,7 @@ export default function Home({
             )}
           </div>
           <div className="lp-cats-scroll">
-            <div className={`lp-cat lp-cat--bg${catFilter === 'Música' ? ' lp-cat--active' : ''}`} style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1540039155733-d76e6e48e61f?auto=format&fit=crop&w=400&q=80")' }} onClick={() => setCatFilter(catFilter === 'Música' ? 'Todos' : 'Música')} onDoubleClick={() => setCatFilter('Todos')}>
+            <div className={`lp-cat lp-cat--bg${catFilter === 'Música' ? ' lp-cat--active' : ''}`} style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=400&q=80")' }} onClick={() => setCatFilter(catFilter === 'Música' ? 'Todos' : 'Música')} onDoubleClick={() => setCatFilter('Todos')}>
               <p className="lp-cat-title">Conciertos</p>
             </div>
             <div className={`lp-cat lp-cat--bg${catFilter === 'Arte' ? ' lp-cat--active' : ''}`} style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=400&q=80")' }} onClick={() => setCatFilter(catFilter === 'Arte' ? 'Todos' : 'Arte')} onDoubleClick={() => setCatFilter('Todos')}>
@@ -277,7 +277,7 @@ export default function Home({
             <div className={`lp-cat lp-cat--bg${catFilter === 'Feria' ? ' lp-cat--active' : ''}`} style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1533900298318-6b8da08a523e?auto=format&fit=crop&w=400&q=80")' }} onClick={() => setCatFilter(catFilter === 'Feria' ? 'Todos' : 'Feria')} onDoubleClick={() => setCatFilter('Todos')}>
               <p className="lp-cat-title">Cultura y ferias</p>
             </div>
-            <div className={`lp-cat lp-cat--bg${catFilter === 'Teatro' ? ' lp-cat--active' : ''}`} style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1507676184212-d0330a15233c?auto=format&fit=crop&w=400&q=80")' }} onClick={() => setCatFilter(catFilter === 'Teatro' ? 'Todos' : 'Teatro')} onDoubleClick={() => setCatFilter('Todos')}>
+            <div className={`lp-cat lp-cat--bg${catFilter === 'Teatro' ? ' lp-cat--active' : ''}`} style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=400&q=80")' }} onClick={() => setCatFilter(catFilter === 'Teatro' ? 'Todos' : 'Teatro')} onDoubleClick={() => setCatFilter('Todos')}>
               <p className="lp-cat-title">Escuelas</p>
             </div>
             <div className={`lp-cat lp-cat--bg${catFilter === 'Deporte' ? ' lp-cat--active' : ''}`} style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1511886929837-354d827aae26?auto=format&fit=crop&w=400&q=80")' }} onClick={() => setCatFilter(catFilter === 'Deporte' ? 'Todos' : 'Deporte')} onDoubleClick={() => setCatFilter('Todos')}>

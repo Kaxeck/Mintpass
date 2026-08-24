@@ -13,6 +13,74 @@ import AlertModal, { AlertModalProps } from "../../components/ui/AlertModal";
 import { createEventInDb, deleteEventFromDb } from "../../app/actions/events";
 import { eventSchema } from "../../lib/validations";
 
+const FormattedNumberInput = ({ 
+  value, 
+  onChange, 
+  step = 1, 
+  min = 0, 
+  isFloat = false, 
+  placeholder = "",
+  isEmptyState = false
+}: { 
+  value: number; 
+  onChange: (val: number) => void; 
+  step?: number; 
+  min?: number; 
+  isFloat?: boolean;
+  placeholder?: string;
+  isEmptyState?: boolean;
+}) => {
+  const [displayValue, setDisplayValue] = useState(isEmptyState ? '' : value.toLocaleString('en-US', isFloat ? { maximumFractionDigits: 4 } : {}));
+
+  useEffect(() => {
+    if (isEmptyState && displayValue === '') return;
+    setDisplayValue(value.toLocaleString('en-US', isFloat ? { maximumFractionDigits: 4 } : {}));
+  }, [value, isFloat, isEmptyState]);
+
+  const handleBlur = () => {
+    if (displayValue.trim() === '') {
+      if (isEmptyState) return;
+      onChange(min);
+      setDisplayValue(min.toLocaleString('en-US', isFloat ? { maximumFractionDigits: 4 } : {}));
+      return;
+    }
+    const raw = displayValue.replace(/,/g, '');
+    let num = isFloat ? parseFloat(raw) : parseInt(raw, 10);
+    if (isNaN(num)) num = min;
+    if (num < min) num = min;
+    onChange(num);
+    setDisplayValue(num.toLocaleString('en-US', isFloat ? { maximumFractionDigits: 4 } : {}));
+  };
+
+  const handleIncrement = (dir: number) => {
+    let num = value + dir * step;
+    if (num < min) num = min;
+    num = isFloat ? parseFloat(num.toFixed(4)) : num;
+    onChange(num);
+  };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #D3D1C7', borderRadius: '6px', background: '#FFFFFF', overflow: 'hidden' }}>
+      <input
+        type="text"
+        placeholder={placeholder}
+        value={displayValue}
+        onChange={e => setDisplayValue(e.target.value)}
+        onBlur={handleBlur}
+        style={{ width: '100%', border: 'none', padding: '8px 10px', fontSize: '13px', color: '#1E1E1E', outline: 'none', background: 'transparent' }}
+      />
+      <div style={{ display: 'flex', flexDirection: 'column', borderLeft: '1px solid #D3D1C7', background: '#F7F8F7' }}>
+        <button type="button" onClick={() => handleIncrement(1)} style={{ padding: '2px 4px', border: 'none', background: 'transparent', cursor: 'pointer', borderBottom: '1px solid #D3D1C7', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '24px' }} title="Subir">
+          <Icons.ChevronUp size={12} color="#5F5E5A" />
+        </button>
+        <button type="button" onClick={() => handleIncrement(-1)} style={{ padding: '2px 4px', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '24px' }} title="Bajar">
+          <Icons.ChevronDown size={12} color="#5F5E5A" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export interface CreatedEvent {
   id: string | number;
   address?: string;
@@ -93,7 +161,10 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
   const [cityName, setCityName] = useState('');
   const [selectedCurrency, setSelectedCurrency] = useState<'MXN' | 'USD'>('MXN');
   
-  const availableCountries = useMemo(() => Country.getAllCountries(), []);
+  const availableCountries = useMemo(() => {
+    const latamIso = ['MX', 'AR', 'CO', 'CL', 'PE', 'EC', 'UY', 'PY', 'VE', 'BO', 'CR', 'PA', 'DO', 'SV', 'GT', 'HN', 'NI', 'PR', 'ES', 'US'];
+    return Country.getAllCountries().filter(c => latamIso.includes(c.isoCode)).sort((a, b) => a.name.localeCompare(b.name));
+  }, []);
   const availableStates = useMemo(() => State.getStatesOfCountry(countryIso), [countryIso]);
   const availableCities = useMemo(() => {
     return City.getCitiesOfState(countryIso, stateIso).filter(c => 
@@ -221,6 +292,18 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
       setShowErrors(true);
       showAlert("Fecha Inválida", "La fecha y hora del evento no pueden ser en el pasado. Por favor selecciona un horario futuro.", "warning");
       return;
+    }
+
+    if (doorTime) {
+      const doorTimeMs = new Date(`${date}T${doorTime}`).getTime();
+      const diffHours = (eventTimeMs - doorTimeMs) / (1000 * 60 * 60);
+      // Si la diferencia es negativa, significa que la apertura es "después" del evento en el mismo día
+      // o muy cerca del inicio. Exigimos que sea al menos 1 hora antes.
+      if (diffHours < 1 || doorTimeMs >= eventTimeMs) {
+        setShowErrors(true);
+        showAlert("Apertura Inválida", "La hora de apertura de puertas debe ser al menos 1 hora antes de que inicie el evento.", "warning");
+        return;
+      }
     }
     if (!walletAddress) {
       showAlert("Wallet Desconectada", "Abre la ventana de conexión para vincular tu wallet y lanzar el contrato del evento en la blockchain de Solana.", "warning");
@@ -682,7 +765,7 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
                     <Icons.Calendar size={18} color="#4BAA46" />
                     <input 
                       type="date" 
-                      min={new Date().toISOString().split('T')[0]}
+                      min={new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]}
                       value={date} 
                       onChange={e => setDate(e.target.value)} 
                       style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent', fontSize: '14px', color: '#1E1E1E', cursor: 'pointer', fontFamily: 'inherit' }} 
@@ -783,6 +866,11 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
                       style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent', fontSize: '14px', color: '#1E1E1E', cursor: 'pointer', fontFamily: 'inherit' }} 
                     />
                   </div>
+                  <div style={{ display: 'flex', gap: '6px', marginTop: '6px', flexWrap: 'wrap' }}>
+                    {['17:00', '18:00', '19:00', '20:00'].map(t => (
+                      <span key={t} onClick={() => setDoorTime(t)} style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '6px', background: doorTime === t ? '#14F195' : '#F1F1EE', color: '#1E1E1E', cursor: 'pointer' }}>{t} h</span>
+                    ))}
+                  </div>
                 </div>
 
                 <div style={{ flex: 1 }}>
@@ -813,21 +901,18 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
                 </div>
                 <div style={{ flex: 1 }}>
                   <p style={{ margin: '0 0 4px', fontSize: '12px', color: '#5F5E5A', fontWeight: 600 }}>Precio por boleto (SOL) *</p>
-                  <input 
-                    type="number" 
-                    step="any"
-                    min="0"
+                  <FormattedNumberInput 
+                    value={zone.price}
+                    isEmptyState={zone.price === 0 && idx === zones.length - 1 && zone.name === ''}
                     placeholder="0.05"
-                    value={zone.price === 0 && idx === zones.length - 1 && zone.name === '' ? '' : zone.price} 
-                    onWheel={e => e.currentTarget.blur()}
-                    onChange={e => { 
-                      const val = e.target.value;
-                      const parsed = val === '' ? 0 : parseFloat(val);
+                    step={0.01}
+                    min={0}
+                    isFloat={true}
+                    onChange={(val) => {
                       const z = [...zones]; 
-                      z[idx] = { ...z[idx], price: isNaN(parsed) ? 0 : parsed }; 
-                      setZones(z); 
-                    }} 
-                    style={{ width: '100%', border: '1px solid #D3D1C7', borderRadius: '6px', padding: '8px 10px', fontSize: '13px', color: '#1E1E1E', background: '#FFFFFF', outline: 'none' }} 
+                      z[idx] = { ...z[idx], price: val }; 
+                      setZones(z);
+                    }}
                   />
                   <span style={{ fontSize: '10px', color: '#8A8880', marginTop: '2px', display: 'block' }}>
                     {zone.price === 0 ? '⚠️ 0 SOL (Solo organizadores en Whitelist)' : 'Mín. 0.01 SOL'}
@@ -835,21 +920,18 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
                 </div>
                 <div style={{ flex: 1 }}>
                   <p style={{ margin: '0 0 4px', fontSize: '12px', color: '#5F5E5A', fontWeight: 600 }}>Aforo (Boletos)</p>
-                  <input 
-                    type="number" 
-                    min="1"
-                    step="1"
+                  <FormattedNumberInput 
+                    value={zone.capacity}
+                    isEmptyState={zone.capacity === 0 && idx === zones.length - 1 && zone.name === ''}
                     placeholder="100"
-                    value={zone.capacity === 0 && idx === zones.length - 1 && zone.name === '' ? '' : zone.capacity} 
-                    onWheel={e => e.currentTarget.blur()}
-                    onChange={e => { 
-                      const val = e.target.value;
-                      const parsed = parseInt(val);
+                    step={10}
+                    min={1}
+                    isFloat={false}
+                    onChange={(val) => {
                       const z = [...zones]; 
-                      z[idx] = { ...z[idx], capacity: isNaN(parsed) ? 0 : parsed }; 
-                      setZones(z); 
-                    }} 
-                    style={{ width: '100%', border: '1px solid #D3D1C7', borderRadius: '6px', padding: '8px 10px', fontSize: '13px', color: '#1E1E1E', background: '#FFFFFF', outline: 'none' }} 
+                      z[idx] = { ...z[idx], capacity: val }; 
+                      setZones(z);
+                    }}
                   />
                 </div>
                 <div style={{ flex: 1 }}>

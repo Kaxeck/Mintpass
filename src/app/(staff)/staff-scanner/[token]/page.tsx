@@ -1,0 +1,114 @@
+'use client';
+
+import dynamic from 'next/dynamic';
+import { useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { getEventByStaffToken } from "@/app/actions/events";
+import { checkInTicket } from "@/app/actions/tickets";
+import { type EventModel } from "@/types";
+
+const StaffPanel = dynamic(() => import('@/features/organizer/StaffPanel'), { ssr: false });
+
+export default function StaffScannerPage() {
+  const params = useParams();
+  const token = params?.token as string;
+  const [mounted, setMounted] = useState(false);
+  const [eventModel, setEventModel] = useState<any>(null);
+  const [stats, setStats] = useState({ sold: 0, checked: 0 });
+  const [loading, setLoading] = useState(true);
+
+  const [deviceId, setDeviceId] = useState<string>("");
+  const [errorStatus, setErrorStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    let id = localStorage.getItem("mintpass_scanner_device_id");
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem("mintpass_scanner_device_id", id);
+    }
+    setDeviceId(id);
+  }, []);
+
+  useEffect(() => {
+    async function fetchEvent() {
+      if (!token || !deviceId) return;
+      setLoading(true);
+      try {
+        const result = await getEventByStaffToken(token, deviceId);
+        
+        if (result.error) {
+          setErrorStatus(result.error);
+          return;
+        }
+
+        const ev = result.event;
+        if (ev) {
+          setEventModel({
+            id: ev.id,
+            name: ev.title,
+            date: ev.startDate ? new Date(ev.startDate).toISOString().split('T')[0] : "",
+            time: ev.startDate ? new Date(ev.startDate).toISOString().split('T')[1].substring(0, 5) : "",
+            venue: ev.location || "",
+            price: ev.ticketPriceSol,
+            aforo: ev.capacity,
+            collectionMint: ev.collectionMint || "",
+            coverImage: ev.coverImageUrl || undefined,
+            organizerWallet: ev.organizerPubkey,
+            description: ev.description || "",
+            zones: typeof ev.zones === 'string' ? JSON.parse(ev.zones) : (ev.zones as any[] || []),
+            allowResale: false,
+            isSoulbound: true,
+            createdAt: new Date(ev.lastUpdatedAt).getTime()
+          });
+          
+          // TODO: Get real check-in stats from DB
+          setStats({ sold: 0, checked: 0 });
+        }
+      } catch (e) {
+        console.error("Error fetching event for scanner:", e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    if (deviceId) {
+      fetchEvent();
+    }
+  }, [token, deviceId]);
+
+  if (!mounted || loading) return null;
+  
+  if (errorStatus === "DEVICE_MISMATCH") {
+    return <div style={{ padding: '24px', textAlign: 'center', fontFamily: 'sans-serif', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      <h2 style={{ fontSize: '24px', marginBottom: '16px', color: '#EF4444' }}>Dispositivo no Autorizado</h2>
+      <p style={{ color: '#666', maxWidth: '400px' }}>Este enlace de staff ya fue utilizado e iniciado en otro dispositivo celular. Por razones de seguridad, cada enlace solo puede ser utilizado por un único escáner.</p>
+    </div>;
+  }
+
+  if (errorStatus === "NOT_FOUND" || !eventModel) {
+    return <div style={{ padding: '24px', textAlign: 'center', fontFamily: 'sans-serif' }}>
+      <h2>Acceso denegado</h2>
+      <p>Este enlace de staff es inválido o ha expirado.</p>
+    </div>;
+  }
+
+  return (
+    <StaffPanel 
+      event={eventModel} 
+      stats={stats} 
+      onCheckIn={async (payload: any) => { 
+        if (eventModel && payload?.mint) {
+          const res = await checkInTicket(payload.mint, token, payload.timestamp, payload.hash);
+          if (res.success) {
+            setStats(prev => ({ ...prev, checked: prev.checked + 1 }));
+            return { success: true };
+          } else {
+            return { success: false, error: res.error };
+          }
+        }
+        return { success: false, error: "QR Inválido" };
+      }} 
+      onBack={() => {}} // No back button since this is an isolated PWA view
+    />
+  );
+}

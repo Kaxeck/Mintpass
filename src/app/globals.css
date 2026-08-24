@@ -1,0 +1,127 @@
+@import "tailwindcss";
+
+/* ==========================================================
+   VARIABLES GLOBALES Y TEMA
+   ========================================================== */
+:root {
+  /* Variables base de Solana Kit */
+  --background: #080810;
+  --foreground: #ffffff;
+  --border-strong: #2a2a4a;
+  --border-low: #1a1a2e;
+  --accent: #534AB7;
+  --muted: #12122a;
+  --cream: #1a1a2e; /* Used for fallback */
+  --card: #0d0d1e;
+  --card-foreground: #ffffff;
+  --radius: 0.625rem;
+  
+  /* Variables específicas de la interfaz de Mintpass (Premium Dark) */
+  --font-sans: system-ui, -apple-system, sans-serif;
+  --color-background-primary: #080810;
+  --color-background-secondary: #0d0d1e;
+  --color-background-tertiary: #12122a;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #dddddd;
+  --color-text-tertiary: #888888;
+  --color-border-primary: #1a1a2e;
+  --color-border-secondary: #2a2a4a;
+  --color-border-tertiary: #2a2a5a;
+  
+  --color-brand-primary: #534AB7;
+  --color-brand-hover: #3C3489;
+  --color-brand-light: rgba(83,74,183,0.15);
+  
+  --border-radius-md: 10px;
+  --border-radius-lg: 16px;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-bg1: var(--background);
+  --color-foreground: var(--foreground);
+  --color-cream: var(--cream);
+  --color-border: var(--border-strong);
+  --color-border-strong: var(--border-strong);
+  --color-border-low: var(--border-low);
+  --color-primary: var(--accent);
+  --color-muted: var(--muted);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-transparent;
+  }
+
+  body {
+    @apply bg-bg1 text-foreground antialiased;
+    font-family: var(--font-sans);
+    color-scheme: light dark;
+  }
+}
+
+/* ==========================================================
+   ESTILOS DE COMPONENTES DE MINTPASS 
+   ========================================================== */
+
+/* Layout general */
+.app { background: var(--color-background-primary); min-height: 100vh; color: var(--color-text-primary); }
+.main { padding: 20px; max-width: 720px; margin: 0 auto; }
+
+/* Barra de navegación */
+.navbar { background: rgba(8,8,16,.9); border-bottom: 0.5px solid var(--color-border-primary); padding: 0 28px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+.nav-brand { display: flex; align-items: center; gap: 8px; }
+.nav-logo { width: 28px; height: 28px; background: #534AB7; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+.nav-logo svg { width: 16px; height: 16px; }
+.nav-name { font-size: 15px; font-weight: 500; color: var(--color-text-primary); }
+.nav-right { display: flex; align-items: center; gap: 10px; }
+
+/* Billetera y Avatar */
+.wallet-chip { background: #EEEDFE; border: 0.5px solid #AFA9EC; border-radius: 20px; padding: 4px 12px; font-size: 12px; color: #3C3489; font-weight: 500; cursor: pointer; }
+.avatar { width: 30px; height: 30px; border-radius: 50%; background: #534AB7; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: #fff; cursor: pointer; }
+
+/* Cabecera de Página */
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.page-title { font-size: 18px; font-weight: 500; color: var(--color-text-primary); }
+.btn-primary { background: #534AB7; color: #fff; border: none; border-radius: var(--border-radius-md); padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.btn-primary:hover { background: #3C3489; }
+
+/* Grid de Estadísticas */
+.stats-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 20px; }
+.stat-card { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 14px 16px; }
+.stat-label { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px; }
+.stat-value { font-size: 22px; font-weight: 500; color: var(--color-text-primary); }
+.stat-sub { font-size: 11px; color: var(--color-text-tertiary); margin-top: 2px; }
+
+/* Controles de Filtros y Navegación (Tabs) */
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.section-title { font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
+.tab-bar { display: flex; gap: 0; border-bottom: 0.5px solid var(--color-border-tertiary); margin-bottom: 16px; }
+.ttab { font-size: 13px; padding: 8px 16px; border-bottom: 2px solid transparent; color: var(--color-text-secondary); cursor: pointer; }
+.ttab.on { color: #534AB7; border-bottom-color: #534AB7; font-weight: 500; }
+.filter-tabs { display: flex; gap: 4px; }
+.ftab { font-size: 12px; padding: 4px 10px; border-radius: 20px; border: 0.5px solid var(--color-border-tertiary); color: var(--color-text-secondary); cursor: pointer; background: var(--color-background-primary); }
+.ftab.on { background: var(--color-background-secondary); color: var(--color-text-primary); border-color: var(--color-border-secondary); }
+
+
+/* Botones secundarios */
+.btn-sm { font-size: 11px; padding: 3px 10px; border-radius: 6px; border: 0.5px solid var(--color-border-primary); background: var(--color-background-tertiary); color: var(--color-text-secondary); cursor: pointer; transition: color 0.2s, background 0.2s; }
+.btn-sm:hover { background: var(--color-border-primary); color: var(--color-text-primary); }
+.btn-sm-purple { background: rgba(83,74,183,0.2); border-color: #534AB7; color: #AFA9EC; }
+
+/* Etiquetas de Status (Pastillas) */
+.status-pill { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 20px; }
+.s-active  { background: #EAF3DE; border: 0.5px solid #C8E6A5; color: #3B6D11; }
+.s-soon    { background: #EEEDFE; border: 0.5px solid #D5D3F5; color: #3C3489; }
+.s-past    { background: #F3F3F3; border: 0.5px solid #E0E0E0; color: #888; }
+
+/* Textos informativos de listas vacías */
+.empty-state { text-align: center; padding: 40px 20px; color: var(--color-text-tertiary); font-size: 13px; }
+

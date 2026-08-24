@@ -72,7 +72,7 @@ export default function MyTicketPage() {
       }
     }
     fetchEventAndTicket();
-  }, [ticketMint]);
+  }, [ticketMint, walletAddress]);
 
   if (!mounted || !ready || loading) return null;
 

@@ -416,6 +416,7 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
             eventRecordPda: eventRecordPdaStr,
             escrowVault: escrowVaultStr,
             ...eventDataOnChain,
+            ticketImage: ticketImage || coverImage || "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=800", // Pasamos la imagen real a la BD, no el JSON
             description: desc, // Se guarda la descripción real solo en la BD off-chain
             gallery: gallery.filter(url => url.trim() !== '') // Solo guardamos URLs válidas en BD
           }, token);

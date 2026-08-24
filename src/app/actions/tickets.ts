@@ -13,7 +13,9 @@ const TOKEN_METADATA_PROGRAM_ID = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzj
 
 import { verifyAuth } from "@/lib/auth";
 
+import { unstable_noStore as noStore } from "next/cache";
 export async function getUserTickets(walletAddress: string, token?: string) {
+  noStore();
   try {
     const isAuthorized = await verifyAuth(walletAddress, token);
     if (!isAuthorized) {
@@ -314,6 +316,7 @@ export async function getTicketQrSecret(mintAddress: string) {
 }
 
 export async function getTicketWithEvent(mintAddress: string, walletAddress: string, token?: string) {
+  noStore();
   try {
     const isAuthorized = await verifyAuth(walletAddress, token);
     if (!isAuthorized) {

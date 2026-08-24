@@ -6,7 +6,7 @@ import "./StaffScanner.css";
 import { CreatedEvent } from "./CreateEvent";
 import { Scanner } from '@yudiel/react-qr-scanner';
 
-export default function StaffPanel({ event, stats, onCheckIn, onBack, isPwa = false }: { event?: CreatedEvent, stats?: {sold: number, checked: number}, onCheckIn?: (payload: any) => Promise<{success: boolean, error?: string}>, onBack: () => void, isPwa?: boolean }) {
+export default function StaffPanel({ event, stats, onCheckIn, onBack, isPwa = false }: { event?: CreatedEvent, stats?: {sold: number, checked: number}, onCheckIn?: (payload: any) => Promise<{success: boolean, error?: string, ticket?: any}>, onBack: () => void, isPwa?: boolean }) {
   // Estados principales del escáner
   const [scanning, setScanning] = useState(true);
   const [torchOn, setTorchOn] = useState(false);
@@ -84,12 +84,13 @@ export default function StaffPanel({ event, stats, onCheckIn, onBack, isPwa = fa
   };
 
   // Función para agregar un nuevo registro al log superior
-  const addLog = (rType: keyof typeof resultTypes, realMintAddress?: string) => {
+  const addLog = (rType: keyof typeof resultTypes, realMintAddress?: string, zoneName?: string) => {
     const r = resultTypes[rType];
     let addr = '';
     
     if (realMintAddress) {
       addr = realMintAddress.substring(0, 5) + '...' + realMintAddress.substring(realMintAddress.length - 4);
+      if (zoneName) addr += ` · ${zoneName}`;
     } else {
       const addrs = ['#0842','#0839','#0801','#0798','#0795'];
       const suffs = ['Zona VIP','Preferente','General','Platea','General'];
@@ -163,7 +164,7 @@ export default function StaffPanel({ event, stats, onCheckIn, onBack, isPwa = fa
   };
 
   // Función central para simular el escaneo de un código
-  const simulate = (type: keyof typeof resultTypes, mintAddress?: string, errorMsg?: string) => {
+  const simulate = (type: keyof typeof resultTypes, mintAddress?: string, customSubMsg?: string) => {
     const r = resultTypes[type];
 
     triggerFeedback(type === 'valid');
@@ -175,15 +176,15 @@ export default function StaffPanel({ event, stats, onCheckIn, onBack, isPwa = fa
       bg: r.bg,
       iconBg: r.iconBg,
       label: r.label,
-      sub: errorMsg || r.sub,
+      sub: customSubMsg || r.sub,
       svg: r.svg
     });
 
     if (type === 'valid') {
-       if (onCheckIn) onCheckIn(mintAddress);
+       if (onCheckIn && !customSubMsg) onCheckIn(mintAddress); // Only fallback if we haven't already checked in
     }
 
-    addLog(type, mintAddress);
+    addLog(type, mintAddress, type === 'valid' ? customSubMsg : undefined);
 
     // Ocultamos el overlay tras 2.2s volviendo al estado original de cámara
     setTimeout(() => {
@@ -219,7 +220,7 @@ export default function StaffPanel({ event, stats, onCheckIn, onBack, isPwa = fa
         const res = await onCheckIn(payload || { mint: targetMint });
         setIsRelaying(false);
         if (res.success) {
-          simulate('valid', targetMint);
+          simulate('valid', targetMint, res.ticket?.zoneName);
         } else {
           if (res.error && res.error.includes("ALREADY_CHECKED_IN")) {
             simulate('duplicate', targetMint);

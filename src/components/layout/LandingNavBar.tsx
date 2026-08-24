@@ -12,7 +12,7 @@ interface LandingNavBarProps {
 }
 
 export function LandingNavBar({ onGoToExplore, onGoToMyTickets, onGoToOrganizer }: LandingNavBarProps) {
-  const { walletAddress: walletAddressStr, authenticated } = useActiveSolanaWallet();
+  const { walletAddress: walletAddressStr, authenticated, getAccessToken } = useActiveSolanaWallet();
   const { organizerProfile, setOrganizerProfile } = useMintpassStore();
   const router = useRouter();
   const [loadingProfile, setLoadingProfile] = useState(false);
@@ -23,22 +23,24 @@ export function LandingNavBar({ onGoToExplore, onGoToMyTickets, onGoToOrganizer 
   useEffect(() => {
     if (isConnected && walletAddressStr && !loadingProfile && lastCheckedWallet !== walletAddressStr) {
       setLoadingProfile(true);
-      getOrganizerProfile(walletAddressStr).then(profile => {
-        if (profile) {
-          setOrganizerProfile({
-            name: profile.companyName || profile.name || "",
-            category: profile.organizerCategory || "",
-            bio: profile.bio || "",
-            supportEmail: profile.contactEmail || profile.email || "",
-            internalPhone: profile.contactPhone || "",
-            logoUrl: profile.logoUrl || undefined,
-            socialLink: profile.socialLinks ? (JSON.parse(profile.socialLinks as string)[0] || undefined) : undefined
-          });
-        }
-        setLastCheckedWallet(walletAddressStr);
-      }).finally(() => setLoadingProfile(false));
+      getAccessToken().then(token => {
+        getOrganizerProfile(walletAddressStr, token || undefined).then(profile => {
+          if (profile) {
+            setOrganizerProfile({
+              name: profile.companyName || profile.name || "",
+              category: profile.organizerCategory || "",
+              bio: profile.bio || "",
+              supportEmail: profile.contactEmail || profile.email || "",
+              internalPhone: profile.contactPhone || "",
+              logoUrl: profile.logoUrl || undefined,
+              socialLink: profile.socialLinks ? (JSON.parse(profile.socialLinks as string)[0] || undefined) : undefined
+            });
+          }
+          setLastCheckedWallet(walletAddressStr);
+        }).finally(() => setLoadingProfile(false));
+      }).catch(() => setLoadingProfile(false));
     }
-  }, [isConnected, walletAddressStr, loadingProfile, lastCheckedWallet, setOrganizerProfile]);
+  }, [isConnected, walletAddressStr, loadingProfile, lastCheckedWallet, setOrganizerProfile, getAccessToken]);
 
   return (
     <header className="lp-nav">

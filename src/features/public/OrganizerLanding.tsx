@@ -35,15 +35,14 @@ export default function OrganizerLanding({
         onGoToMyTickets={onGoToMyTickets}
       />
       <div className="lp-content">
-        <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '40px 16px' }}>
-        <div className="org-hero">
+        <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '40px 16px' }}>        <div className="org-hero">
           <div className="org-hero-text">
-            <p className="org-hero-tag">INFRAESTRUCTURA SOBRE SOLANA</p>
-            <p className="org-hero-title">Opera tu evento sin<br />construir tecnología propia</p>
-            <p className="org-hero-sub">Boletos verificables on-chain, check-in offline, reventa controlada y reputación portable. Tú te enfocas en el evento.</p>
+            <p className="org-hero-tag">PLATAFAFORMA DE BOLETERÍA DIGITAL</p>
+            <p className="org-hero-title">Gestiona tu evento con total control<br />y cero complicaciones</p>
+            <p className="org-hero-sub">Venta de entradas infalsificables, validación rápida en puerta incluso sin internet y control total de tu boletaje. Tú solo enfócate en tu evento.</p>
             <div className="org-hero-btns">
               <div 
-                style={{ background: '#14F195', color: '#1E1E1E', padding: '12px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }} 
+                style={{ background: '#14F195', color: '#1E1E1E', padding: '12px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }} 
                 onClick={login}
               >
                 Crear mi evento gratis
@@ -61,36 +60,36 @@ export default function OrganizerLanding({
             <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
               <div style={{ flex: 1, background: '#2C2C2A', borderRadius: '8px', padding: '8px' }}>
                 <p style={{ margin: 0, fontSize: '9px', color: '#9FE1CB' }}>Vendidos</p>
-                <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 500 }}>842</p>
+                <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: '500' }}>842</p>
               </div>
               <div style={{ flex: 1, background: '#2C2C2A', borderRadius: '8px', padding: '8px' }}>
                 <p style={{ margin: 0, fontSize: '9px', color: '#9FE1CB' }}>Ingresos</p>
-                <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 500 }}>$584k</p>
+                <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: '500' }}>$584k</p>
               </div>
             </div>
             <div style={{ background: '#2C2C2A', borderRadius: '8px', padding: '8px' }}>
-              <p style={{ margin: 0, fontSize: '9px', color: '#9FE1CB' }}>Reputación on-chain</p>
-              <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 500 }}>92 / 100</p>
+              <p style={{ margin: 0, fontSize: '9px', color: '#9FE1CB' }}>Puntuación de Organizador</p>
+              <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: '500' }}>92 / 100</p>
             </div>
           </div>
         </div>
 
         <div className="org-stats-strip">
           <div className="org-stat-item">
-            <p className="org-stat-title">4 programas</p>
-            <p className="org-stat-sub">Anchor auditables</p>
+            <p className="org-stat-title">100% Seguro</p>
+            <p className="org-stat-sub">Autenticidad garantizada</p>
           </div>
           <div className="org-stat-item">
-            <p className="org-stat-title">Multisig 2-de-3</p>
-            <p className="org-stat-sub">Squads Protocol</p>
+            <p className="org-stat-title">Fondos Protegidos</p>
+            <p className="org-stat-sub">Seguridad de nivel bancario</p>
           </div>
           <div className="org-stat-item">
-            <p className="org-stat-title">$0 setup</p>
-            <p className="org-stat-sub">Free tier para MVP</p>
+            <p className="org-stat-title">$0 costo inicial</p>
+            <p className="org-stat-sub">Sin cargos por configuración</p>
           </div>
           <div className="org-stat-item">
-            <p className="org-stat-title">Offline-first</p>
-            <p className="org-stat-sub">Check-in sin internet</p>
+            <p className="org-stat-title">Modo Offline</p>
+            <p className="org-stat-sub">Escaneo fácil sin internet</p>
           </div>
         </div>
 
@@ -99,27 +98,27 @@ export default function OrganizerLanding({
           <div className="org-features-grid">
             <div className="org-feat-card">
               <p className="org-feat-card-title">Creación de eventos</p>
-              <p className="org-feat-card-desc">Precio, aforo, tipos de boleto</p>
+              <p className="org-feat-card-desc">Configura precios, aforo y boletaje</p>
             </div>
             <div className="org-feat-card">
-              <p className="org-feat-card-title">Venta multicanal</p>
-              <p className="org-feat-card-desc">Fiat, wallet y Blinks</p>
+              <p className="org-feat-card-title">Pagos flexibles</p>
+              <p className="org-feat-card-desc">Acepta tarjetas y pagos digitales</p>
             </div>
             <div className="org-feat-card">
-              <p className="org-feat-card-title">Check-in en puerta</p>
-              <p className="org-feat-card-desc">PWA offline-first</p>
+              <p className="org-feat-card-title">Validación en puerta</p>
+              <p className="org-feat-card-desc">Escaneo rápido sin fallas de señal</p>
             </div>
             <div className="org-feat-card">
-              <p className="org-feat-card-title">Antifraude por capas</p>
-              <p className="org-feat-card-desc">QR dinámico, blacklist</p>
+              <p className="org-feat-card-title">Sistema Antifraude</p>
+              <p className="org-feat-card-desc">QR dinámico e infalsificable</p>
             </div>
             <div className="org-feat-card">
-              <p className="org-feat-card-title">Reventa oficial</p>
-              <p className="org-feat-card-desc">Tope de precio on-chain</p>
+              <p className="org-feat-card-title">Control de Reventa</p>
+              <p className="org-feat-card-desc">Tope de precio para proteger a tu público</p>
             </div>
             <div className="org-feat-card">
-              <p className="org-feat-card-title">Reputación y datos</p>
-              <p className="org-feat-card-desc">Historial verificable</p>
+              <p className="org-feat-card-title">Métricas y Reportes</p>
+              <p className="org-feat-card-desc">Estadísticas de venta en tiempo real</p>
             </div>
           </div>
         </div>
@@ -128,20 +127,20 @@ export default function OrganizerLanding({
           <p className="org-plans-title">Planes</p>
           <div className="org-plans-grid">
             <div className="org-plan-card">
-              <p className="org-plan-name">Free</p>
-              <p className="org-plan-price">Comisión por boleto</p>
+              <p className="org-plan-name">Gratuito</p>
+              <p className="org-plan-price">Comisión por boleto vendido</p>
               <p className="org-plan-desc">1 evento activo · reportes básicos</p>
             </div>
             <div className="org-plan-card highlight">
               <span className="org-plan-badge">Más elegido</span>
               <p className="org-plan-name">Pro</p>
-              <p className="org-plan-price">Comisión + mensualidad</p>
-              <p className="org-plan-desc">Eventos ilimitados · analytics · rewards</p>
+              <p className="org-plan-price">Comisión + cuota mensual</p>
+              <p className="org-plan-desc">Eventos ilimitados · analíticas avanzadas</p>
             </div>
             <div className="org-plan-card">
-              <p className="org-plan-name">Enterprise</p>
-              <p className="org-plan-price">Cotización</p>
-              <p className="org-plan-desc">Custom branding · soporte dedicado</p>
+              <p className="org-plan-name">Personalizado</p>
+              <p className="org-plan-price">A la medida</p>
+              <p className="org-plan-desc">Branding exclusivo · soporte dedicado</p>
             </div>
           </div>
         </div>
@@ -149,7 +148,7 @@ export default function OrganizerLanding({
         <div className="org-cta">
           <p className="org-cta-title">¿Listo para operar tu próximo evento?</p>
           <div 
-            style={{ display: 'inline-block', background: '#14F195', color: '#1E1E1E', padding: '12px 24px', borderRadius: '10px', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }} 
+            style={{ display: 'inline-block', background: '#14F195', color: '#1E1E1E', padding: '12px 24px', borderRadius: '10px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }} 
             onClick={login}
           >
             Crear mi evento gratis

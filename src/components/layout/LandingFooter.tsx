@@ -11,7 +11,7 @@ export function LandingFooter() {
             <span className="lp-footer-brand-name">Mint<span className="lp-brand-accent">pass</span></span>
           </div>
           <p className="lp-footer-brand-desc">
-            Boletos verificables, imposibles de falsificar ni revender de más, creados en la blockchain de Solana.
+            Entradas 100% digitales y verificables, protegidas contra clonaciones y reventas con sobreprecio.
           </p>
         </div>
         
@@ -36,7 +36,7 @@ export function LandingFooter() {
       </div>
       <div className="lp-footer-bottom">
         <span>© {new Date().getFullYear()} Mintpass. Todos los derechos reservados.</span>
-        <span>Built on Solana</span>
+        <span>Tecnología Segura y Transparente</span>
       </div>
     </footer>
   );

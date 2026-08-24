@@ -170,7 +170,7 @@ export async function checkInTicket(mintAddress: string, staffId?: string, qrTim
         const relayerKeypair = Keypair.fromSeed(new Uint8Array(masterSeedArr));
 
         const coder = new BorshCoder(MINTPASS_IDL);
-        const data = coder.instruction.encode("perform_checkin", { staffId: actualStaffId || staffId || "unknown" });
+        const data = coder.instruction.encode("perform_checkin", { staff_id: actualStaffId || staffId || "unknown" });
 
         const organizerStr = ticketInfo.event.organizerPubkey;
         const collectionMintStr = ticketInfo.event.collectionMint;
@@ -360,9 +360,12 @@ export async function initializeTicketMetadata(mintAddress: string, eventId: str
 
     if (process.env.APP_MASTER_SEED && process.env.NEXT_PUBLIC_SOLANA_RPC_URL) {
       const { createUmi } = await import("@metaplex-foundation/umi-bundle-defaults");
-      const { updateTicketMetadata } = await import("@/lib/metaplex");
+      const { keypairIdentity } = await import("@metaplex-foundation/umi");
+      const { updateTicketMetadata, getMasterSigner } = await import("@/lib/metaplex");
       
       const umi = createUmi(process.env.NEXT_PUBLIC_SOLANA_RPC_URL);
+      const appMasterSigner = getMasterSigner(umi);
+      umi.use(keypairIdentity(appMasterSigner));
       
       const defaultImageUrl = event.ticketImageUrl || event.coverImageUrl || "https://images.unsplash.com/photo-1541532713592-79a0317b6b77?q=80&w=400";
       

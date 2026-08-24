@@ -3,6 +3,13 @@ export interface NFTMetadata {
   description: string;
   image: string;       // URL de IPFS de la imagen
   attributes: Array<{ trait_type: string; value: string }>;
+  properties?: {
+    files: Array<{
+      uri: string;
+      type: string;
+    }>;
+    category: string;
+  };
 }
 
 function getPinataHeaders(): Record<string, string> {

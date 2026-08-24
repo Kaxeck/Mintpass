@@ -163,19 +163,19 @@ export default function StaffPanel({ event, stats, onCheckIn, onBack, isPwa = fa
   };
 
   // Función central para simular el escaneo de un código
-  const simulate = (type: keyof typeof resultTypes, mintAddress?: string) => {
+  const simulate = (type: keyof typeof resultTypes, mintAddress?: string, errorMsg?: string) => {
     const r = resultTypes[type];
 
     triggerFeedback(type === 'valid');
 
     // Mostramos overlay de resultado
     setResultData({
-      show: true,
+      show: true, 
       type,
       bg: r.bg,
       iconBg: r.iconBg,
       label: r.label,
-      sub: r.sub,
+      sub: errorMsg || r.sub,
       svg: r.svg
     });
 
@@ -224,12 +224,12 @@ export default function StaffPanel({ event, stats, onCheckIn, onBack, isPwa = fa
           if (res.error && res.error.includes("ALREADY_CHECKED_IN")) {
             simulate('duplicate', targetMint);
           } else {
-            simulate('invalid', targetMint);
+            simulate('invalid', targetMint, res.error);
           }
         }
-      } catch (e) {
+      } catch (e: any) {
         setIsRelaying(false);
-        simulate('invalid', targetMint);
+        simulate('invalid', targetMint, e?.message);
       }
     } else {
       setTimeout(() => {

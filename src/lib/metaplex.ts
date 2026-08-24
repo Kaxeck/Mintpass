@@ -157,6 +157,15 @@ export async function mutateToPoap(
       { trait_type: "Asistente", value: `#${params.eventData.ticketNumber} de ${params.eventData.totalAttendees}` },
       { trait_type: "Verificado", value: "true" },
     ],
+    properties: {
+      files: [
+        {
+          uri: params.poapImageUrl,
+          type: "image/png",
+        },
+      ],
+      category: "image",
+    },
   });
 
   const coreAsset = await fetchAsset(umi, publicKey(params.mintAddress));
@@ -194,6 +203,15 @@ export async function updateTicketMetadata(
     attributes: [
       { trait_type: "Tipo", value: "Boleto Digital" },
     ],
+    properties: {
+      files: [
+        {
+          uri: params.ticketImageUrl,
+          type: "image/jpeg",
+        },
+      ],
+      category: "image",
+    },
   });
 
   const coreAsset = await fetchAsset(umi, publicKey(params.mintAddress));

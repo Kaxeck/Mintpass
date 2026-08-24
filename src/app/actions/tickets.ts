@@ -149,7 +149,7 @@ export async function checkInTicket(mintAddress: string, staffId?: string, qrTim
       if (!staffLink) {
         throw new Error("UNAUTHORIZED_STAFF: Enlace de staff inválido.");
       }
-      if (staffLink.eventId !== ticketInfo.eventAddress) {
+      if (staffLink.eventId !== ticketInfo.event.id) {
         throw new Error("UNAUTHORIZED_EVENT: Este escáner pertenece a otro evento y no está autorizado para validar este boleto.");
       }
       if (staffLink.status === 'REVOKED') {

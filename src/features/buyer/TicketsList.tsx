@@ -37,7 +37,7 @@ export default function TicketsList({
       <div className="lp-content">
         <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '40px 16px', minHeight: 'calc(100vh - 200px)' }}>
         <div className="mb-header">
-          <span className="mb-title">Mis tickets (NFTs)</span>
+          <span className="mb-title">Mis Boletos Digitales</span>
           <div className="mb-tabs">
             <div 
               onClick={() => setActiveTab('proximos')}
@@ -53,13 +53,13 @@ export default function TicketsList({
             <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(83,74,183,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
               <Icons.Wallet size={36} color="#534AB7" />
             </div>
-            <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1E1E1E', marginBottom: '8px' }}>Conecta tu wallet</h2>
-            <p style={{ color: '#666', fontSize: '15px', maxWidth: '320px', lineHeight: 1.5 }}>Debes conectar tu wallet de Solana en la barra superior para acceder a tu bóveda de tickets NFT.</p>
+            <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1E1E1E', marginBottom: '8px' }}>Conecta tu cuenta</h2>
+            <p style={{ color: '#666', fontSize: '15px', maxWidth: '320px', lineHeight: 1.5 }}>Conecta tu cuenta o billetera digital en la parte superior para ver tus entradas.</p>
           </div>
         ) : loading ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#534AB7] mb-4"></div>
-             <p style={{ color: '#666', fontSize: '15px' }}>Cargando tus boletos desde la red...</p>
+             <p style={{ color: '#666', fontSize: '15px' }}>Cargando tus boletos...</p>
           </div>
         ) : tickets.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -67,7 +67,7 @@ export default function TicketsList({
               <Icons.Ticket size={36} color="#534AB7" />
             </div>
             <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1E1E1E', marginBottom: '8px' }}>No tienes boletos</h2>
-            <p style={{ color: '#666', fontSize: '15px', maxWidth: '320px', lineHeight: 1.5 }}>Todavía no has comprado ningún boleto o la transacción sigue confirmándose.</p>
+            <p style={{ color: '#666', fontSize: '15px', maxWidth: '320px', lineHeight: 1.5 }}>Todavía no has comprado ningún boleto para próximos eventos.</p>
           </div>
         ) : (
           <div className="mb-grid">
@@ -86,7 +86,7 @@ export default function TicketsList({
                let isResale = false;
                let isPoap = false;
                
-               if (status === "USED" || status === "CHECKED_IN") { statusText = 'Coleccionable POAP'; isPoap = true; }
+               if (status === "USED" || status === "CHECKED_IN") { statusText = 'Pase Utilizado'; isPoap = true; }
                if (status === "LISTED_FOR_SALE") { statusText = 'En Reventa'; isResale = true; }
                if (status === "CANCELLED") { statusText = 'Cancelado'; isCancelled = true; }
 

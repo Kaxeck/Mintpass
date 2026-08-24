@@ -38,7 +38,7 @@ export default function OrganizerLanding({
         <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '40px 16px' }}>        <div className="org-hero">
           <div className="org-hero-text">
             <p className="org-hero-tag">PLATAFAFORMA DE BOLETERÍA DIGITAL</p>
-            <p className="org-hero-title">Gestiona tu evento con total control<br />y cero complicaciones</p>
+            <p className="org-hero-title">Gestiona tu evento<br />con total control y cero complicaciones</p>
             <p className="org-hero-sub">Venta de entradas infalsificables, validación rápida en puerta incluso sin internet y control total de tu boletaje. Tú solo enfócate en tu evento.</p>
             <div className="org-hero-btns">
               <div 

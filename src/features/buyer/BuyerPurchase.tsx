@@ -444,7 +444,7 @@ export default function BuyerPurchase({
                       <div className="bp-qty-box">
                         <div>
                           <p style={{ margin: 0, fontSize: '12px', color: '#5F5E5A' }}>Cantidad</p>
-                          <p style={{ margin: '4px 0 0', fontSize: '13px', fontWeight: 600, color: '#1E1E1E' }}>Max. {maxAllowed} por wallet</p>
+                          <p style={{ margin: '4px 0 0', fontSize: '13px', fontWeight: 600, color: '#1E1E1E' }}>Max. {maxAllowed} por usuario</p>
                         </div>
                         <div className="bp-qty-actions">
                           <button onClick={() => changeQty(-1)} className="bp-qty-btn light">−</button>

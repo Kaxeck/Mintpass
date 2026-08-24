@@ -86,7 +86,7 @@ export default function MyTicketPage() {
   if (eventModel.buyerWallet && walletAddress !== eventModel.buyerWallet) {
     return <div style={{ padding: '24px', textAlign: 'center', fontFamily: 'sans-serif', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
       <h2 style={{ fontSize: '24px', marginBottom: '16px' }}>Acceso Denegado</h2>
-      <p style={{ color: '#666', marginBottom: '24px', maxWidth: '400px' }}>Este boleto pertenece a otra cuenta de Solana. Por favor, conecta la cartera correcta para ver este boleto.</p>
+      <p style={{ color: '#666', marginBottom: '24px', maxWidth: '400px' }}>Este boleto pertenece a otra cuenta. Por favor, inicia sesión con la cuenta correcta para ver este boleto.</p>
       <button 
         style={{ padding: '12px 24px', background: '#1E1E1E', color: '#FFF', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
         onClick={() => router.push('/tickets')}

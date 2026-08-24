@@ -95,9 +95,33 @@
 .org-hero-title {
   margin: 0 0 14px;
   font-size: 28px;
-  font-weight: 600;
-  color: #1E1E1E;
-  line-height: 1.2;
+  font-weight: 700;
+  line-height: 1.25;
+  background: linear-gradient(
+    90deg, 
+    #1E1E1E 0%, 
+    #534AB7 25%, 
+    #14F195 50%, 
+    #1D9E75 75%, 
+    #1E1E1E 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: smokeHorizontal 7s ease-in-out infinite;
+  filter: drop-shadow(0 2px 8px rgba(20, 241, 149, 0.12));
+}
+
+@keyframes smokeHorizontal {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 .org-hero-sub {
@@ -130,7 +154,7 @@
   }
 
   .org-hero-title {
-    font-size: 36px;
+    font-size: 38px;
   }
 }
 

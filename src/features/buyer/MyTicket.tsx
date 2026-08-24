@@ -101,17 +101,15 @@ export default function MyTicket({ event, ticketMint, qrSecret, onBack }: { even
 
   const handleRefund = () => {
     showAlert(
-      "Solicitar Devolución al Contrato",
-      "La política del evento permite devoluciones automáticas on-chain.\n\nEl Smart Contract destruirá (burn) tu NFT y liberará los fondos a tu wallet.\n\nNota: Los costos de servicio de Mintpass (aprox. 3%) no son reembolsables.\n\n¿Proceder con la devolución?",
+      "Solicitar Devolución de Boleto",
+      "La política del evento permite devoluciones automáticas.\n\nEl sistema cancelará tu boleto digital y reembolsará los fondos a tu cuenta.\n\nNota: Los costos de servicio de Mintpass (aprox. 3%) no son reembolsables.\n\n¿Proceder con la devolución?",
       "warning",
-      "Firmar y Devolver",
+      "Confirmar Devolución",
       () => {
-        // En un caso real llamaríamos a la instrucción escrow_refund de Solana
         setIsMutating(true);
         setTimeout(() => {
           setIsMutating(false);
-          showAlert("Devolución Exitosa", "Tu NFT ha sido destruido y los fondos fueron transferidos de vuelta a tu wallet (excluyendo tarifa de servicio).", "success");
-          // Para la demo, simplemente redirigir o marcar como devuelto
+          showAlert("Devolución Exitosa", "Tu boleto ha sido cancelado y el importe fue reembolsado a tu cuenta (excluyendo tarifa de servicio).", "success");
           setTimeout(() => onBack(), 3000);
         }, 1500);
       }
@@ -224,11 +222,11 @@ export default function MyTicket({ event, ticketMint, qrSecret, onBack }: { even
                 {event?.status === 'CANCELLED' || event?.ticketStatus === 'CANCELLED' ? (
                    <span className="mt-badge-status cancelled" style={{ position: 'static' }}>Cancelado</span>
                 ) : event?.ticketStatus === 'PENDING_ON_CHAIN' ? (
-                   <span className="mt-badge-status" style={{ background: '#FEF3C7', color: '#92400E', position: 'static' }}>Pendiente On-Chain</span>
+                   <span className="mt-badge-status" style={{ background: '#FEF3C7', color: '#92400E', position: 'static' }}>Procesando Compra</span>
                 ) : poapClaimed ? (
-                   <span className="mt-badge-status poap" style={{ position: 'static' }}>Coleccionable POAP</span>
+                   <span className="mt-badge-status poap" style={{ position: 'static' }}>Entrada Utilizada</span>
                 ) : (
-                   <span className="mt-badge-status" style={{ position: 'static' }}>Activo</span>
+                   <span className="mt-badge-status" style={{ position: 'static' }}>Boleto Válido</span>
                 )}
               </div>
             </div>
@@ -248,13 +246,13 @@ export default function MyTicket({ event, ticketMint, qrSecret, onBack }: { even
                       ) : event?.ticketStatus === 'PENDING_ON_CHAIN' ? (
                         <div className="mt-qr-state mt-qr-locked">
                           <Icons.Clock size={48} strokeWidth={1.5} />
-                          <span>Confirmando<br/>en Solana...</span>
+                          <span>Confirmando<br/>compra...</span>
                         </div>
                       ) : poapClaimed ? (
                         <>
                           <Icons.ShieldCheck size={64} color="#14F195" />
-                          <span>¡Validado Exitosamente!</span>
-                          <span style={{ fontSize: '11px', marginTop: '4px', color: '#5F5E5A' }}>Tu POAP se ha generado</span>
+                          <span>¡Acceso Validado!</span>
+                          <span style={{ fontSize: '11px', marginTop: '4px', color: '#5F5E5A' }}>Disfruta el evento</span>
                         </>
                       ) : !isQrActive ? (
                         <div className="mt-qr-state mt-qr-locked">
@@ -275,10 +273,10 @@ export default function MyTicket({ event, ticketMint, qrSecret, onBack }: { even
                       ) : (
                         <p className="mt-timer mt-timer-locked">Se revelará en {timeToUnlock}</p>
                       )}
-                      <p className="mt-warning">Imposible de capturar en pantalla</p>
+                      <p className="mt-warning">Imposible de capturar o clonar</p>
                     </>
                   )}
-                  {poapClaimed && <p className="mt-warning">Registrado permanentemente off-chain</p>}
+                  {poapClaimed && <p className="mt-warning">Boleto registrado como utilizado</p>}
                 </div>
 
                 {/* Animated Ticket Image Sheet (On top) */}
@@ -295,7 +293,7 @@ export default function MyTicket({ event, ticketMint, qrSecret, onBack }: { even
                     <button 
                       onClick={() => {
                         if (event?.ticketStatus === 'PENDING_ON_CHAIN') {
-                          showAlert("Confirmando en Solana", "Tu boleto está siendo validado en la blockchain. El código QR estará disponible en unos instantes una vez que la red confirme la transacción.", "info");
+                          showAlert("Procesando Compra", "Tu boleto está siendo emitido. El código QR estará disponible en unos instantes.", "info");
                           return;
                         }
                         setShowQr(!showQr);
@@ -351,7 +349,7 @@ export default function MyTicket({ event, ticketMint, qrSecret, onBack }: { even
                     <p className="mt-info-value">{ticketData.folio}</p>
                   </div>
                   <div className="mt-info-box">
-                    <p className="mt-info-label">Wallet</p>
+                    <p className="mt-info-label">Titular</p>
                     <p className="mt-info-value">
                       {ticketData.buyerWallet 
                         ? (ticketData.buyerWallet.length > 10 ? `${ticketData.buyerWallet.slice(0,4)}…${ticketData.buyerWallet.slice(-4)}` : ticketData.buyerWallet) 
@@ -363,8 +361,8 @@ export default function MyTicket({ event, ticketMint, qrSecret, onBack }: { even
                 <div className="mt-verify">
                   <div className="mt-verify-icon">✓</div>
                   <div>
-                    <p className="mt-verify-title">Verificado on-chain en Solana</p>
-                    <a href={`https://explorer.solana.com/address/${ticketMint}?cluster=devnet`} target="_blank" rel="noopener noreferrer" className="mt-verify-link" style={{ textDecoration: 'none' }}>Ver estado en el explorador →</a>
+                    <p className="mt-verify-title">Boleto Digital 100% Auténtico</p>
+                    <a href={`https://explorer.solana.com/address/${ticketMint}?cluster=devnet`} target="_blank" rel="noopener noreferrer" className="mt-verify-link" style={{ textDecoration: 'none' }}>Ver certificado de autenticidad →</a>
                   </div>
                 </div>
 
@@ -377,7 +375,7 @@ export default function MyTicket({ event, ticketMint, qrSecret, onBack }: { even
 
                 {ticketData.isSoulbound ? (
                   <div className="mt-soulbound-warn">
-                    <Icons.ShieldAlert size={16} /> Ticket Intransferible (Soulbound)
+                    <Icons.ShieldAlert size={16} /> Boleto Personal e Intransferible
                   </div>
                 ) : (
                   <button 

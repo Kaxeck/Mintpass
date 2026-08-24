@@ -13,7 +13,9 @@ const TOKEN_METADATA_PROGRAM_ID = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzj
 
 import { verifyAuth } from "@/lib/auth";
 
+import { unstable_noStore as noStore } from "next/cache";
 export async function getUserTickets(walletAddress: string, token?: string) {
+  noStore();
   try {
     const isAuthorized = await verifyAuth(walletAddress, token);
     if (!isAuthorized) {
@@ -39,6 +41,17 @@ export async function getUserTickets(walletAddress: string, token?: string) {
 export async function mintTicketInDb(ticketData: any) {
   try {
     const { mintAddress, eventAddress, ownerPubkey, originalBuyerPubkey, zoneIndex, originalPrice, pricePaid } = ticketData;
+
+    // 1. Ensure the buyer has a UserProfile to satisfy the foreign key constraint
+    await prisma.userProfile.upsert({
+      where: { walletPubkey: ownerPubkey },
+      update: {},
+      create: {
+        id: ownerPubkey,
+        walletPubkey: ownerPubkey,
+        role: "ATTENDEE",
+      }
+    });
 
     const ticket = await prisma.ticket.create({
       data: {
@@ -303,6 +316,7 @@ export async function getTicketQrSecret(mintAddress: string) {
 }
 
 export async function getTicketWithEvent(mintAddress: string, walletAddress: string, token?: string) {
+  noStore();
   try {
     const isAuthorized = await verifyAuth(walletAddress, token);
     if (!isAuthorized) {

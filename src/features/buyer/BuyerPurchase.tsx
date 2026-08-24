@@ -115,11 +115,11 @@ export default function BuyerPurchase({
 
   const startPurchase = async () => {
     if (!walletConnected) {
-      showAlert("Wallet Desconectada", "Conecta tu wallet (paso 1) para asegurar y encriptar tu entrada on-chain.", "warning");
+      showAlert("Wallet Desconectada", "Conecta tu cuenta (paso 1) para asegurar tu entrada digital.", "warning");
       return;
     }
     if (!collectionMint) {
-      showAlert("Demo Temporal", "Este evento es una demostración. El organizador aún no ha lanzado su contrato oficial on-chain.", "info");
+      showAlert("Demo Temporal", "Este evento es una demostración. El organizador aún no ha lanzado el sistema de seguridad oficial.", "info");
       return;
     }
 
@@ -229,7 +229,7 @@ export default function BuyerPurchase({
         );
         setTimeout(() => setScreen('success'), 3000);
       } else {
-        showAlert("Error de Transacción", "La compra no pudo ser procesada:\n" + errorString, "error");
+        showAlert("Error de Compra", "La compra no pudo ser procesada:\n" + errorString, "error");
         setScreen('buy');
       }
     }
@@ -512,11 +512,11 @@ export default function BuyerPurchase({
                         <span>{(qty * activePrice * 0.05).toFixed(4)} SOL</span>
                       </div>
                       <div className="flex justify-between items-center text-[13px] text-gray-500 mb-2">
-                        <span>Tarifa de red Solana (Gas)</span>
+                        <span>Costo de procesamiento</span>
                         <span>Calculado por tu wallet</span>
                       </div>
                       <div className="flex justify-between items-center text-[15px] font-bold text-gray-900 border-t border-gray-200 pt-3 mt-3">
-                        <span>Total a Pagar <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#6B7280', marginLeft: '4px' }}>(sin gas)</span></span>
+                        <span>Total a Pagar <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#6B7280', marginLeft: '4px' }}>(más procesamiento)</span></span>
                         <span>{((activePrice + calculateFee(activePrice)) * qty).toFixed(4)} SOL</span>
                       </div>
                     </div>
@@ -578,7 +578,7 @@ export default function BuyerPurchase({
                     )}
 
                     <div className="bp-summary-box">
-                      <p style={{ margin: '0 0 10px', fontSize: '12px', color: '#5F5E5A' }}>Resumen de la transacción</p>
+                      <p style={{ margin: '0 0 10px', fontSize: '12px', color: '#5F5E5A' }}>Resumen de compra</p>
                       <div className="bp-summary-row">
                         <span>Boletos ({qty})</span><span>{(qty * activePrice).toFixed(4)} SOL</span>
                       </div>
@@ -586,17 +586,17 @@ export default function BuyerPurchase({
                         <span>Cargo de servicio Mintpass (5%)</span><span>{(qty * activePrice * 0.05).toFixed(4)} SOL</span>
                       </div>
                       <div className="bp-summary-row" style={{ color: '#8A8880', fontSize: '12px' }}>
-                        <span>Tarifa de red Solana (Gas)</span>
+                        <span>Costo de procesamiento</span>
                         <span style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                           <span>Calculado por tu wallet</span>
-                          <span style={{ fontSize: '10px', opacity: 0.8 }}>(Al firmar la transacción)</span>
+                          <span style={{ fontSize: '10px', opacity: 0.8 }}>(Al confirmar el pago)</span>
                         </span>
                       </div>
                       <div className="bp-summary-row" style={{ color: '#3C3489' }}>
                         <span>Tope seguro si decides revenderlo</span><span>{event.allowResale ? `Máximo al ${event.resaleCapLimit}%` : 'Intransferible'}</span>
                       </div>
                       <div className="bp-summary-total">
-                        <span>Total a pagar <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#8A8880', marginLeft: '4px' }}>(sin gas)</span></span>
+                        <span>Total a pagar <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#8A8880', marginLeft: '4px' }}>(más procesamiento)</span></span>
                         <span>{((activePrice + calculateFee(activePrice)) * qty).toFixed(4)} SOL</span>
                       </div>
                     </div>
@@ -604,7 +604,7 @@ export default function BuyerPurchase({
                     <div className="bp-alert-box">
                       <Icons.ShieldCheck style={{ fontSize: '20px', color: '#3C3489' }} />
                       <p style={{ margin: 0, fontSize: '11px', color: '#3C3489', lineHeight: 1.4 }}>
-                        Transacción transparente sin intermediarios usando <b>Privy</b>. Tu boleto es verificable on-chain.
+                        Compra directa sin intermediarios protegida por <b>Privy</b>. Tu boleto digital es a prueba de falsificaciones.
                       </p>
                     </div>
 
@@ -619,7 +619,7 @@ export default function BuyerPurchase({
                         }}
                         className="bp-btn-primary"
                       >
-                        Autorizar transacción
+                        Autorizar pago
                       </button>
                     </div>
                     <div style={{ margin: '0 18px 20px', textAlign: 'center', fontSize: '11px', color: '#5F5E5A' }}>
@@ -637,14 +637,14 @@ export default function BuyerPurchase({
                     </div>
 
                     <h2 style={{ margin: '0 0 8px', fontSize: '20px', fontWeight: 600, color: '#1E1E1E' }}>Autorizando acceso</h2>
-                    <p style={{ margin: '0 0 24px', fontSize: '13px', color: '#5F5E5A' }}>Interactuando de forma segura con la red Solana...</p>
+                    <p style={{ margin: '0 0 24px', fontSize: '13px', color: '#5F5E5A' }}>Procesando de forma segura tu compra...</p>
 
                     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       {[
                         { step: 1, label: 'Verificando Wallet' },
-                        { step: 2, label: 'Firmando transacción' },
+                        { step: 2, label: 'Autorizando pago' },
                         { step: 3, label: 'Generando activo digital' },
-                        { step: 4, label: 'Confirmación On-Chain' }
+                        { step: 4, label: 'Asegurando Boletos' }
                       ].map((s) => {
                         const status = progressStep > s.step ? 'done' : progressStep === s.step ? 'active' : 'todo';
                         return (
@@ -698,7 +698,9 @@ export default function BuyerPurchase({
           </div>
 
           <h2 className="text-[28px] font-bold text-[#1E1E1E] mb-2 tracking-tight">Acceso Concedido</h2>
-          <p className="text-[14px] text-[#5F5E5A] mb-10 font-medium tracking-wide">Tu ticket NFT fue minteado exitosamente</p>
+          <p className="text-[14px] text-[#5F5E5A] mb-10 font-medium tracking-wide">
+            {mintedTickets.length > 1 ? `Tus ${mintedTickets.length} boletos digitales están asegurados y listos` : 'Tu boleto digital está asegurado y listo'}
+          </p>
 
           <div className="max-w-[340px] w-full bg-[#FFFFFF] border border-[#D3D1C7] rounded-[24px] overflow-hidden mb-8 relative shadow-[0_10px_40px_rgba(0,0,0,0.1)] transform rotate-[-1deg] hover:rotate-0 hover:scale-105 transition-all duration-300 cursor-pointer">
             <div className="h-[140px] flex items-center justify-center relative" style={{ background: event.bg }}>
@@ -730,16 +732,21 @@ export default function BuyerPurchase({
             <div className="absolute bottom-[86px] left-8 right-8 h-px border-t-[2px] border-dashed border-[#D3D1C7] opacity-50"></div>
             
             <div className="px-6 pb-6 pt-4 text-left">
-              <p className="text-[10px] text-[#8A8880] uppercase tracking-wider mb-2 font-semibold">Registros On-Chain</p>
+              <p className="text-[10px] text-[#8A8880] uppercase tracking-wider mb-2 font-semibold">Certificado de Autenticidad</p>
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center bg-[#F7F8F7] p-2 rounded-md border border-[#E8E6DD]">
-                  <span className="text-[10px] text-[#5F5E5A] font-medium">Boleto NFT</span>
-                  <a href={`https://explorer.solana.com/address/${mintedTickets[0]}?cluster=devnet`} target="_blank" rel="noreferrer" className="text-[10px] text-[#3C3489] font-mono hover:underline truncate w-[140px] text-right">
-                    {mintedTickets[0]?.slice(0,6)}...{mintedTickets[0]?.slice(-6)}
-                  </a>
+                  <span className="text-[10px] text-[#5F5E5A] font-medium">Boleto Seguro</span>
+                  <div className="text-right flex flex-col">
+                    <a href={`https://explorer.solana.com/address/${mintedTickets[0]}?cluster=devnet`} target="_blank" rel="noreferrer" className="text-[10px] text-[#3C3489] font-mono hover:underline truncate w-[140px]">
+                      {mintedTickets[0]?.slice(0,6)}...{mintedTickets[0]?.slice(-6)}
+                    </a>
+                    {mintedTickets.length > 1 && (
+                      <span className="text-[9px] text-[#8A8880] mt-0.5">y {mintedTickets.length - 1} más...</span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex justify-between items-center bg-[#F7F8F7] p-2 rounded-md border border-[#E8E6DD]">
-                  <span className="text-[10px] text-[#5F5E5A] font-medium">Colección</span>
+                  <span className="text-[10px] text-[#5F5E5A] font-medium">Contrato del Evento</span>
                   <a href={`https://explorer.solana.com/address/${collectionMint}?cluster=devnet`} target="_blank" rel="noreferrer" className="text-[10px] text-[#3C3489] font-mono hover:underline truncate w-[140px] text-right">
                     {collectionMint.slice(0,6)}...{collectionMint.slice(-6)}
                   </a>
@@ -749,8 +756,8 @@ export default function BuyerPurchase({
           </div>
 
           <div className="flex max-w-[340px] w-full gap-4">
-            <button onClick={() => onGoToMyTicket(mintedTickets[0])} className="flex-[2] bg-[#1E1E1E] hover:bg-[#333] text-[#FFFFFF] h-[56px] rounded-[16px] font-bold text-[14px] transition-all cursor-pointer shadow-md">
-              Mostrar Boleto
+            <button onClick={() => onGoToMyTicket(mintedTickets.length === 1 ? mintedTickets[0] : undefined)} className="flex-[2] bg-[#1E1E1E] hover:bg-[#333] text-[#FFFFFF] h-[56px] rounded-[16px] font-bold text-[14px] transition-all cursor-pointer shadow-md">
+              {mintedTickets.length > 1 ? 'Ver Mis Boletos' : 'Mostrar Boleto'}
             </button>
             <button onClick={onBack} className="flex-1 bg-[#FFFFFF] hover:bg-[#F7F8F7] text-[#1E1E1E] h-[56px] rounded-[16px] font-semibold text-[14px] transition-colors cursor-pointer border border-[#D3D1C7]">
               Inicio

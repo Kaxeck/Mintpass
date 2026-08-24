@@ -25,12 +25,12 @@ export default function MyTicketPage() {
   const selectedEventId = searchParams?.get("eventId") as string;
   
   useEffect(() => {
-    async function fetchEventAndTicket() {
+    async function fetchEventAndTicket(isInitial = false) {
       if (!ticketMint || !walletAddress) {
-        setLoading(false);
+        if (isInitial) setLoading(false);
         return;
       }
-      setLoading(true);
+      if (isInitial) setLoading(true);
       try {
         const token = await getAccessToken() || undefined;
         const ticketWithEvent = await getTicketWithEvent(ticketMint, walletAddress, token);
@@ -68,17 +68,10 @@ export default function MyTicketPage() {
       } catch (e) {
         console.error("Error fetching event for ticket view:", e);
       } finally {
-        setLoading(false);
+        if (isInitial) setLoading(false);
       }
     }
-    fetchEventAndTicket();
-
-    // Auto-refresh every 10 seconds
-    const interval = setInterval(() => {
-      fetchEventAndTicket();
-    }, 10000);
-
-    return () => clearInterval(interval);
+    fetchEventAndTicket(true);
   }, [ticketMint, walletAddress]);
 
   if (!mounted || !ready || loading) return null;

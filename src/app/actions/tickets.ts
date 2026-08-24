@@ -127,6 +127,17 @@ export async function checkInTicket(mintAddress: string, staffId?: string, qrTim
     }
     // --- END TOTP VALIDATION ---
 
+    // Resolve the staff token to the actual StaffAccessLink ID
+    let actualStaffId = undefined;
+    if (staffId) {
+      const staffLink = await prisma.staffAccessLink.findUnique({
+        where: { token: staffId }
+      });
+      if (staffLink) {
+        actualStaffId = staffLink.id;
+      }
+    }
+
     // Attempt to process on-chain if APP_MASTER_SEED is configured
     if (process.env.APP_MASTER_SEED && process.env.NEXT_PUBLIC_SOLANA_RPC_URL) {
       try {
@@ -135,7 +146,7 @@ export async function checkInTicket(mintAddress: string, staffId?: string, qrTim
         const relayerKeypair = Keypair.fromSeed(new Uint8Array(masterSeedArr));
 
         const coder = new BorshCoder(MINTPASS_IDL);
-        const data = coder.instruction.encode("perform_checkin", { staffId: staffId || "unknown" });
+        const data = coder.instruction.encode("perform_checkin", { staffId: actualStaffId || staffId || "unknown" });
 
         const organizerStr = ticketInfo.event.organizerPubkey;
         const collectionMintStr = ticketInfo.event.collectionMint;
@@ -182,7 +193,7 @@ export async function checkInTicket(mintAddress: string, staffId?: string, qrTim
         status: "CHECKED_IN",
         isCheckedIn: true,
         checkinTimestamp: new Date(),
-        checkinStaffId: staffId,
+        checkinStaffId: actualStaffId,
       }
     });
 

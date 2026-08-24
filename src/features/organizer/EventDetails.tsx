@@ -39,7 +39,7 @@ export default function EventDetails({
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
 
-  const [ownedTickets, setOwnedTickets] = useState<Array<{ mint: string, purchaseDate: number, eventId: string | number, zoneIndex?: number }>>([]);
+  const [ownedTickets, setOwnedTickets] = useState<Array<{ mint: string, purchaseDate: number, eventId: string | number, zoneIndex?: number, status?: string, checkinTimestamp?: number }>>([]);
   
   useEffect(() => {
     async function loadTickets() {
@@ -51,7 +51,10 @@ export default function EventDetails({
             mint: t.mintAddress,
             purchaseDate: new Date(t.lastUpdatedAt || Date.now()).getTime(),
             eventId: t.eventAddress,
-            zoneIndex: t.zoneIndex
+            zoneIndex: t.zoneIndex,
+            status: t.status,
+            checkinTimestamp: t.checkinTimestamp ? new Date(t.checkinTimestamp).getTime() : undefined,
+            txSignature: t.auditLogs?.[0]?.txSignature
           })));
         }
       } catch (e) {
@@ -245,10 +248,7 @@ export default function EventDetails({
       return;
     }
 
-    if (event.priceType !== 'sol') {
-      showAlert("No Soportado", "Simulación: Pagos en USDC requieren inicializar Cuentas Token (ATA). Se omitirá para evitar colisiones en la demo de SOL.", "info");
-      return;
-    }
+    // Permitimos el retiro de USDC en la demo simulando el release
 
     if (!walletConnected) {
       showAlert("Wallet Desconectada", "Conecta tu wallet principal para autorizar la recepción de los fondos desde el contrato inteligente.", "warning");
@@ -273,12 +273,20 @@ export default function EventDetails({
 
       showAlert("Firma requerida", "Abre tu Phantom wallet y firma la transacción para liberar los fondos del contrato inteligente.", "info");
 
-      await txBuilder.sendAndConfirm(umi);
+      const { signature } = await txBuilder.sendAndConfirm(umi);
 
-      const sig = "smart-contract-release";
+      let sig = "smart-contract-release";
+      try {
+        const bs58 = (await import("bs58")).default;
+        sig = bs58.encode(signature);
+      } catch (e) {
+        console.warn("Could not encode signature", e);
+      }
+      
       localStorage.setItem(`mintpass_withdrawn_${event.id}`, 'true');
       setWithdrawn(true);
-      showAlert("¡Retiro Exitoso!", `Los fondos han sido liberados desde el contrato a tu wallet privada.\n\nSe transfirieron ${totalSol} SOL de las ganancias.`, "success", sig);
+      const currencyStr = event.priceType === 'usdc' ? 'USDC' : 'SOL';
+      showAlert("¡Retiro Exitoso!", `Los fondos han sido liberados desde el contrato a tu wallet privada.\n\nSe transfirieron ${totalSol} ${currencyStr} de las ganancias.`, "success", sig);
     } catch (e: any) {
       console.error(e);
       showAlert("Error de Validación Blockchain", "La transacción falló: " + e.message, "error");
@@ -464,6 +472,52 @@ export default function EventDetails({
                         </div>
                         <div style={{ fontSize: '12px', background: '#E8F5E9', color: '#2E7D32', padding: '4px 10px', borderRadius: '12px', fontWeight: 600 }}>
                           Comprado
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Recent Validations (Check-ins) */}
+            <div style={{ background: '#FFFFFF', borderRadius: '16px', border: '1px solid #D3D1C7', padding: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#1E1E1E', margin: 0 }}>Validaciones Recientes</h3>
+                <span style={{ fontSize: '13px', color: '#5F5E5A', cursor: 'pointer' }}>Ver todas</span>
+              </div>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {ownedTickets.filter(t => t.status === 'CHECKED_IN').length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '32px 0', color: '#A1A1AA', fontSize: '14px' }}>
+                    Sin boletos validados aún.
+                  </div>
+                ) : (
+                  ownedTickets.filter(t => t.status === 'CHECKED_IN').slice(0, 5).map((t, idx) => {
+                    const diffMins = Math.floor((Date.now() - (t.checkinTimestamp || t.purchaseDate)) / 60000);
+                    const timeStr = diffMins === 0 ? 'Hace un instante' : diffMins < 60 ? `Hace ${diffMins} min` : `Hace ${Math.floor(diffMins/60)} h`;
+                    return (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', padding: '12px', background: '#F7F8F7', borderRadius: '8px', border: '1px solid #D3D1C7' }}>
+                        <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#14F195', color: '#1E1E1E', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 600, marginRight: '16px' }}>
+                          <Icons.ShieldCheck size={20} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '14px', fontWeight: 500, color: '#1E1E1E', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {t.mint.substring(0, 8)}...{t.mint.substring(t.mint.length - 6)}
+                            {(t as any).txSignature ? (
+                              <a href={`https://explorer.solana.com/tx/${(t as any).txSignature}?cluster=devnet`} target="_blank" rel="noreferrer" style={{ color: '#5F5E5A', display: 'flex', alignItems: 'center' }} title="Ver validación (tx) en el explorador">
+                                <Icons.ExternalLink size={12} />
+                              </a>
+                            ) : (
+                              <a href={`https://explorer.solana.com/address/${t.mint}?cluster=devnet`} target="_blank" rel="noreferrer" style={{ color: '#5F5E5A', display: 'flex', alignItems: 'center' }} title="Ver NFT en el explorador">
+                                <Icons.ExternalLink size={12} />
+                              </a>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#5F5E5A', marginTop: '2px' }}>{timeStr}</div>
+                        </div>
+                        <div style={{ fontSize: '12px', background: '#EAF3DE', color: '#27500A', padding: '4px 10px', borderRadius: '12px', fontWeight: 600 }}>
+                          Validado
                         </div>
                       </div>
                     );

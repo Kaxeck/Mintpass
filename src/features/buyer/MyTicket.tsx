@@ -252,8 +252,9 @@ export default function MyTicket({ event, ticketMint, qrSecret, onBack }: { even
                         </div>
                       ) : poapClaimed ? (
                         <>
-                          <Icons.Medal size={64} color="#F59E0B" />
-                          <span>¡Coleccionable POAP!</span>
+                          <Icons.ShieldCheck size={64} color="#14F195" />
+                          <span>¡Validado Exitosamente!</span>
+                          <span style={{ fontSize: '11px', marginTop: '4px', color: '#5F5E5A' }}>Tu POAP se ha generado</span>
                         </>
                       ) : !isQrActive ? (
                         <div className="mt-qr-state mt-qr-locked">

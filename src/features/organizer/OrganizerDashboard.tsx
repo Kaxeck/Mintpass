@@ -175,6 +175,9 @@ export default function OrganizerDashboard({
     
     // Asignar categoría (pestaña)
     let cat = isToday ? 'activos' : isPast ? 'pasados' : 'proximos';
+    if (ev.status === 'CLOSED') {
+      cat = 'pasados';
+    }
     if (ev.status === 'CANCELLED') {
       cat = 'cancelados';
     }
@@ -236,7 +239,7 @@ export default function OrganizerDashboard({
 
   // Filtrar eventos que no están cancelados ni pasados para las estadísticas de aforo activo
   const activeStatsEvents = createdEvents.filter(ev => {
-    if (ev.status === 'CANCELLED') return false;
+    if (ev.status === 'CANCELLED' || ev.status === 'CLOSED') return false;
     const rawDate = ev.date ? new Date(ev.date + 'T12:00') : null;
     const eventDate = rawDate && !isNaN(rawDate.getTime()) ? rawDate : null;
     const isPast = eventDate && eventDate < new Date();

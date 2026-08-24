@@ -133,9 +133,20 @@ export async function checkInTicket(mintAddress: string, staffId?: string, qrTim
       const staffLink = await prisma.staffAccessLink.findUnique({
         where: { token: staffId }
       });
-      if (staffLink) {
-        actualStaffId = staffLink.id;
+      if (!staffLink) {
+        throw new Error("UNAUTHORIZED_STAFF: Enlace de staff inválido.");
       }
+      if (staffLink.eventId !== ticketInfo.eventAddress) {
+        throw new Error("UNAUTHORIZED_EVENT: Este escáner pertenece a otro evento y no está autorizado para validar este boleto.");
+      }
+      if (staffLink.status === 'REVOKED') {
+        throw new Error("REVOKED_STAFF: Este enlace de staff ha sido revocado.");
+      }
+      actualStaffId = staffLink.id;
+    }
+
+    if (ticketInfo.event.status === 'CLOSED' || ticketInfo.event.status === 'CANCELLED') {
+      throw new Error("EVENT_INACTIVE: El evento ya ha finalizado o ha sido cancelado. No se admiten más check-ins.");
     }
 
     // Attempt to process on-chain if APP_MASTER_SEED is configured
@@ -158,7 +169,6 @@ export async function checkInTicket(mintAddress: string, staffId?: string, qrTim
         const [protocolConfig] = PublicKey.findProgramAddressSync([Buffer.from("config")], PROGRAM_ID);
         const [ticketReceipt] = PublicKey.findProgramAddressSync([Buffer.from("receipt"), new PublicKey(mintAddress).toBuffer()], PROGRAM_ID);
         const [eventRecord] = PublicKey.findProgramAddressSync([Buffer.from("event"), new PublicKey(organizerStr).toBuffer(), new PublicKey(collectionMintStr).toBuffer()], PROGRAM_ID);
-        const [ticketMetadata] = PublicKey.findProgramAddressSync([Buffer.from("metadata"), TOKEN_METADATA_PROGRAM_ID.toBuffer(), new PublicKey(mintAddress).toBuffer()], TOKEN_METADATA_PROGRAM_ID);
 
         const ix = new TransactionInstruction({
           programId: PROGRAM_ID,
@@ -166,10 +176,8 @@ export async function checkInTicket(mintAddress: string, staffId?: string, qrTim
             { pubkey: protocolConfig, isSigner: false, isWritable: false },
             { pubkey: relayerKeypair.publicKey, isSigner: true, isWritable: true },
             { pubkey: new PublicKey(mintAddress), isSigner: false, isWritable: false },
-            { pubkey: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"), isSigner: false, isWritable: false }, // tokenAccount mock or real
             { pubkey: ticketReceipt, isSigner: false, isWritable: true },
             { pubkey: eventRecord, isSigner: false, isWritable: false },
-            { pubkey: ticketMetadata, isSigner: false, isWritable: false },
             { pubkey: new PublicKey("11111111111111111111111111111111"), isSigner: false, isWritable: false },
           ],
           data: data
@@ -178,12 +186,25 @@ export async function checkInTicket(mintAddress: string, staffId?: string, qrTim
         const tx = new Transaction().add(ix);
         tx.feePayer = relayerKeypair.publicKey;
         
-        // Simular o enviar la tx. En un entorno sin fondos fallará, pero lo capturamos
-        const hash = await connection.sendTransaction(tx, [relayerKeypair], { skipPreflight: true });
-        console.log("On-chain check-in executed. Tx:", hash);
+        // Enviar la tx. Si falla, lanzamos error para no actualizar la DB
+        const hash = await connection.sendTransaction(tx, [relayerKeypair], { skipPreflight: false });
+        
+        const latestBlockhash = await connection.getLatestBlockhash();
+        const confirmation = await connection.confirmTransaction({
+          signature: hash,
+          blockhash: latestBlockhash.blockhash,
+          lastValidBlockHeight: latestBlockhash.lastValidBlockHeight
+        });
+
+        if (confirmation.value.err) {
+          throw new Error("Transacción falló en la blockchain: " + JSON.stringify(confirmation.value.err));
+        }
+
+        console.log("On-chain check-in executed and confirmed. Tx:", hash);
         txSignature = hash;
-      } catch (onChainError) {
-        console.warn("Failed to process check-in on-chain. Falling back to DB-only update.", onChainError);
+      } catch (onChainError: any) {
+        console.error("Failed to process check-in on-chain. Aborting DB update.", onChainError);
+        throw new Error("Error en Solana: " + onChainError.message);
       }
     }
 
@@ -251,6 +272,12 @@ export async function getEventTickets(eventId: number) {
   try {
     const tickets = await prisma.ticket.findMany({
       where: { eventAddress: eventId.toString() },
+      include: {
+        auditLogs: {
+          orderBy: { timestamp: 'desc' },
+          take: 1
+        }
+      },
       orderBy: {
         lastUpdatedAt: "desc"
       }

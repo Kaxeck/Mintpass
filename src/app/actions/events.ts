@@ -263,6 +263,11 @@ export async function finishEventInDb(eventId: string, organizerPubkey: string) 
       data: { status: 'CLOSED' }
     });
 
+    await prisma.staffAccessLink.updateMany({
+      where: { eventId: eventId, status: 'ACTIVE' },
+      data: { status: 'REVOKED' }
+    });
+
     revalidatePath('/');
     revalidatePath('/dashboard');
     revalidatePath(`/e/${eventId}`);

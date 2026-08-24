@@ -72,6 +72,13 @@ export default function MyTicketPage() {
       }
     }
     fetchEventAndTicket();
+
+    // Auto-refresh every 10 seconds
+    const interval = setInterval(() => {
+      fetchEventAndTicket();
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, [ticketMint, walletAddress]);
 
   if (!mounted || !ready || loading) return null;

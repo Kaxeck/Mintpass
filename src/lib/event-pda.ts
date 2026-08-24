@@ -226,7 +226,7 @@ export async function readEventFromChain(
 
     const eventDate = decoded.eventTimestamp ? new Date(Number(decoded.eventTimestamp) * 1000) : new Date();
     const dateStr = eventDate.toISOString().split("T")[0];
-    const timeStr = eventDate.toTimeString().split(" ")[0].slice(0, 5);
+    const timeStr = eventDate.toISOString().split('T')[1].slice(0, 5);
 
     return {
       name: decoded.name || "",

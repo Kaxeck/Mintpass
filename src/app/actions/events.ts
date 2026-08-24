@@ -47,7 +47,7 @@ export async function createEventInDb(eventData: any, token?: string) {
         countryIso: validatedData.country,
         stateIso: validatedData.state,
         cityName: validatedData.city,
-        startDate: validatedData.date && validatedData.time ? new Date(`${validatedData.date}T${validatedData.time}:00`) : null,
+        startDate: validatedData.date && validatedData.time ? new Date(`${validatedData.date}T${validatedData.time}:00Z`) : null,
         doorTime: validatedData.doorTime,
         ageRestriction: validatedData.ageRestriction,
         category: validatedData.category,
@@ -86,7 +86,7 @@ export async function getPublishedEvents() {
       where: {
         status: "PUBLISHED",
         startDate: {
-          gte: new Date() // Only show future events
+          gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Mostrar eventos hasta 24h después de iniciar (evita que desaparezcan prematuramente por zonas horarias)
         }
       },
       orderBy: {
@@ -307,6 +307,21 @@ export async function deleteEventFromDb(eventId: string) {
     return { success: true };
   } catch (error) {
     console.error("Error deleting event from DB:", error);
+    return { success: false, error: String(error) };
+  }
+}
+
+export async function publishEventInDb(eventId: string) {
+  try {
+    await prisma.event.update({
+      where: { id: eventId },
+      data: { status: 'PUBLISHED' }
+    });
+    revalidatePath('/');
+    revalidatePath('/explore');
+    return { success: true };
+  } catch (error) {
+    console.error("Error publishing event:", error);
     return { success: false, error: String(error) };
   }
 }

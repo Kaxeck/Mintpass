@@ -52,7 +52,7 @@ export default function DashboardPage() {
           name: ev.title,
           category: ev.category || "Otro",
           date: ev.startDate ? new Date(ev.startDate).toISOString().split('T')[0] : "",
-          time: ev.startDate ? new Date(ev.startDate).toTimeString().split(' ')[0].substring(0, 5) : "",
+          time: ev.startDate ? new Date(ev.startDate).toISOString().split('T')[1].substring(0, 5) : "",
           venue: ev.location || "",
           price: ev.ticketPriceSol,
           hasMultipleZones: Array.isArray(ev.zones) ? ev.zones.length > 1 : false,

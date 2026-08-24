@@ -37,7 +37,7 @@ export default function BuyerPurchasePage() {
         const ev = await getEventById(selectedEventId);
         if (ev) {
           const dateStr = ev.startDate ? new Date(ev.startDate).toISOString().split('T')[0] : "";
-          const timeStr = ev.startDate ? new Date(ev.startDate).toTimeString().split(' ')[0].substring(0, 5) : "";
+          const timeStr = ev.startDate ? new Date(ev.startDate).toISOString().split('T')[1].substring(0, 5) : "";
           
           const countryName = ev.countryIso ? Country.getCountryByCode(ev.countryIso)?.name : undefined;
           const stateName = (ev.countryIso && ev.stateIso) ? State.getStateByCodeAndCountry(ev.stateIso, ev.countryIso)?.name : undefined;
@@ -69,7 +69,7 @@ export default function BuyerPurchasePage() {
             state: stateName || ev.stateIso || undefined,
             country: countryName || ev.countryIso || undefined,
             status: ev.status,
-            isEventPast: ev.startDate ? new Date(ev.startDate).getTime() < Date.now() : false,
+            isEventPast: ev.startDate ? new Date(ev.startDate).getTime() < (Date.now() - new Date().getTimezoneOffset() * 60000) : false,
             allowResale: (ev as any).allowResale || false,
             resaleCapLimit: (ev as any).resaleCapLimit || null,
             allowRefunds: (ev as any).allowRefunds || false,

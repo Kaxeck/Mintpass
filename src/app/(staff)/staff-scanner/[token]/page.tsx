@@ -32,7 +32,7 @@ export default function StaffScannerPage() {
             id: ev.id,
             name: ev.title,
             date: ev.startDate ? new Date(ev.startDate).toISOString().split('T')[0] : "",
-            time: ev.startDate ? new Date(ev.startDate).toTimeString().split(' ')[0].substring(0, 5) : "",
+            time: ev.startDate ? new Date(ev.startDate).toISOString().split('T')[1].substring(0, 5) : "",
             venue: ev.location || "",
             price: ev.ticketPriceSol,
             aforo: ev.capacity,

@@ -11,8 +11,8 @@ export default async function ExplorePage() {
     let timeStr = "";
     if (ev.startDate) {
       const dateObj = new Date(ev.startDate);
-      dateStr = dateObj.toISOString().split('T')[0];
-      timeStr = dateObj.toTimeString().split(' ')[0].substring(0, 5);
+      dateStr = dateObj.toISOString().split('T')[0];      // Extract exact time string (HH:MM) ignoring server timezone
+      timeStr = dateObj.toISOString().split('T')[1].substring(0, 5);
     }
 
     return {

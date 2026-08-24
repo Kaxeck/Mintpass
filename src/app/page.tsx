@@ -14,10 +14,10 @@ export default async function HomePage() {
     if (ev.startDate) {
       // Create a Date object from DB
       const dateObj = new Date(ev.startDate);
-      // Format YYYY-MM-DD
+      // Extract exact date string (YYYY-MM-DD)
       dateStr = dateObj.toISOString().split('T')[0];
-      // Format HH:MM
-      timeStr = dateObj.toTimeString().split(' ')[0].substring(0, 5);
+      // Extract exact time string (HH:MM) ignoring server timezone
+      timeStr = dateObj.toISOString().split('T')[1].substring(0, 5);
     }
     
     const countryName = ev.countryIso ? Country.getCountryByCode(ev.countryIso)?.name : undefined;

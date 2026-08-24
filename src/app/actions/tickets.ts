@@ -201,9 +201,14 @@ export async function checkInTicket(mintAddress: string, staffId?: string, qrTim
       (async () => {
         try {
           const { createUmi } = await import("@metaplex-foundation/umi-bundle-defaults");
-          const { mutateToPoap } = await import("@/lib/metaplex");
+          const { mutateToPoap, getMasterSigner } = await import("@/lib/metaplex");
           
           const umi = createUmi(process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com");
+          const appMasterSigner = getMasterSigner(umi);
+          
+          // UMI requiere una identidad (pagador) para enviar la transacción
+          const { keypairIdentity } = await import("@metaplex-foundation/umi");
+          umi.use(keypairIdentity(appMasterSigner));
           
           await mutateToPoap(umi, {
             mintAddress: mintAddress,

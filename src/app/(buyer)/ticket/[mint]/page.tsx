@@ -46,6 +46,7 @@ export default function MyTicketPage() {
             aforo: ev.capacity,
             collectionMint: ev.collectionMint || "",
             coverImage: ev.coverImageUrl || undefined,
+            ticketImage: ev.ticketImageUrl || undefined,
             organizerWallet: ev.organizerPubkey,
             description: ev.description || "",
             zones: typeof ev.zones === 'string' ? JSON.parse(ev.zones) : (ev.zones as any[] || []),

@@ -269,6 +269,17 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
         collectionSigner
       });
 
+        const { uploadMetadata } = await import("../../lib/pinata");
+        const ticketMetadataUri = await uploadMetadata({
+          name: `${name || "Evento"} Ticket`,
+          description: `Boleto Oficial - ${name || "Evento"}`,
+          image: ticketImage || coverImage || "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=800",
+          attributes: [
+            { trait_type: "Tipo", value: "Boleto Digital" },
+            { trait_type: "Organizador base", value: walletAddress },
+          ],
+        });
+
       const eventDataOnChain = {
         name,
         description: "", // Evitamos enviar descripciones largas a la blockchain para ahorrar recursos
@@ -280,7 +291,7 @@ export default function CreateEvent({ onBack, onSuccess }: { onBack: () => void,
         state: stateIso,
         country: countryIso,
         coverImage: coverImage || undefined,
-        ticketImage: ticketImage || coverImage || undefined,
+        ticketImage: ticketMetadataUri,
         lineup: lineup ? lineup.split(',').map(s => s.trim()) : undefined,
         zones: zones,
         allowResale,

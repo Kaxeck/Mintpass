@@ -1,11 +1,11 @@
-# 🎟️ Mintpass — Tickets NFT Anti-Fraude para Eventos en LATAM
+# 🎟️ Mintpass — Infraestructura de Eventos sobre Solana
 
 <p align="center">
   <img src="public/icon.png" alt="Mintpass Logo" width="120" />
 </p>
 
 <p align="center">
-  <strong>Plataforma descentralizada de boletos digitales construida sobre Solana con Metaplex Core.</strong>
+  <strong>Crea tu evento, vende boletos, controla accesos y recompensa a tu audiencia con una infraestructura segura sobre Solana.</strong>
 </p>
 
 <p align="center">
@@ -17,85 +17,136 @@
 
 ## 1. Resumen Ejecutivo
 
-**Mintpass** es una plataforma de ticketing descentralizada construida sobre Solana. Cada boleto es un NFT de Metaplex Core, lo que garantiza autenticidad, trazabilidad on-chain y protección contra reventa no autorizada. La plataforma está diseñada para el mercado LATAM, con pagos via MercadoPago/stripe, onboarding Web2 a través de Privy, y escaneo offline-first para eventos en zonas con conectividad limitada.
+Mintpass es una plataforma para crear, vender, administrar y verificar boletos digitales para eventos usando Solana como capa principal de confianza. El proyecto no se limita a vender boletos: busca convertirse en una infraestructura completa para organizar eventos de forma segura, simple y escalable.
 
-Este documento describe el estado actual del codebase (v1), las brechas identificadas frente a la especificación v2.0, y el plan de desarrollo para la fase de incubación.
+La oportunidad es clara: muchos organizadores en Latinoamérica, desde artistas independientes hasta bares, universidades, comunidades y eventos locales, necesitan herramientas profesionales para operar eventos sin construir tecnología propia. Hoy suelen depender de hojas de cálculo, formularios, códigos QR estáticos, pagos manuales o plataformas cerradas que no resuelven bien el fraude, la reventa, el acceso, los datos y la fidelización.
 
+Mintpass centraliza ese proceso en una sola plataforma: el organizador crea el evento, vende boletos, recibe pagos, controla accesos con un sistema de check-in, reduce fraude, gestioniona la reventa bajo reglas claras, genera reputación verificable y obtiene datos que pueden usarse para recompensas, preventas, beneficios y mejores decisiones comerciales.
 
-## 🚨 El Problema
+> **Idea central:** Mintpass no vende solo boletos. Mintpass entrega infraestructura para eventos con confianza verificable sobre Solana.
 
-En Latinoamérica, los eventos en vivo enfrentan un problema de fraude masivo:
+## 2. Visión del Proyecto
 
-- **Reventa ilegal** con márgenes de hasta 10x el precio original.
-- **Boletos clonados** por captura de pantalla que permiten múltiples accesos.
-- **Plataformas centralizadas** (Ticketmaster) que cobran comisiones abusivas sin ofrecer transparencia.
-- **Zero proof of attendance** — no queda registro verificable de que asististe.
+La visión de Mintpass es que cualquier organizador pueda lanzar y operar un evento con herramientas profesionales, aunque no tenga equipo técnico, conocimiento de blockchain o presupuesto de una gran promotora.
 
-## ✅ Nuestra Solución
+Un artista independiente debería poder vender entradas para un concierto. Un bar debería poder crear eventos semanales y controlar accesos. Una escuela debería poder validar asistentes a un congreso. Una comunidad debería poder recompensar a sus miembros activos. Un festival debería poder reducir reventa abusiva y fraude. Mintpass busca hacer posible todo eso desde una misma infraestructura.
 
-**Mintpass** convierte cada boleto en un **NFT de Metaplex Core** en Solana, pero de forma invisible para el usuario (100% custodial):
+El producto usa Solana como base de confianza, pero se presenta al mercado de forma sencilla: boletos seguros, acceso rápido, reventa controlada, datos útiles y mejores herramientas para relacionarse con la audiencia.
 
-| Feature | Cómo funciona |
-|---------|---------------|
-| 🎫 **Ticket NFT** | Cada entrada es un activo digital real e irrepetible en la blockchain. |
-| 🌍 **Libre Acceso (Permissionless)** | Cualquier persona puede crear un evento; compras sencillas con tarjeta (MercadoPago/Stripe). |
-| 🔄 **QR Dinámico (TOTP)** | El código rota cada 30 segundos con validación criptográfica HMAC, eliminando las capturas de pantalla. |
-| ✅ **Check-in On-Chain & Offline** | El staff verifica la autenticidad incluso sin internet (PWA local), sincronizando luego con la blockchain. |
-| 🏆 **POAP Mutation** | Tras el evento, el ticket muta y se convierte en un coleccionable permanente. |
-| 🔒 **Escrow de Pagos & Price Cap** | Los fondos se retienen hasta verificar check-ins reales. La reventa tiene precios tope (Price Cap) a nivel contrato. |
-| 📊 **Reputación On-Chain** | Los organizadores acumulan un puntaje público e inmutable. |
+## 3. Problema y Oportunidad
 
-## 2. Estado Actual del Proyecto (v1)
+Organizar un evento parece simple hasta que aparecen los problemas reales:
+- **Fraude en boletos:** códigos duplicados, screenshots, PDFs reenviados o tickets revendidos varias veces.
+- **Reventa abusiva:** el organizador pierde control sobre precios, reputación y experiencia del fan.
+- **Operaciones manuales:** muchos eventos dependen de formularios, hojas de cálculo o listas impresas.
+- **Acceso vulnerable:** si falla internet, el staff puede perder capacidad de validar boletos en tiempo real.
+- **Poca trazabilidad:** después del evento, el organizador no siempre sabe quién asistió o quién fue recurrente.
+- **Dependencia de plataformas cerradas:** los datos y reglas quedan dentro de un sistema privado que no es verificable ni portable.
 
-El codebase actual representa un MVP de demostración funcional con más de 5,000 líneas de código distribuidas entre smart contracts en Rust, integración blockchain en TypeScript, y una interfaz de usuario completa.
+Mintpass convierte estos problemas en una oportunidad: ofrecer a organizadores una infraestructura moderna que simplifique la operación y aumente la confianza de asistentes, aliados y comunidades.
 
-### 2.1 Smart Contracts — Anchor / Rust
-Los contratos son la base más sólida del proyecto. Están completos, documentados en español y desplegados en Devnet con Program IDs reales.
+## 4. Propuesta de Valor
 
-- **mintpass-escrow:** Custodia de pagos con reglas on-chain (initialize, send, check-in, release, refund).
-- **mintpass-checkin:** Prevención de duplicados a nivel protocolo usando cuentas PDA.
-- **mintpass-event-registry:** Base de datos descentralizada de eventos.
-- **mintpass-reputation:** Sistema inmutable que suma/resta puntos al organizador.
+Mintpass permite que organizadores creen y operen eventos con una capa de confianza basada en Solana. La propuesta no es pedirle al mercado que aprenda Web3, sino usar Web3 para resolver problemas concretos de la industria de eventos.
 
-### 2.2 Integración Blockchain — TypeScript
-Contamos con utilidades sólidas para mintear NFTs (Metaplex), guardar metadata (Pinata) y validar firmas (Blinks). En la v2.0, todo este código deberá moverse al backend (Server Actions de Next.js) para proteger las llaves y funcionar como un modelo 100% custodial.
+### Valor para Organizadores
+- Crear eventos sin construir tecnología propia.
+- Vender boletos con métodos de pago conocidos y opciones cripto para usuarios avanzados.
+- Reducir fraude con boletos verificables, QR dinámico y reglas de acceso.
+- Controlar la reventa con límites, topes de precio y mercado oficial.
+- Operar check-in en puerta incluso con mala conexión.
+- Generar datos de asistencia y comportamiento para futuras ventas, rewards y fidelización.
+- Construir reputación como organizador confiable sobre Solana.
 
-### 2.3 Interfaz de Usuario
-El frontend (React 19 + Next.js App Router) incluye un catálogo, flujo de compra animado, tickets visuales con QR dinámico (30s) y un panel para staff con escáner láser. Todo el sistema de diseño premium, layouts y el CSS custom es altamente reutilizable para la versión 2.0.
+### Valor para Asistentes
+- Comprar boletos de forma simple, sin tener que entender blockchain.
+- Tener mayor confianza de que el boleto es auténtico.
+- Entrar al evento con menos fricción y menor riesgo de duplicados.
+- Acceder a beneficios futuros por asistencia recurrente (preventas, recompensas, programas de fans).
+
+## 5. Usuarios Objetivo
+
+La infraestructura de Mintpass puede adaptarse a eventos pequeños, medianos y de mayor escala:
+- **Artistas independientes:** Venta directa, relación con fans, preventas y recompensas.
+- **Bares, antros y venues locales:** Control de acceso, check-in rápido, historial de clientes frecuentes.
+- **Eventos locales y culturales:** Boletaje profesional sin operación técnica compleja.
+- **Escuelas y universidades:** Asistencia verificable, boletos nominales y control por identidad.
+- **Eventos de investigación:** Registro confiable de participación y credenciales de asistencia.
+- **Comunidades Web3 o creativas:** Reputación portable, rewards y acceso a miembros activos.
+- **Promotores y conciertos:** Antifraude, reventa controlada, analytics y operación escalable.
+
+## 6. Solana como Centro del Producto
+
+Solana está en el centro de Mintpass porque permite que los boletos y sus estados sean verificables, rápidos y de bajo costo. 
+- **Boletos con estado verificable:** activo, usado, congelado, revendido o reembolsado.
+- **Bajo costo y alta velocidad:** Clave para eventos pequeños y escalabilidad.
+- **Reglas programables:** Limitar reventa, bloquear transferencias no autorizadas.
+- **Reputación portable:** Para organizadores y asistentes.
+- **Composabilidad:** Otros negocios pueden construir beneficios usando datos verificables.
+- **Solana Blinks:** Nuevos canales de venta con conversión directa desde redes sociales.
+
+> **Mensaje clave:** Solana no es una capa decorativa. Es la infraestructura que permite que Mintpass ofrezca confianza verificable, reglas de mercado y reputación portable.
+
+## 7. Infraestructura de Mintpass de Punta a Punta
+
+- **Creación de eventos:** El organizador configura nombre, fecha, lugar, capacidad, precio, tipos de boleto y reglas.
+- **Venta de boletos:** Compra tradicional o con wallet.
+- **Emisión sobre Solana:** Boleto respaldado por una capa verificable y programable.
+- **Check-in en puerta:** Escaneo por staff desde una PWA móvil con soporte offline.
+- **Seguridad antifraude:** QR dinámico, control de identidad, bloqueo de duplicados, blacklist.
+- **Reventa oficial:** El organizador define si se permite, con topes y comisiones.
+- **Reputación y datos:** La asistencia se convierte en historial verificable.
+- **Rewards y comunidad:** Preventas, descuentos y programas de fans recurrentes.
+
+## 8. Seguridad y Antifraude
+
+La seguridad de Mintpass funciona por múltiples capas para proteger ingresos, reputación y la experiencia del asistente:
+1. **Solana como fuente de confianza:** Estado verificable, no solo una base de datos privada.
+2. **Freeze Authority:** El boleto se congela para evitar transferencias fuera de las reglas.
+3. **Reventa oficial:** Mercado secundario dentro de Mintpass con topes de precio.
+4. **Límite por identidad:** Evita la compra masiva con múltiples wallets.
+5. **Modo Soulbound:** Boletos intransferibles para eventos VIP o nominales.
+6. **Blacklist y detección de patrones:** Bloqueo de conductas sospechosas de fraude.
+
+## 9. Reputación On-Chain, Datos y Rewards
+
+Uno de los elementos más poderosos es la reputación. Cada evento genera un historial verificable que convierte la asistencia en un activo de relación (recompensas, descuentos, accesos anticipados). Esta reputación vive sobre Solana, por lo que es portable y puede ser reconocida por artistas, marcas o comunidades del ecosistema.
+
+Además, Mintpass ofrece datos antes (interesados, canales de conversión), durante (horas pico de acceso, intentos duplicados) y después del evento (asistentes recurrentes, elegibles para rewards), ayudando al organizador a aprender de su audiencia.
+
+## 10. Experiencia Web2 a Web3 sin Fricción
+
+Para que Mintpass pueda servir masivamente, la experiencia debe ser sencilla. El usuario no necesita entender qué es una wallet, gas o NFT. 
+- Onboarding tipo Web2 (email, Google, Apple).
+- Métodos de pago tradicionales.
+- Wallet embebida en segundo plano.
+- Y para usuarios nativos cripto: soporte completo para pago con SOL/USDC y conexión de wallet propia.
+
+> **Principio de producto:** El usuario no necesita entender Solana para beneficiarse de Solana.
+
+## 11. Modelo de Negocio
+
+El modelo se alinea al éxito del organizador, cobrando cuando genera valor:
+- **Comisión por boleto vendido.**
+- **Comisión por reventa oficial.**
+- **Planes Pro/Enterprise:** Para mayores volúmenes, custom branding y analytics.
+- **Servicios Premium de Fidelización:** Herramientas para preventas y rewards.
+
+## 12. Validaciones e Hipótesis de Adopción
+
+Durante la incubación, el objetivo principal es probar que los organizadores reales (artistas, bares, eventos locales) están dispuestos a adoptar Mintpass porque simplifica su operación, no solo por la tecnología blockchain. La señal de éxito se medirá a través de conversaciones, demos solicitadas, pilotos potenciales y pruebas completas del flujo end-to-end.
+
+## 13. Futuro y Roadmap Post-Incubación
+
+Más allá de la etapa actual, Mintpass tiene planeadas funcionalidades críticas para consolidar su ecosistema:
+- **Check-in Offline y QR Dinámico (TOTP):** Implementación de arquitectura PWA local y códigos TOTP para validación en puerta sin dependencia de red. El QR cambiará cada 30 segundos usando algoritmos basados en tiempo para evitar capturas. El escáner del staff descargará una base de datos local para validar accesos sin internet y sincronizarlos en lote a la blockchain al restaurar la conexión.
+- **Identidad y KYC (Know Your Customer):** Para eventos de alto perfil, refuerzo de la identidad en puerta y prevención robusta de fraude.
+- **Reputación de Organizadores:** Un registro on-chain público y verificable de eventos completados, consistencia y reembolsos, dando seguridad a los compradores.
+- **Plataforma de Reventa Oficial Dedicada:** Un hub secundario transparente y seguro donde los fans puedan comprar y vender entradas respetando el Price Cap.
+- **Página de Verificación de Boletos:** Un portal público donde cualquier asistente o tercero pueda comprobar la autenticidad y estado de un boleto.
+- **Pagos dentro del Evento:** Usar el propio boleto como método de pago (wallet embebida) para consumir alimentos, bebidas o merchandising en el evento (cashless).
+- **Agentes de IA:** En el futuro, asistentes digitales podrán usar la infraestructura abierta de Mintpass para comprar, verificar, revender o recomendar eventos de forma autónoma con base en datos verificables.
 
 ---
 
-## 3. Brechas Identificadas — v1 vs v2.0
-
-El proyecto se encuentra en transición hacia la versión 2.0 (modelo 100% custodial). Las principales áreas de actualización son:
-
-- **Infraestructura:** Migración a Next.js App Router y creación de una base de datos relacional (PostgreSQL + Prisma).
-- **Autenticación y Pagos:** Integración de Privy (wallets invisibles y login social) y pasarelas de pago fiat (MercadoPago / Stripe).
-- **Seguridad Anti-Fraude:** Desarrollo de mecanismos anti-reventa avanzados, incluyendo códigos QR con TOTP real y topes de precio (Price Cap) on-chain.
-- **Sincronización:** Adopción de webhooks y soporte offline (PWA + IndexedDB) para escaneo de boletos sin internet.
-
----
-
-## 4. Plan de Desarrollo — v2.0
-
-Las funcionalidades pendientes se dividen en 4 fases principales para su incubación:
-
-### 🔴 Fase 0 — Fundamentos
-- Modelado y configuración de la base de datos (PostgreSQL).
-- Autenticación con Privy (roles de staff, comprador y administrador).
-- Movimiento de la lógica blockchain a Server Actions seguras.
-
-### 🟡 Fase 1 — Funcionalidades Core
-- Pasarelas de pago fiat integradas (MercadoPago).
-- Minteo automático y custodial para el usuario.
-- Aplicación instalable (PWA) para el staff y escáner inteligente en modo offline.
-
-### 🟢 Fase 2 — Anti-Reventa
-- Límites de boletos vinculados a identidad real, no solo a la wallet.
-- Mercado secundario controlado con precios limitados desde el contrato (Anchor).
-- Listas negras y seguridad en los endpoints.
-
-### 🔵 Fase 3 — Post-MVP
-- Sistema de detección de patrones anómalos (Analytics de reventa).
-- Sincronización en red local (LAN Mesh) para puertas múltiples sin WiFi.
-- Sistema de taquilla para ventas físicas en el recinto.
+> *Mintpass dota de infraestructura a quienes quieren organizar eventos en la nueva economía digital, usando Solana como la capa de confianza que hace posible una experiencia más segura, abierta y escalable.*
